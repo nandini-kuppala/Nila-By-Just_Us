@@ -130,7 +130,12 @@ class FaceWatcher(
     var lastMotion: MotionEnergy.Reading = MotionEnergy.Reading(0f, 0f, 1f)
         private set
 
+    /** Guarded by the same monitor as [close]; see the note there. */
+    private var closed = false
+
+    @Synchronized
     fun analyse(frame: Bitmap): State {
+        if (closed) return State.Unavailable("stopped")
         lastMotion = motion.update(frame)
         val det = detector ?: return State.Unavailable(failureReason ?: "unavailable")
 
@@ -170,7 +175,25 @@ class FaceWatcher(
 
     val isAvailable: Boolean get() = detector != null
 
+    /**
+     * Release the detector, once, and never while a frame is in it.
+     *
+     * MediaPipe frees native memory here that the Java object holds no
+     * reference count for, so closing twice, or closing underneath a `detect`
+     * in flight, aborts the process rather than throwing something catchable.
+     * This one could be closed twice: it did not clear [detector], so a second
+     * call went straight back into the freed handle.
+     *
+     * The same shape as the crash in [com.nila.ml.TfliteRunner] -- stopping the
+     * demo cry closed the cry detector from two threads at once and took the
+     * app out. This lane reaches it a different way: the watch is shut down
+     * from the UI while a frame is still being analysed.
+     */
+    @Synchronized
     override fun close() {
+        if (closed) return
+        closed = true
         runCatching { detector?.close() }
+        detector = null
     }
 }

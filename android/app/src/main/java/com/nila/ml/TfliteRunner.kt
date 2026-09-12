@@ -64,10 +64,26 @@ class TfliteRunner private constructor(
     private val outputBuffer: ByteBuffer =
         ByteBuffer.allocateDirect(outputSize * 4).order(ByteOrder.nativeOrder())
 
+    /**
+     * Whether the native interpreter is still alive.
+     *
+     * Guarded by the same monitor as [run] and [close], because the thing this
+     * prevents is not a logic error -- it is a native abort. TensorFlow Lite's
+     * `Interpreter.close()` frees memory the JNI layer holds no reference count
+     * for, so closing it twice, or closing it underneath a running inference,
+     * takes the process out with SIGABRT. `runCatching` cannot catch that: it
+     * is not a Java exception, it is the runtime dying.
+     */
+    private var closed = false
+
     /** Runs the graph on [input] and writes probabilities into [out]. */
     @Synchronized
     fun run(input: FloatArray, out: FloatArray) {
         require(out.size >= outputSize) { "output array too small" }
+        // A window that arrives after the engine was closed is normal at the
+        // moment monitoring stops -- there is one in flight nearly every time.
+        // Before this it reached a freed interpreter.
+        if (closed) return
 
         inputBuffer.rewind()
         inputBuffer.asFloatBuffer().put(input)
@@ -101,7 +117,21 @@ class TfliteRunner private constructor(
         )
     }
 
+    /**
+     * Free the interpreter, once, and never while it is running.
+     *
+     * `@Synchronized` on the same monitor as [run] is the important half: it
+     * makes closing wait for an inference in flight instead of freeing the
+     * memory underneath it. The flag is the other half -- two callers closing
+     * the same engine was a real crash, not a hypothetical one. Stopping the
+     * demo cancelled the simulation coroutine and closed the engine from the
+     * main thread while the coroutine's own `finally` closed it again from a
+     * worker, and the second free aborted the process.
+     */
+    @Synchronized
     override fun close() {
+        if (closed) return
+        closed = true
         runCatching { interpreter.close() }
         runCatching { nnapi?.close() }
         runCatching { gpu?.close() }

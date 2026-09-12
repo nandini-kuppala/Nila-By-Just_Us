@@ -115,6 +115,9 @@ class PoseWatcher(
     val isAvailable: Boolean get() = landmarker != null
     val unavailableReason: String? get() = failureReason
 
+    /** Guarded by the same monitor as [close]; see the note there. */
+    private var closed = false
+
     /**
      * One frame, as a posture.
      *
@@ -124,7 +127,9 @@ class PoseWatcher(
      * needs to know is that the body cannot be seen, not which layer failed to
      * see it.
      */
+    @Synchronized
     fun analyse(frame: Bitmap): PoseReading {
+        if (closed) return PoseReading.ABSENT
         val model = landmarker ?: return PoseReading.ABSENT
         val result = try {
             model.detect(BitmapImageBuilder(frame).build())
@@ -164,7 +169,20 @@ class PoseWatcher(
         )
     }
 
+    /**
+     * Release the landmarker, once, and never while a frame is in it.
+     *
+     * Clearing [landmarker] already made a second close harmless, but the
+     * dangerous overlap is the other one: `analyse` reads the field into a
+     * local and then calls `detect` on it, so a close landing in between frees
+     * the native handle underneath a running inference. That is a process
+     * abort, not an exception. Sharing a monitor with [analyse] makes closing
+     * wait for the frame instead.
+     */
+    @Synchronized
     override fun close() {
+        if (closed) return
+        closed = true
         runCatching { landmarker?.close() }
         landmarker = null
     }
