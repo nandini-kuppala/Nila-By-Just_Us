@@ -241,14 +241,17 @@ private fun OtherEntry(entry: Timeline.Entry) {
         verticalAlignment = Alignment.Top,
         horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        Text(entry.clock, style = MaterialTheme.typography.titleSmall,
+        Text(entry.clockRange, style = MaterialTheme.typography.titleSmall,
              color = scheme.onSurfaceVariant)
         Column(
             modifier = Modifier.weight(1f),
             verticalArrangement = Arrangement.spacedBy(2.dp),
         ) {
-            Text(entry.title, style = MaterialTheme.typography.titleSmall,
-                 fontWeight = FontWeight.Medium)
+            Text(
+                if (entry.count > 1) "${entry.title} \u00d7${entry.count}" else entry.title,
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Medium,
+            )
             entry.summary?.let {
                 Text(it, style = MaterialTheme.typography.bodyMedium,
                      color = scheme.onSurfaceVariant)
@@ -281,10 +284,35 @@ object Timeline {
         val envelope: List<Int> = emptyList(),
         val clipPath: String? = null,
         val steps: List<Step> = emptyList(),
+        /** How many identical events this row stands for. One, unless folded. */
+        val count: Int = 1,
+        /** The oldest of them, when [count] is more than one. */
+        val fromMs: Long = atMs,
     ) {
         val clock: String
             get() = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(atMs))
+
+        /** `19:12` normally, `19:12-20:09` for a folded run. */
+        val clockRange: String
+            get() = if (count <= 1) clock
+            else "${SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(fromMs))}-$clock"
     }
+
+    /**
+     * How close two of the same event have to be to fold into one row.
+     *
+     * The camera lane is the reason this exists. A baby under a blanket
+     * produces "Out of view of the camera" every time the face detector loses
+     * and regains her, which on a restless evening is a dozen identical
+     * paragraphs -- and they push the cries, which are the thing somebody
+     * opened this screen to find, off the bottom of it. Folded, the same
+     * dozen is one row that says it happened twelve times and over what span,
+     * which is both shorter and more informative than the twelve were.
+     *
+     * An hour, because these are a state flapping rather than separate
+     * incidents; past an hour apart they are separate incidents.
+     */
+    private const val FOLD_WINDOW_MS = 60 * 60 * 1000L
 
     private val CRY_KINDS = setOf(
         "CRY_STARTED", "CRY_ONGOING", "CRY_ENDED",
@@ -305,9 +333,11 @@ object Timeline {
         val grouped = cryRows.groupBy { it.episodeId!! }
 
         val episodes = grouped.map { (id, rows) -> episodeEntry(id, rows) }
-        val loose = events
-            .filter { it.kind !in CRY_KINDS || it.episodeId == null }
-            .map { plainEntry(it) }
+        val loose = fold(
+            events
+                .filter { it.kind !in CRY_KINDS || it.episodeId == null }
+                .sortedByDescending { it.startedAtMs }
+        )
 
         return (episodes + loose).sortedByDescending { it.atMs }
     }
@@ -362,6 +392,54 @@ object Timeline {
             clipPath = ordered.firstNotNullOfOrNull { it.clipPath },
             steps = ordered.map { Step(readable(it), it.note) },
         )
+    }
+
+    /**
+     * Fold neighbouring events of the same kind into one row each.
+     *
+     * Runs only over consecutive rows, so a different event between two of the
+     * same kind splits the run -- "out of view, out of view" is one row, but
+     * "out of view, rolled over, out of view" is three, because in the second
+     * case something happened in between and hiding that would be a lie about
+     * the night.
+     *
+     * Severity is the strongest in the run, never the newest: a run that
+     * contains one CRITICAL is a critical row.
+     */
+    private fun fold(newestFirst: List<EventRecord>): List<Entry> {
+        val out = mutableListOf<Entry>()
+        var run = mutableListOf<EventRecord>()
+
+        fun flush() {
+            if (run.isEmpty()) return
+            val newest = run.first()
+            val oldest = run.last()
+            val worst = run.maxByOrNull { it.severityLevel } ?: newest
+            out += plainEntry(newest).copy(
+                severity = worst.severity,
+                count = run.size,
+                fromMs = oldest.startedAtMs,
+                summary = if (run.size == 1) plainEntry(newest).summary
+                          else buildString {
+                              append(run.size).append(" times. ")
+                              // The body once, from the strongest of them --
+                              // the CRITICAL wording is the one worth keeping.
+                              plainEntry(worst).summary?.let(::append)
+                          }.trim(),
+            )
+            run = mutableListOf()
+        }
+
+        newestFirst.forEach { event ->
+            val last = run.lastOrNull()
+            val joins = last != null &&
+                last.kind == event.kind &&
+                last.startedAtMs - event.startedAtMs <= FOLD_WINDOW_MS
+            if (!joins) flush()
+            run.add(event)
+        }
+        flush()
+        return out
     }
 
     private fun plainEntry(event: EventRecord): Entry = Entry(

@@ -168,6 +168,88 @@ class TimelineTest {
         assertEquals("The crying stopped", entries.single().title)
     }
 
+    // ----------------------------------------------------- repeated events
+
+    private fun vision(kind: String, atMs: Long, severity: Severity = Severity.URGENT) =
+        row(kind, null, atMs, severity = severity)
+
+    /**
+     * The camera lane is why folding exists. A baby under a blanket makes the
+     * face detector lose and regain her every minute or two, and a dozen
+     * identical paragraphs push the cries -- the thing somebody opened this
+     * screen to find -- off the bottom of it.
+     */
+    @Test
+    fun `repeats of one event become one row with a count`() {
+        val entries = Timeline.collapse(
+            listOf(
+                vision("OUT_OF_VIEW", 60_000),
+                vision("OUT_OF_VIEW", 120_000),
+                vision("OUT_OF_VIEW", 180_000),
+            )
+        )
+        assertEquals(1, entries.size)
+        assertEquals(3, entries.single().count)
+        assertEquals(180_000L, entries.single().atMs)
+        assertEquals(60_000L, entries.single().fromMs)
+        assertTrue(entries.single().clockRange.contains("-"))
+    }
+
+    /** Something happening in between is not a repeat, and hiding it would lie. */
+    @Test
+    fun `a different event in between splits the run`() {
+        val entries = Timeline.collapse(
+            listOf(
+                vision("OUT_OF_VIEW", 60_000),
+                vision("ROLLED_TO_FRONT", 120_000),
+                vision("OUT_OF_VIEW", 180_000),
+            )
+        )
+        assertEquals(3, entries.size)
+        assertTrue(entries.all { it.count == 1 })
+    }
+
+    @Test
+    fun `events an hour apart are separate incidents`() {
+        val hour = 60 * 60 * 1000L
+        val entries = Timeline.collapse(
+            listOf(vision("OUT_OF_VIEW", 0), vision("OUT_OF_VIEW", hour + 60_000))
+        )
+        assertEquals(2, entries.size)
+    }
+
+    /** A run holding one CRITICAL is a critical row, whatever the newest was. */
+    @Test
+    fun `a folded run takes the strongest severity in it`() {
+        val entries = Timeline.collapse(
+            listOf(
+                vision("OUT_OF_VIEW", 60_000, Severity.CRITICAL),
+                vision("OUT_OF_VIEW", 120_000, Severity.NOTE),
+            )
+        )
+        assertEquals(Severity.CRITICAL, entries.single().severity)
+    }
+
+    @Test
+    fun `a single event is not dressed up as a run`() {
+        val entry = Timeline.collapse(listOf(vision("STILLNESS", 60_000))).single()
+        assertEquals(1, entry.count)
+        assertEquals(entry.clock, entry.clockRange)
+    }
+
+    /** Folding must never reach across a cry and swallow it. */
+    @Test
+    fun `cries survive the folding beside them`() {
+        val entries = Timeline.collapse(
+            episode(1, 120_000) + listOf(
+                vision("OUT_OF_VIEW", 60_000),
+                vision("OUT_OF_VIEW", 180_000),
+            )
+        )
+        assertEquals(1, entries.count { it.isCry })
+        assertEquals(2, entries.size)
+    }
+
     @Test
     fun `an empty log folds to nothing`() {
         assertTrue(Timeline.collapse(emptyList()).isEmpty())
