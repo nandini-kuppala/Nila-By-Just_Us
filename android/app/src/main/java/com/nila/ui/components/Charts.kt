@@ -48,6 +48,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import kotlin.math.max
 import kotlin.math.roundToInt
 
@@ -257,7 +258,12 @@ fun DonutChart(
                     start += angle
                 }
             }
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Column(
+                // Constrained to the hole. Unbounded, a two-word label sets its
+                // own width and prints straight over the ring it is sitting in.
+                modifier = Modifier.width(diameter * 0.58f),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
                 Text(
                     centreValue,
                     style = MaterialTheme.typography.headlineSmall
@@ -267,9 +273,10 @@ fun DonutChart(
                 )
                 Text(
                     centreLabel,
-                    style = MaterialTheme.typography.labelMedium,
+                    style = MaterialTheme.typography.labelSmall,
                     color = scheme.onSurfaceVariant,
                     textAlign = TextAlign.Center,
+                    lineHeight = 13.sp,
                 )
             }
         }

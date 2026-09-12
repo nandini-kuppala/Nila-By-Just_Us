@@ -204,16 +204,19 @@ private fun LadderOutcomes(insights: Insights.Summary) {
         OutlinedBox(modifier = Modifier.fillMaxWidth()) {
             Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 DonutChart(
+                    // Short labels, because the legend gives each one a third
+                    // of the card's width and the sentence underneath says the
+                    // whole thing in words anyway.
                     wedges = listOf(
-                        Wedge("Settled on her own", o.settledAlone.toFloat(), palette.sleep,
+                        Wedge("On her own", o.settledAlone.toFloat(), palette.sleep,
                               "${o.settledAlone} · ${percent(o.settledAlone.toFloat(), total)}%"),
-                        Wedge("A sound settled her", o.settledBySound.toFloat(), palette.feed,
+                        Wedge("A sound", o.settledBySound.toFloat(), palette.feed,
                               "${o.settledBySound} · ${percent(o.settledBySound.toFloat(), total)}%"),
                         Wedge("Nila woke you", o.wokeYou.toFloat(), palette.cry,
                               "${o.wokeYou} · ${percent(o.wokeYou.toFloat(), total)}%"),
                     ).filter { it.value > 0f },
                     centreValue = "${o.handledAlone}%",
-                    centreLabel = "never\nreached you",
+                    centreLabel = "never woke\nyou",
                     diameter = 132.dp,
                 )
                 Text(
@@ -366,18 +369,27 @@ private fun ModelQuality() {
                 )
                 Text(
                     "Area under the curve, on recordings of infants the models never " +
-                        "heard during training. That is the only kind of test that " +
-                        "predicts how they behave on your baby.",
+                        "heard during training - the only kind of test that predicts " +
+                        "how they behave on your baby. Model card generated " +
+                        "${ModelCard.GENERATED_ON}.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = scheme.onSurface,
                 )
 
-                Row(modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween) {
+                // Weighted, not spaced-between. Unconstrained, each block sizes
+                // to its own text and the labels run into each other -- this row
+                // read "DETECTION RECALLCLIPS TESTEDCARD BUILT".
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
                     StatBlock("Detection recall",
-                              "%.0f%%".format(ModelCard.DETECT_RECALL_CRY * 100))
-                    StatBlock("Clips tested", "${ModelCard.DETECT_TEST_CLIPS}")
-                    StatBlock("Card built", ModelCard.GENERATED_ON)
+                              "%.0f%%".format(ModelCard.DETECT_RECALL_CRY * 100),
+                              Modifier.weight(1f))
+                    StatBlock("Detect clips", "${ModelCard.DETECT_TEST_CLIPS}",
+                              Modifier.weight(1f))
+                    StatBlock("Cause clips", "${ModelCard.REASON_TEST_CLIPS}",
+                              Modifier.weight(1f))
                 }
 
                 HedgeNote(
@@ -521,7 +533,11 @@ private fun OnThisPhone(
                     )
                 }
 
-                if (monitor.latencySamples == 0 && dutyCycle == null) {
+                // Gone once anything has actually been measured, including by
+                // the button directly above it -- an invitation to measure,
+                // printed under a measurement, reads as a card that ignored
+                // the thing it just did.
+                if (monitor.latencySamples == 0 && dutyCycle == null && selfTest == null) {
                     Text(
                         "Start monitoring, or run the check above, and this card " +
                             "fills in with numbers measured on this device rather " +
