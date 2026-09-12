@@ -39,6 +39,9 @@ import com.nila.data.CareKind
 import com.nila.ui.AppState
 import com.nila.ui.components.OutlinedBox
 import com.nila.ui.components.SectionHeader
+import com.nila.ui.theme.Appearance
+import com.nila.ui.theme.ThemeMode
+import androidx.compose.ui.platform.LocalContext
 
 @Composable
 fun SettingsScreen(state: AppState) {
@@ -70,6 +73,10 @@ fun SettingsScreen(state: AppState) {
     ) {
         Text("Settings", style = MaterialTheme.typography.headlineMedium,
              fontWeight = FontWeight.SemiBold)
+
+        Appearance()
+
+        CryRecordings(state)
 
         // Shown the moment an unknown sticker is tapped, wherever the user is.
         if (pendingTag != null) {
@@ -703,6 +710,143 @@ private fun ParentPairing(
                     onClick = state::requestFullScreenAlerts,
                     modifier = Modifier.fillMaxWidth(),
                 ) { Text("Allow full-screen alerts") }
+            }
+        }
+    }
+}
+
+/**
+ * Light, dark, or whatever the phone says.
+ *
+ * The top bar has a one-tap switch between light and dark, which is the control
+ * people actually use. This is the other half of it: the way back to following
+ * the system, which a two-state button cannot express, and the only place all
+ * three states are named so somebody can tell which one they are in.
+ */
+@Composable
+private fun Appearance() {
+    val context = LocalContext.current
+    val mode by com.nila.ui.theme.Appearance.mode.collectAsState()
+
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        SectionHeader("Appearance")
+        OutlinedBox(modifier = Modifier.fillMaxWidth()) {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    ThemeMode.entries.forEach { option ->
+                        val selected = option == mode
+                        if (selected) {
+                            Button(
+                                onClick = { },
+                                modifier = Modifier.weight(1f),
+                                contentPadding = androidx.compose.foundation.layout
+                                    .PaddingValues(horizontal = 4.dp, vertical = 10.dp),
+                            ) { Text(option.label, maxLines = 1) }
+                        } else {
+                            OutlinedButton(
+                                onClick = {
+                                    com.nila.ui.theme.Appearance.set(context, option)
+                                },
+                                modifier = Modifier.weight(1f),
+                                contentPadding = androidx.compose.foundation.layout
+                                    .PaddingValues(horizontal = 4.dp, vertical = 10.dp),
+                            ) { Text(option.label, maxLines = 1) }
+                        }
+                    }
+                }
+                Text(
+                    "System follows the phone's own light and dark setting. The " +
+                        "sun and moon button at the top of every screen switches " +
+                        "between the two without coming in here.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Whether Nila keeps the sound of a difficult cry, and what that means.
+ *
+ * Written out rather than reduced to a switch label, because this is the one
+ * setting in the app that decides whether a microphone in a nursery produces a
+ * file. A parent turning it off deserves to know exactly what stops, and a
+ * parent leaving it on deserves to know exactly what is kept, for how long, and
+ * where it can and cannot go.
+ */
+@Composable
+private fun CryRecordings(state: AppState) {
+    val enabled by com.nila.data.ClipPolicy.enabled.collectAsState()
+    val held by state.clipsHeld.collectAsState()
+    val context = LocalContext.current
+    val scheme = MaterialTheme.colorScheme
+
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        SectionHeader("Recordings of difficult cries")
+        OutlinedBox(modifier = Modifier.fillMaxWidth()) {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Keep the audio", style = MaterialTheme.typography.titleSmall,
+                             fontWeight = FontWeight.SemiBold)
+                        Text(
+                            if (enabled) "On - cries that woke you, ran to three " +
+                                "minutes, or came back as pain are kept"
+                            else "Off - nothing is recorded",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = scheme.onSurfaceVariant,
+                        )
+                    }
+                    Switch(
+                        checked = enabled,
+                        onCheckedChange = { com.nila.data.ClipPolicy.set(context, it) },
+                    )
+                }
+
+                Text(
+                    "The clip is the only thing on the screen you can check for " +
+                        "yourself, and the only thing a doctor can be given that is " +
+                        "evidence rather than a recollection. It stays in this app's " +
+                        "private storage: no other app can read it, nothing uploads " +
+                        "it, and it is left out of every backup. Kept clips are " +
+                        "deleted after ${com.nila.audio.EpisodeRecorder.KEEP_DAYS} " +
+                        "days; ordinary ones after " +
+                        "${com.nila.audio.EpisodeRecorder.RETAIN_DAYS}.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = scheme.onSurfaceVariant,
+                )
+
+                if (held.count > 0) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            "${held.count} " +
+                                (if (held.count == 1) "recording" else "recordings") +
+                                ", ${held.readableSize}",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = scheme.onSurface,
+                        )
+                        TextButton(onClick = state::deleteAllClips) {
+                            Text("Delete them all")
+                        }
+                    }
+                }
+
+                if (!enabled) {
+                    Text(
+                        "Turning this off changes nothing about detection, the " +
+                            "soothing sounds or the alerts. Only the audio.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = scheme.onSurfaceVariant,
+                    )
+                }
             }
         }
     }

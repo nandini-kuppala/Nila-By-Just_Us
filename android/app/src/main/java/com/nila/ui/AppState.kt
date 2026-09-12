@@ -29,6 +29,9 @@ import com.nila.data.EventRecord
 import com.nila.monitor.MonitorService
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -82,6 +85,105 @@ class AppState(app: Application) : AndroidViewModel(app) {
 
     private val _colic = MutableStateFlow(ColicSummary())
     val colic: StateFlow<ColicSummary> = _colic.asStateFlow()
+
+    // --------------------------------------------------------- the dashboard
+
+    /**
+     * How far back the charts read, fixed when the screen is first built.
+     *
+     * Eight days rather than seven: the window is a *query* bound, and a query
+     * bound that is exactly the display window loses the first day the moment
+     * the app is left open past midnight. The extra day costs a handful of rows
+     * and means [Insights] always has a full week to arrange.
+     */
+    private val insightWindowStartMs =
+        System.currentTimeMillis() - TimeUnit.DAYS.toMillis(Insights.DAYS + 1L)
+
+    /**
+     * The week, arranged.
+     *
+     * Derived from the rows rather than stored: there is no dashboard state to
+     * keep in sync, and a cry logged by the service or a feed tapped on the
+     * watch redraws every chart without anything having to remember to ask.
+     * The arranging itself is off the main thread because it walks a week of
+     * episodes into twenty-four hourly buckets, which is cheap but not free.
+     */
+    val insights: StateFlow<Insights.Summary> = combine(
+        db.events().observeSince(insightWindowStartMs),
+        db.care().observeSince(insightWindowStartMs),
+    ) { events, care ->
+        Insights.build(System.currentTimeMillis(), events, care)
+    }
+        .flowOn(Dispatchers.Default)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), Insights.Summary())
+
+    /**
+     * When the sleep in progress started, or null when the baby is awake.
+     *
+     * The sleep log used to be write-only -- every tap wrote `SLEEP_START` and
+     * nothing ever wrote an end, so "she slept" was a timestamp with no
+     * duration attached and there was no honest way to chart a night. The
+     * button alternates now, which costs the person using it at 3am nothing
+     * extra and is the whole reason a sleep chart can exist at all.
+     *
+     * The tracker's running clock ticks from this in the UI rather than being
+     * pushed from here on a timer: a view model that emits a new value every
+     * second to redraw one line of text is a wake-up a monitor app running all
+     * night cannot justify.
+     */
+    val asleepSinceMs: StateFlow<Long?> = care.map {
+        Insights.openSleepSince(it, System.currentTimeMillis())
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    /**
+     * How much cry audio this phone is holding, for the settings screen.
+     *
+     * A count and a size rather than a list. The point of showing it is that a
+     * parent can see the feature has a footprint and can end it in one tap;
+     * browsing thirty recordings of their own baby crying is not something
+     * anybody wants from a settings screen.
+     */
+    data class ClipsHeld(val count: Int = 0, val bytes: Long = 0L) {
+        val readableSize: String
+            get() = when {
+                bytes >= 1_000_000 -> "%.1f MB".format(bytes / 1_000_000.0)
+                bytes > 0 -> "${bytes / 1000} kB"
+                else -> "0 kB"
+            }
+    }
+
+    private val _clipsHeld = MutableStateFlow(ClipsHeld())
+    val clipsHeld: StateFlow<ClipsHeld> = _clipsHeld.asStateFlow()
+
+    /**
+     * Delete every kept recording, and forget the paths that pointed at them.
+     *
+     * Both halves, in that order. Deleting the files alone would leave the
+     * timeline offering a play button for audio that is gone, which reads as a
+     * broken app rather than as a setting that worked.
+     */
+    fun deleteAllClips() {
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) {
+                com.nila.audio.EpisodeRecorder.deleteAll(getApplication())
+            }
+            db.events().clearClips()
+            refresh()
+        }
+    }
+
+    /**
+     * Log the other end of whichever sleep state we are in.
+     *
+     * Read from the care rows rather than from [asleepSinceMs], so the tap
+     * cannot act on a cached value: the flow is `WhileSubscribed`, and a
+     * stopwatch that starts a second sleep because its own state had gone cold
+     * writes a log that no longer describes a night.
+     */
+    fun toggleSleep() {
+        val open = Insights.openSleepSince(care.value, System.currentTimeMillis()) != null
+        logCare(if (open) CareKind.SLEEP_END else CareKind.SLEEP_START)
+    }
 
     private val _sootheStats = MutableStateFlow<List<SootheMemory.Stats>>(emptyList())
     val sootheStats: StateFlow<List<SootheMemory.Stats>> = _sootheStats.asStateFlow()
@@ -321,6 +423,10 @@ class AppState(app: Application) : AndroidViewModel(app) {
                 recorded.map { it.nameWithoutExtension } + Soother.builtIns.map { it.id }
             )
             _colic.value = computeColic()
+            _clipsHeld.value = withContext(Dispatchers.IO) {
+                val files = com.nila.audio.EpisodeRecorder.existing(getApplication())
+                ClipsHeld(files.size, files.sumOf { it.length() })
+            }
             _reminders.value = reminders.settings()
             _irRemote.value = irActuator.remote()
             _modelState.value = modelInstaller.state()
