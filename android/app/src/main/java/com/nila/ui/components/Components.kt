@@ -1,0 +1,362 @@
+package com.nila.ui.components
+
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.layout.width
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Mic
+import androidx.compose.material.icons.outlined.VolumeUp
+import androidx.compose.material3.Icon
+import androidx.compose.runtime.getValue
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.nila.data.Severity
+import com.nila.ui.theme.calmColors
+import com.nila.ui.theme.severityColors
+
+/**
+ * Severity as a chip.
+ *
+ * Colour is never the only carrier -- each chip also has a distinct label, so it
+ * survives colour-blindness and a glance from across a dark room. That is the
+ * same reason the layout changes with severity rather than only the hue.
+ */
+@Composable
+fun SeverityChip(severity: Severity, modifier: Modifier = Modifier) {
+    val colors = severityColors(severity)
+    Surface(color = colors.container, shape = RoundedCornerShape(4.dp),
+            modifier = modifier) {
+        Text(
+            text = severity.label.uppercase(),
+            color = colors.accent,
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.SemiBold,
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+        )
+    }
+}
+
+@Composable
+fun CalmChip(text: String, modifier: Modifier = Modifier) {
+    val colors = calmColors()
+    Surface(color = colors.container, shape = RoundedCornerShape(4.dp),
+            modifier = modifier) {
+        Text(
+            text = text,
+            color = colors.accent,
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.SemiBold,
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+        )
+    }
+}
+
+/**
+ * The cry intensity sparkline.
+ *
+ * This is the honest visual in the app. Unlike a cause label, the shape of the
+ * envelope is something we genuinely measured, and it answers the question a
+ * parent in the next room actually has: is this building or dying down.
+ */
+@Composable
+fun IntensityCurve(
+    points: List<Int>,
+    modifier: Modifier = Modifier,
+    height: Dp = 56.dp,
+    color: Color = MaterialTheme.colorScheme.primary,
+) {
+    val track = MaterialTheme.colorScheme.surfaceContainer
+    Canvas(modifier = modifier.fillMaxWidth().height(height)) {
+        val w = size.width
+        val h = size.height
+
+        drawLine(
+            color = track,
+            start = Offset(0f, h),
+            end = Offset(w, h),
+            strokeWidth = 1.5f,
+        )
+        if (points.size < 2) return@Canvas
+
+        val step = w / (points.size - 1).toFloat()
+        val path = Path()
+        points.forEachIndexed { i, value ->
+            val x = i * step
+            val y = h - (value / 100f).coerceIn(0f, 1f) * (h - 4f)
+            if (i == 0) path.moveTo(x, y) else path.lineTo(x, y)
+        }
+        drawPath(path, color, style = Stroke(width = 2.5f, cap = StrokeCap.Round))
+
+        // Emphasised endpoint: where the cry is *now* is the part being read.
+        val lastX = (points.size - 1) * step
+        val lastY = h - (points.last() / 100f).coerceIn(0f, 1f) * (h - 4f)
+        drawCircle(color, radius = 4f, center = Offset(lastX, lastY))
+    }
+}
+
+/** A labelled fact. Used wherever a number needs its unit and meaning attached. */
+@Composable
+fun StatBlock(label: String, value: String, modifier: Modifier = Modifier) {
+    Column(modifier = modifier) {
+        Text(
+            text = label.uppercase(),
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Text(
+            text = value,
+            style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onSurface,
+        )
+    }
+}
+
+/** The slow pulse that says the guardian is awake. */
+@Composable
+fun PulseDot(active: Boolean, size: Dp = 10.dp, modifier: Modifier = Modifier) {
+    // The dot sits on the app surface, not on a severity ground, so it takes
+    // the accent for the current theme rather than the light-only green.
+    val color = if (active) calmColors().accent
+                else MaterialTheme.colorScheme.outline
+    Box(
+        modifier = modifier
+            .size(size)
+            .clip(CircleShape)
+            .background(color)
+    )
+}
+
+/** An inline caveat. Present whenever a claim has a limit, never empty. */
+@Composable
+fun HedgeNote(text: String, modifier: Modifier = Modifier) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(6.dp))
+            .background(MaterialTheme.colorScheme.surfaceContainer)
+            .padding(12.dp),
+        verticalAlignment = Alignment.Top,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Text("i", style = MaterialTheme.typography.labelMedium,
+             fontWeight = FontWeight.Bold,
+             color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(
+            text = text,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            fontSize = 14.sp,
+        )
+    }
+}
+
+@Composable
+fun SectionHeader(text: String, modifier: Modifier = Modifier) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.titleMedium,
+        color = MaterialTheme.colorScheme.onSurface,
+        modifier = modifier.padding(bottom = 8.dp),
+    )
+}
+
+@Composable
+fun OutlinedBox(modifier: Modifier = Modifier, content: @Composable () -> Unit) {
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(10.dp))
+            .background(MaterialTheme.colorScheme.surfaceContainerLowest)
+            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(10.dp))
+            .padding(16.dp)
+    ) { content() }
+}
+
+/**
+ * A live microphone level.
+ *
+ * This exists because "Listening" is a claim, not evidence. An emulator with no
+ * audio input, a phone whose microphone another app has grabbed, and a genuinely
+ * quiet nursery all produce identical text -- and the first two are failures a
+ * parent needs to find out about before the night, not after it. A bar that
+ * moves when you clap settles the question in one second.
+ */
+@Composable
+fun InputLevelMeter(
+    level: Float,
+    dbfs: Float,
+    modifier: Modifier = Modifier,
+) {
+    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            Text(
+                "MICROPHONE",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
+                if (dbfs <= -79f) "silent" else "${dbfs.toInt()} dB",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(6.dp)
+                .clip(RoundedCornerShape(3.dp))
+                .background(MaterialTheme.colorScheme.surfaceContainerHighest)
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth(level.coerceIn(0f, 1f))
+                    .fillMaxHeight()
+                    .clip(RoundedCornerShape(3.dp))
+                    .background(MaterialTheme.colorScheme.primary)
+            )
+        }
+    }
+}
+
+/** An amber caution box. Used where the app is working but something is wrong. */
+@Composable
+fun WarningBox(title: String, body: String, modifier: Modifier = Modifier) {
+    // The body used to be `onSurfaceVariant`, which is a near-white in the dark
+    // scheme, on a hardcoded pale amber ground. Every warning in the app was
+    // unreadable at night -- including the one that says the microphone has
+    // gone dead.
+    val colors = severityColors(Severity.ATTENTION)
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(14.dp))
+            .background(colors.container)
+            .padding(14.dp)
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(
+                title,
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold,
+                color = colors.accent,
+            )
+            Text(
+                body,
+                style = MaterialTheme.typography.bodyMedium,
+                color = colors.onContainer,
+            )
+        }
+    }
+}
+
+/**
+ * A sound that is playing, shown as a voice note rather than a caption.
+ *
+ * The escalation ladder's middle rung -- try something before waking anyone --
+ * used to appear on screen as a line of text that changed and changed back.
+ * People read that as a log entry, not as an action the phone was taking, and
+ * the single most common reaction to the demo was not noticing it had happened.
+ * Bars that move while the speaker is making noise fix that without a word.
+ */
+@Composable
+fun VoiceNoteBar(
+    name: String,
+    isVoice: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    val transition = rememberInfiniteTransition(label = "voice-note")
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(10.dp))
+            .background(MaterialTheme.colorScheme.secondaryContainer)
+            .padding(horizontal = 14.dp, vertical = 11.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(11.dp),
+    ) {
+        Icon(
+            imageVector = if (isVoice) Icons.Outlined.Mic else Icons.Outlined.VolumeUp,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSecondaryContainer,
+            modifier = Modifier.size(19.dp),
+        )
+
+        // Seven bars, each on its own period, so the group never pulses in
+        // unison -- which reads as a progress indicator rather than sound.
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(3.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.height(22.dp),
+        ) {
+            val periods = listOf(430, 610, 350, 700, 480, 560, 390)
+            periods.forEach { period ->
+                val h by transition.animateFloat(
+                    initialValue = 0.22f,
+                    targetValue = 1f,
+                    animationSpec = infiniteRepeatable(
+                        animation = tween(period, easing = LinearEasing),
+                        repeatMode = RepeatMode.Reverse,
+                    ),
+                    label = "bar",
+                )
+                Box(
+                    modifier = Modifier
+                        .width(3.dp)
+                        .fillMaxHeight(h)
+                        .clip(RoundedCornerShape(2.dp))
+                        .background(MaterialTheme.colorScheme.onSecondaryContainer)
+                )
+            }
+        }
+
+        Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
+            Text(
+                text = name,
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSecondaryContainer,
+            )
+            Text(
+                text = if (isVoice) "Your recorded voice, playing now"
+                       else "Playing now",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSecondaryContainer,
+            )
+        }
+    }
+}
+
