@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-16.0 -16.0 1192.0 300.0" width="1192" height="300" role="img" aria-label="The escalation ladder"><style>
+  .n{fill:#FFFFFF;stroke:#C0CBC6;stroke-width:1.1}
+  .n.hi{fill:#E0F0EC;stroke:#0F6B60}
+  .n.am{fill:#F8EEDA;stroke:#D8B972}
+  .n.st{fill:#EBEFEC;stroke:#C0CBC6}
+  .n.out{fill:#F6F8F6;stroke:#6A7873}
+  .bx{fill:none;stroke:#0F6B60;stroke-width:1.4}
+  .bx.dash{stroke:#6A7873;stroke-dasharray:6 4;stroke-width:1}
+  .nt{fill:#0B1512;font-size:12.5px;font-weight:600;font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
+  .nt.sm{font-size:11.5px}
+  .ns{fill:#6A7873;font-size:10px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+  .lbl{fill:#0F6B60;font-size:10px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;letter-spacing:.14em;font-weight:600}
+  .lbl.am{fill:#8A5E10}
+  .lbl.gr{fill:#6A7873}
+  .ax{fill:#6A7873;font-size:10px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+  .ln{stroke:#C0CBC6;stroke-width:1.3;fill:none}
+  .ln.t{stroke:#0F6B60;stroke-width:1.5}
+  .ln.am{stroke:#8A5E10;stroke-dasharray:5 3}
+  .axis{stroke:#C0CBC6;stroke-width:1}
+  .tim{fill:#0F6B60;font-size:14px;font-weight:600;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+</style><rect x="-15.5" y="-15.5" width="1191.0" height="299.0" rx="6" fill="#F6F8F6" stroke="#C0CBC6"/>
+        <defs>
+          <marker id="diagram-ladder-ar" viewBox="0 0 10 8" refX="9" refY="4" markerWidth="7" markerHeight="6" orient="auto"><polygon points="0,0 10,4 0,8" fill="#C0CBC6"></polygon></marker>
+          <marker id="diagram-ladder-art" viewBox="0 0 10 8" refX="9" refY="4" markerWidth="7" markerHeight="6" orient="auto"><polygon points="0,0 10,4 0,8" fill="#0F6B60"></polygon></marker>
+        </defs>
+        <rect class="n hi" x="189" y="22" width="170" height="60" rx="3"></rect>
+        <text class="tim" x="203" y="42">20 s</text>
+        <text class="nt"  x="203" y="60">Play something</text>
+        <text class="ns"  x="203" y="74">your own recorded voice</text>
+
+        <rect class="n" x="546" y="22" width="170" height="60" rx="3"></rect>
+        <text class="tim" x="560" y="42">55 s</text>
+        <text class="nt"  x="560" y="60">Still building?</text>
+        <text class="ns"  x="560" y="74">stop trying, escalate</text>
+
+        <rect class="n" x="107" y="92" width="170" height="60" rx="3"></rect>
+        <text class="tim" x="121" y="112">12 s</text>
+        <text class="nt"  x="121" y="130">Note it</text>
+        <text class="ns"  x="121" y="144">one line in the log</text>
+
+        <rect class="n hi" x="342" y="92" width="170" height="60" rx="3"></rect>
+        <text class="tim" x="356" y="112">35 s</text>
+        <text class="nt"  x="356" y="130">Check it</text>
+        <text class="ns"  x="356" y="144">did the sound help?</text>
+
+        <rect class="n am" x="920" y="92" width="170" height="60" rx="3"></rect>
+        <text class="tim" x="934" y="112" fill="#8A5E10">100 s</text>
+        <text class="nt"  x="934" y="130">Wake a parent</text>
+        <text class="ns"  x="934" y="144">saying what it tried</text>
+
+        <line class="ln" x1="274"  y1="82"  x2="274"  y2="178"></line>
+        <line class="ln" x1="631"  y1="82"  x2="631"  y2="178"></line>
+        <line class="ln" x1="192"  y1="152" x2="192"  y2="178"></line>
+        <line class="ln" x1="427"  y1="152" x2="427"  y2="178"></line>
+        <line class="ln" x1="1005" y1="152" x2="1005" y2="178"></line>
+
+        <line class="axis" x1="70" y1="184" x2="1090" y2="184" marker-end="url(#diagram-ladder-ar)"></line>
+        <line class="axis" x1="192" y1="178" x2="192" y2="190"></line>
+        <line class="axis" x1="274" y1="178" x2="274" y2="190"></line>
+        <line class="axis" x1="427" y1="178" x2="427" y2="190"></line>
+        <line class="axis" x1="631" y1="178" x2="631" y2="190"></line>
+        <line class="axis" x1="1005" y1="178" x2="1005" y2="190"></line>
+        <text class="ax" x="70" y="206">0 s · she starts</text>
+        <text class="ax" x="1090" y="206" text-anchor="end">100 s · hard ceiling</text>
+
+        <path class="ln t" d="M 427 198 C 427 246, 274 246, 274 200" marker-end="url(#diagram-ladder-art)"></path>
+        <text class="lbl" x="350" y="262" text-anchor="middle">THE OUTCOME IS WRITTEN BACK TO THAT SOUND'S RECORD</text>
+      </svg>

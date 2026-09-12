@@ -1,0 +1,92 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-16.0 -16.0 1232.0 418.0" width="1232" height="418" role="img" aria-label="One baby, every screen"><style>
+  .n{fill:#FFFFFF;stroke:#C0CBC6;stroke-width:1.1}
+  .n.hi{fill:#E0F0EC;stroke:#0F6B60}
+  .n.am{fill:#F8EEDA;stroke:#D8B972}
+  .n.st{fill:#EBEFEC;stroke:#C0CBC6}
+  .n.out{fill:#F6F8F6;stroke:#6A7873}
+  .bx{fill:none;stroke:#0F6B60;stroke-width:1.4}
+  .bx.dash{stroke:#6A7873;stroke-dasharray:6 4;stroke-width:1}
+  .nt{fill:#0B1512;font-size:12.5px;font-weight:600;font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
+  .nt.sm{font-size:11.5px}
+  .ns{fill:#6A7873;font-size:10px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+  .lbl{fill:#0F6B60;font-size:10px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;letter-spacing:.14em;font-weight:600}
+  .lbl.am{fill:#8A5E10}
+  .lbl.gr{fill:#6A7873}
+  .ax{fill:#6A7873;font-size:10px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+  .ln{stroke:#C0CBC6;stroke-width:1.3;fill:none}
+  .ln.t{stroke:#0F6B60;stroke-width:1.5}
+  .ln.am{stroke:#8A5E10;stroke-dasharray:5 3}
+  .axis{stroke:#C0CBC6;stroke-width:1}
+  .tim{fill:#0F6B60;font-size:14px;font-weight:600;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+</style><rect x="-15.5" y="-15.5" width="1231.0" height="417.0" rx="6" fill="#F6F8F6" stroke="#C0CBC6"/>
+        <defs>
+          <marker id="diagram-mesh-a3" viewBox="0 0 10 8" refX="9" refY="4" markerWidth="7" markerHeight="6" orient="auto"><polygon points="0,0 10,4 0,8" fill="#0F6B60"></polygon></marker>
+        </defs>
+
+        <!-- the guardian phone -->
+        <rect class="n hi" x="24" y="96" width="216" height="128" rx="4"></rect>
+        <text class="lbl" x="42" y="122">AT THE COT</text>
+        <text class="nt" x="42" y="146" style="font-size:14px">The phone</text>
+        <text class="ns" x="42" y="164">microphone · camera</text>
+        <text class="ns" x="42" y="179">all eight models</text>
+        <text class="ns" x="42" y="194">screen off, on charge</text>
+        <text class="ns" x="42" y="209">phone stays silent</text>
+
+        <!-- tier 1 -->
+        <rect class="n" x="392" y="20" width="330" height="86" rx="3"></rect>
+        <text class="lbl gr" x="410" y="42">TIER 1 · ZERO SETUP</text>
+        <text class="nt" x="410" y="64">Any paired watch or band</text>
+        <text class="ns" x="410" y="80">a high-importance notification, bridged by Wear OS</text>
+        <text class="ns" x="410" y="94">works today on hardware people already own</text>
+
+        <!-- tier 2 -->
+        <rect class="n hi" x="392" y="126" width="330" height="86" rx="3"></rect>
+        <text class="lbl" x="410" y="148">TIER 2 · THE NILA WATCH APP</text>
+        <text class="nt" x="410" y="170">Live state, not a frozen card</text>
+        <text class="ns" x="410" y="186">Data Layer · /nila/state · /nila/alert · /nila/ask</text>
+        <text class="ns" x="410" y="200">a running cry timer and a severity you can feel</text>
+
+        <!-- tier 3 -->
+        <rect class="n" x="392" y="232" width="330" height="86" rx="3"></rect>
+        <text class="lbl gr" x="410" y="254">TIER 3 · ANY SECOND SCREEN</text>
+        <text class="nt" x="410" y="276">A second phone, tablet or laptop</text>
+        <text class="ns" x="410" y="292">opens http://&lt;phone&gt;:8787 — nothing to install</text>
+        <text class="ns" x="410" y="306">read-only · counts and timings, never audio or video</text>
+
+        <path class="ln t" d="M 240 150 C 320 150, 320 63, 390 63" marker-end="url(#diagram-mesh-a3)"></path>
+        <line class="ln t" x1="240" y1="160" x2="390" y2="167" marker-end="url(#diagram-mesh-a3)"></line>
+        <path class="ln t" d="M 240 172 C 320 172, 320 275, 390 275" marker-end="url(#diagram-mesh-a3)"></path>
+        <text class="ns" x="262" y="120" fill="#0F6B60">Bluetooth</text>
+        <text class="ns" x="256" y="258" fill="#0F6B60">local Wi-Fi</text>
+
+        <!-- severity ladder -->
+        <rect class="n st" x="762" y="20" width="416" height="298" rx="3"></rect>
+        <text class="lbl" x="782" y="44">FOUR SEVERITIES — READ BY FEEL, WITHOUT LOOKING</text>
+
+        <text class="nt sm" x="782" y="76">L1 · Note</text>
+        <text class="ns" x="782" y="90">a fuss, logged</text>
+        <rect x="960" y="66" width="7" height="13" fill="#C0CBC6"></rect>
+
+        <text class="nt sm" x="782" y="126">L2 · Attention</text>
+        <text class="ns" x="782" y="140">a confirmed cry</text>
+        <rect x="960" y="116" width="12" height="13" fill="#8FC4B9"></rect>
+        <rect x="979" y="116" width="12" height="13" fill="#8FC4B9"></rect>
+
+        <text class="nt sm" x="782" y="176">L3 · Urgent</text>
+        <text class="ns" x="782" y="190">it is not settling</text>
+        <rect x="960" y="166" width="24" height="13" fill="#0F6B60"></rect>
+        <rect x="993" y="166" width="24" height="13" fill="#0F6B60"></rect>
+        <rect x="1026" y="166" width="24" height="13" fill="#0F6B60"></rect>
+
+        <text class="nt sm" x="782" y="226">L4 · Critical</text>
+        <text class="ns" x="782" y="240">go now</text>
+        <rect x="960" y="216" width="42" height="13" fill="#8A5E10"></rect>
+        <rect x="1009" y="216" width="42" height="13" fill="#8A5E10"></rect>
+        <rect x="1058" y="216" width="42" height="13" fill="#8A5E10"></rect>
+        <rect x="1107" y="216" width="42" height="13" fill="#8A5E10"></rect>
+
+        <line class="axis" x1="782" y1="258" x2="1158" y2="258"></line>
+        <text class="ns" x="782" y="278">Critical uses a channel that bypasses Do Not Disturb.</text>
+        <text class="ns" x="782" y="294">Nothing else in the app does.</text>
+        <text class="ns" x="1158" y="58" text-anchor="end">the vibration pattern</text>
+      </svg>

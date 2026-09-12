@@ -1,0 +1,133 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-16.0 -16.0 1272.0 592.0" width="1272" height="592" role="img" aria-label="Nila system architecture"><style>
+  .n{fill:#FFFFFF;stroke:#C0CBC6;stroke-width:1.1}
+  .n.hi{fill:#E0F0EC;stroke:#0F6B60}
+  .n.am{fill:#F8EEDA;stroke:#D8B972}
+  .n.st{fill:#EBEFEC;stroke:#C0CBC6}
+  .n.out{fill:#F6F8F6;stroke:#6A7873}
+  .bx{fill:none;stroke:#0F6B60;stroke-width:1.4}
+  .bx.dash{stroke:#6A7873;stroke-dasharray:6 4;stroke-width:1}
+  .nt{fill:#0B1512;font-size:12.5px;font-weight:600;font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
+  .nt.sm{font-size:11.5px}
+  .ns{fill:#6A7873;font-size:10px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+  .lbl{fill:#0F6B60;font-size:10px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;letter-spacing:.14em;font-weight:600}
+  .lbl.am{fill:#8A5E10}
+  .lbl.gr{fill:#6A7873}
+  .ax{fill:#6A7873;font-size:10px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+  .ln{stroke:#C0CBC6;stroke-width:1.3;fill:none}
+  .ln.t{stroke:#0F6B60;stroke-width:1.5}
+  .ln.am{stroke:#8A5E10;stroke-dasharray:5 3}
+  .axis{stroke:#C0CBC6;stroke-width:1}
+  .tim{fill:#0F6B60;font-size:14px;font-weight:600;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+</style><rect x="-15.5" y="-15.5" width="1271.0" height="591.0" rx="6" fill="#F6F8F6" stroke="#C0CBC6"/>
+        <defs>
+          <marker id="diagram-architecture-a5"  viewBox="0 0 10 8" refX="9" refY="4" markerWidth="7" markerHeight="6" orient="auto"><polygon points="0,0 10,4 0,8" fill="#C0CBC6"></polygon></marker>
+          <marker id="diagram-architecture-a5t" viewBox="0 0 10 8" refX="9" refY="4" markerWidth="7" markerHeight="6" orient="auto"><polygon points="0,0 10,4 0,8" fill="#0F6B60"></polygon></marker>
+        </defs>
+
+        <rect class="bx" x="146" y="8" width="912" height="544" rx="8"></rect>
+        <text class="lbl" x="162" y="28">ON THIS PHONE — NO REQUEST EVER LEAVES THIS BOX</text>
+
+        <!-- inputs -->
+        <rect class="n st" x="6" y="62"  width="126" height="46" rx="3"></rect>
+        <text class="nt sm" x="17" y="82">Microphone</text><text class="ns" x="17" y="96">16 kHz mono</text>
+        <rect class="n st" x="6" y="222" width="126" height="46" rx="3"></rect>
+        <text class="nt sm" x="17" y="242">Camera</text><text class="ns" x="17" y="256">~5 fps</text>
+        <rect class="n st" x="6" y="330" width="126" height="46" rx="3"></rect>
+        <text class="nt sm" x="17" y="350">A photograph</text><text class="ns" x="17" y="364">strip or report</text>
+        <rect class="n st" x="6" y="484" width="126" height="46" rx="3"></rect>
+        <text class="nt sm" x="17" y="504">Quick log</text><text class="ns" x="17" y="518">tap or NFC</text>
+        <line class="ln" x1="132" y1="85"  x2="168" y2="85"  marker-end="url(#diagram-architecture-a5)"></line>
+        <line class="ln" x1="132" y1="245" x2="168" y2="245" marker-end="url(#diagram-architecture-a5)"></line>
+        <line class="ln" x1="132" y1="353" x2="168" y2="353" marker-end="url(#diagram-architecture-a5)"></line>
+        <line class="ln" x1="132" y1="507" x2="168" y2="507" marker-end="url(#diagram-architecture-a5)"></line>
+
+        <!-- LANE 1 -->
+        <text class="lbl" x="170" y="52">LANE 1 · LISTEN → SETTLE</text>
+        <rect class="n" x="170" y="60" width="122" height="50" rx="3"></rect>
+        <text class="nt sm" x="181" y="80">Log-mel</text><text class="ns" x="181" y="95">96 × 64 patch</text>
+        <rect class="n hi" x="310" y="60" width="122" height="50" rx="3"></rect>
+        <text class="nt sm" x="321" y="80">Cry detector</text><text class="ns" x="321" y="95">38 KB · 0.2 ms</text>
+        <rect class="n" x="450" y="60" width="122" height="50" rx="3"></rect>
+        <text class="nt sm" x="461" y="80">Hysteresis</text><text class="ns" x="461" y="95">3 of 5 · 6 out</text>
+        <rect class="n hi" x="590" y="60" width="146" height="50" rx="3"></rect>
+        <text class="nt sm" x="601" y="80">Escalation ladder</text><text class="ns" x="601" y="95">12 → 20 → 35 s</text>
+        <rect class="n" x="754" y="60" width="146" height="50" rx="3"></rect>
+        <text class="nt sm" x="765" y="80">Soothers + IR</text><text class="ns" x="765" y="95">your voice first</text>
+        <rect class="n" x="310" y="128" width="122" height="42" rx="3"></rect>
+        <text class="nt sm" x="321" y="147">Cause forest</text><text class="ns" x="321" y="161">500 trees</text>
+        <rect class="n st" x="754" y="128" width="146" height="42" rx="3"></rect>
+        <text class="nt sm" x="765" y="147">Outcome memory</text><text class="ns" x="765" y="161">per baby, per sound</text>
+        <line class="ln" x1="292" y1="85" x2="308" y2="85" marker-end="url(#diagram-architecture-a5)"></line>
+        <line class="ln" x1="432" y1="85" x2="448" y2="85" marker-end="url(#diagram-architecture-a5)"></line>
+        <line class="ln" x1="572" y1="85" x2="588" y2="85" marker-end="url(#diagram-architecture-a5)"></line>
+        <line class="ln" x1="736" y1="85" x2="752" y2="85" marker-end="url(#diagram-architecture-a5)"></line>
+        <line class="ln" x1="371" y1="110" x2="371" y2="126" marker-end="url(#diagram-architecture-a5)"></line>
+        <line class="ln" x1="827" y1="110" x2="827" y2="126" marker-end="url(#diagram-architecture-a5)"></line>
+        <polyline class="ln" points="432,149 620,149 620,114" marker-end="url(#diagram-architecture-a5)"></polyline>
+        <polyline class="ln t" points="754,149 664,149 664,114" marker-end="url(#diagram-architecture-a5t)"></polyline>
+        <text class="ns" x="658" y="165" fill="#0F6B60" text-anchor="end">verified outcome</text>
+
+        <!-- LANE 2 -->
+        <text class="lbl" x="170" y="212">LANE 2 · WATCH</text>
+        <rect class="n" x="170" y="220" width="122" height="50" rx="3"></rect>
+        <text class="nt sm" x="181" y="240">BlazeFace</text><text class="ns" x="181" y="255">face present?</text>
+        <rect class="n" x="310" y="220" width="122" height="50" rx="3"></rect>
+        <text class="nt sm" x="321" y="240">Motion energy</text><text class="ns" x="321" y="255">frame difference</text>
+        <rect class="n" x="450" y="220" width="146" height="50" rx="3"></rect>
+        <text class="nt sm" x="461" y="240">Scene describer</text><text class="ns" x="461" y="255">a closed form</text>
+        <line class="ln" x1="292" y1="245" x2="308" y2="245" marker-end="url(#diagram-architecture-a5)"></line>
+        <line class="ln" x1="432" y1="245" x2="448" y2="245" marker-end="url(#diagram-architecture-a5)"></line>
+
+        <!-- LANE 3 -->
+        <text class="lbl" x="170" y="320">LANE 3 · READ → CHECK</text>
+        <rect class="n" x="170" y="328" width="146" height="50" rx="3"></rect>
+        <text class="nt sm" x="181" y="348">PP-OCRv4</text><text class="ns" x="181" y="363">det · angle · read</text>
+        <rect class="n hi" x="334" y="328" width="146" height="50" rx="3"></rect>
+        <text class="nt sm" x="345" y="348">Five staged agents</text><text class="ns" x="345" y="363">her own records</text>
+        <rect class="n" x="498" y="328" width="146" height="50" rx="3"></rect>
+        <text class="nt sm" x="509" y="348">Adjudicator</text><text class="ns" x="509" y="363">rules, no model</text>
+        <line class="ln" x1="316" y1="353" x2="332" y2="353" marker-end="url(#diagram-architecture-a5)"></line>
+        <line class="ln" x1="480" y1="353" x2="496" y2="353" marker-end="url(#diagram-architecture-a5)"></line>
+
+        <!-- LANE 4 -->
+        <text class="lbl" x="170" y="428">LANE 4 · ASK</text>
+        <rect class="n" x="170" y="436" width="122" height="50" rx="3"></rect>
+        <text class="nt sm" x="181" y="456">Query router</text><text class="ns" x="181" y="471">7 guardrails</text>
+        <rect class="n hi" x="310" y="436" width="134" height="50" rx="3"></rect>
+        <text class="nt sm" x="321" y="456">BM25 retrieval</text><text class="ns" x="321" y="471">46 sourced docs</text>
+        <rect class="n" x="462" y="436" width="134" height="50" rx="3"></rect>
+        <text class="nt sm" x="473" y="456">Answer + source</text><text class="ns" x="473" y="471">shown verbatim</text>
+        <rect class="n" x="614" y="436" width="134" height="50" rx="3"></rect>
+        <text class="nt sm" x="625" y="456">Qwen 0.5B</text><text class="ns" x="625" y="471">shortens only</text>
+        <line class="ln" x1="292" y1="461" x2="308" y2="461" marker-end="url(#diagram-architecture-a5)"></line>
+        <line class="ln" x1="444" y1="461" x2="460" y2="461" marker-end="url(#diagram-architecture-a5)"></line>
+        <line class="ln" x1="596" y1="461" x2="612" y2="461" marker-end="url(#diagram-architecture-a5)"></line>
+
+        <!-- store -->
+        <rect class="n st" x="170" y="500" width="412" height="44" rx="3"></rect>
+        <text class="nt sm" x="181" y="519">Local database</text>
+        <text class="ns" x="181" y="534">care log · health records · soother outcomes · cry episodes</text>
+        <line class="ln" x1="231" y1="500" x2="231" y2="490" marker-end="url(#diagram-architecture-a5)"></line>
+        <line class="ln" x1="452" y1="500" x2="452" y2="382" marker-end="url(#diagram-architecture-a5)"></line>
+
+        <!-- outputs -->
+        <rect class="n out" x="1078" y="60"  width="156" height="50" rx="3"></rect>
+        <text class="nt sm" x="1089" y="80">Phone alert</text><text class="ns" x="1089" y="95">names what it tried</text>
+        <rect class="n out" x="1078" y="128" width="156" height="50" rx="3"></rect>
+        <text class="nt sm" x="1089" y="148">Watch + band</text><text class="ns" x="1089" y="163">a pattern per severity</text>
+        <rect class="n out" x="1078" y="220" width="156" height="50" rx="3"></rect>
+        <text class="nt sm" x="1089" y="240">Safety alert</text><text class="ns" x="1089" y="255">posture · visibility</text>
+        <rect class="n out" x="1078" y="328" width="156" height="50" rx="3"></rect>
+        <text class="nt sm" x="1089" y="348">Safe / caution</text><text class="ns" x="1089" y="363">with its reasoning</text>
+        <rect class="n out" x="1078" y="436" width="156" height="50" rx="3"></rect>
+        <text class="nt sm" x="1089" y="456">The answer</text><text class="ns" x="1089" y="471">with its source</text>
+        <rect class="n out" x="1078" y="500" width="156" height="44" rx="3"></rect>
+        <text class="nt sm" x="1089" y="519">Second screen</text><text class="ns" x="1089" y="534">:8787 on the LAN</text>
+
+        <polyline class="ln" points="664,60 664,40 1156,40 1156,58" marker-end="url(#diagram-architecture-a5)"></polyline>
+        <line class="ln" x1="900" y1="153" x2="1076" y2="153" marker-end="url(#diagram-architecture-a5)"></line>
+        <line class="ln" x1="596" y1="245" x2="1076" y2="245" marker-end="url(#diagram-architecture-a5)"></line>
+        <line class="ln" x1="644" y1="353" x2="1076" y2="353" marker-end="url(#diagram-architecture-a5)"></line>
+        <line class="ln" x1="748" y1="461" x2="1076" y2="461" marker-end="url(#diagram-architecture-a5)"></line>
+        <line class="ln" x1="582" y1="522" x2="1076" y2="522" marker-end="url(#diagram-architecture-a5)"></line>
+      </svg>
