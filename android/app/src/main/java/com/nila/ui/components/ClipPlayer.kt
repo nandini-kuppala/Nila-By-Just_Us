@@ -26,6 +26,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
@@ -90,6 +91,28 @@ fun CryClipPlayer(
      * call, no codec, no I/O on the composition thread.
      */
     val durationMs = remember(path) { wavDurationMs(file) }
+
+    /**
+     * The shape drawn behind the scrubber: the recording's own amplitude.
+     *
+     * The card above this already draws the *measured* envelope -- the one-per-
+     * second loudness the escalation ladder read to decide whether a soothing
+     * sound helped. That belongs there, because it is evidence about a decision.
+     *
+     * It is the wrong thing here. A cry's loudness sits in a narrow band, so as
+     * fifty-six bars it came out as a flat grey fence that told a listener
+     * nothing about the audio they were about to hear. This reads the samples
+     * instead and draws what is actually in the file, scaled to the clip's own
+     * peak so a quiet cry fills the same space as a loud one -- the point of
+     * this strip is the shape within the recording, not how it compares to
+     * some other night.
+     *
+     * Starts as the envelope and swaps in when the read finishes, so the card
+     * is never empty and nothing blocks on file I/O to draw a frame.
+     */
+    val bars by produceState(initialValue = envelope, path) {
+        value = withContext(Dispatchers.IO) { waveformOf(file, WAVE_BARS) } ?: envelope
+    }
 
     DisposableEffect(path) {
         onDispose {
@@ -216,7 +239,7 @@ fun CryClipPlayer(
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
             ClipEnvelope(
-                envelope = envelope,
+                envelope = bars,
                 fraction = fraction,
                 onSeek = { f ->
                     if (durationMs > 0) seekTo((f * durationMs).roundToInt())
@@ -250,7 +273,10 @@ private fun ClipEnvelope(
     onSeek: (Float) -> Unit,
 ) {
     val played = MaterialTheme.colorScheme.primary
-    val unplayed = MaterialTheme.colorScheme.outlineVariant
+    // `outlineVariant` is a hairline colour meant for 1dp rules, and sixty-four
+    // bars of it on a raised card were barely there before playback started --
+    // which is precisely when somebody is deciding whether to press play.
+    val unplayed = MaterialTheme.colorScheme.outline.copy(alpha = 0.45f)
     val flat = MaterialTheme.colorScheme.surfaceContainerHighest
 
     Canvas(
@@ -269,16 +295,19 @@ private fun ClipEnvelope(
             drawLine(flat, Offset(0f, h / 2), Offset(w, h / 2), strokeWidth = 3f)
             return@Canvas
         }
-        // One bar per column of pixels we can afford, resampled from the
-        // envelope rather than one bar per sample: a 180-point envelope in a
-        // 300 px box would draw sub-pixel bars and read as a solid block.
-        val bars = 56
+        // One bar per value where the count suits the width, resampled
+        // otherwise: a 190-point envelope in a 300 px box would draw sub-pixel
+        // bars and read as a solid block.
+        val bars = envelope.size.coerceIn(32, 72)
         val barW = w / (bars * 1.7f)
         for (b in 0 until bars) {
             val f = b / (bars - 1f)
             val v = envelope[(f * (envelope.size - 1)).roundToInt()]
                 .coerceIn(0, 100) / 100f
-            val barH = (h * 0.18f + h * 0.82f * v).coerceAtLeast(2f)
+            // A low floor, deliberately. The earlier 18% kept every bar tall
+            // enough to look deliberate and turned a waveform into a fence --
+            // a quiet stretch of a recording should read as quiet.
+            val barH = (h * 0.05f + h * 0.95f * v).coerceAtLeast(2f)
             val x = f * (w - barW)
             drawRoundRect(
                 color = if (f <= fraction) played else unplayed,
@@ -309,3 +338,63 @@ private fun wavDurationMs(file: java.io.File): Int {
     val bytesPerSecond = com.nila.audio.LogMelFrontend.SAMPLE_RATE * 2L
     return ((bytes * 1000L) / bytesPerSecond).toInt()
 }
+
+/** How many bars the strip is drawn with. */
+private const val WAVE_BARS = 64
+
+/**
+ * The recording's amplitude, as [bars] values from 0 to 100.
+ *
+ * Root-mean-square per bucket rather than peak: a single loud sample makes a
+ * spike that is not what that stretch of audio sounds like, and RMS is what the
+ * ear is closer to. The result is then scaled against the clip's own loudest
+ * bucket, which is what makes the shape visible at all -- absolute amplitude on
+ * a 16-bit scale leaves a cry sitting in the bottom third of the strip.
+ *
+ * Streams the file in blocks. A 90-second clip is 2.9 MB of PCM and there is no
+ * reason to hold it all at once to compute sixty-four numbers from it.
+ *
+ * Returns null on anything unexpected, and the caller keeps the measured
+ * envelope it already had.
+ */
+private fun waveformOf(file: java.io.File, bars: Int): List<Int>? = runCatching {
+    val samples = ((file.length() - 44L) / 2L).coerceAtLeast(1L)
+    val perBar = (samples / bars).coerceAtLeast(1L)
+    val sums = DoubleArray(bars)
+    val counts = IntArray(bars)
+
+    file.inputStream().buffered(1 shl 16).use { input ->
+        var skipped = 0L
+        while (skipped < 44L) {
+            val n = input.skip(44L - skipped)
+            if (n <= 0L) return@runCatching null
+            skipped += n
+        }
+        val block = ByteArray(1 shl 16)
+        var index = 0L
+        while (true) {
+            val read = input.read(block)
+            if (read <= 0) break
+            var i = 0
+            while (i + 1 < read) {
+                // Little-endian signed 16-bit, the format EpisodeRecorder writes.
+                val value = (((block[i + 1].toInt() shl 8) or
+                    (block[i].toInt() and 0xFF)).toShort()).toDouble()
+                val bar = (index / perBar).toInt()
+                if (bar in 0 until bars) {
+                    sums[bar] += value * value
+                    counts[bar]++
+                }
+                index++
+                i += 2
+            }
+        }
+    }
+
+    val rms = DoubleArray(bars) { b ->
+        if (counts[b] == 0) 0.0 else kotlin.math.sqrt(sums[b] / counts[b])
+    }
+    val loudest = rms.max()
+    if (loudest <= 0.0) return@runCatching null
+    rms.map { ((it / loudest) * 100.0).roundToInt().coerceIn(0, 100) }
+}.getOrNull()
