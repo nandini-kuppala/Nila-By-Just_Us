@@ -386,7 +386,20 @@ object Timeline {
             summary = summary,
             severity = ordered.maxByOrNull { it.severityLevel }?.severity ?: Severity.NOTE,
             isCry = true,
-            envelope = (closed ?: opened).envelopePoints(),
+            // The fullest envelope any row of this episode carries, not the
+            // one on whichever row happens to anchor it.
+            //
+            // Every row stores the envelope as it stood when that row was
+            // written, so the opening row holds a single point -- the instant
+            // the detector crossed its threshold. Reading from there gave the
+            // player a flat line and the card no curve at all, and it showed up
+            // only on cries closed at the three-minute cap, because those write
+            // no CRY_ENDED row for the old code to prefer. The longest one is
+            // the latest one, and it is the shape of the whole cry.
+            envelope = ordered
+                .map { it.envelopePoints() }
+                .maxByOrNull { it.size }
+                .orEmpty(),
             // Written on whichever row the service stamped; searched rather
             // than assumed so a future change of anchor row cannot lose it.
             clipPath = ordered.firstNotNullOfOrNull { it.clipPath },

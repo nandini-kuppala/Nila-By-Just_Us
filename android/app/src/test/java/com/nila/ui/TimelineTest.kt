@@ -31,6 +31,7 @@ class TimelineTest {
         note: String? = null,
         cause: String? = null,
         clip: String? = null,
+        envelope: String? = null,
     ) = EventRecord(
         id = nextId++,
         kind = kind,
@@ -41,6 +42,7 @@ class TimelineTest {
         note = note,
         episodeId = episodeId,
         clipPath = clip,
+        envelope = envelope,
     )
 
     /** A whole cry as the service writes it: six rows, one episode. */
@@ -248,6 +250,45 @@ class TimelineTest {
         )
         assertEquals(1, entries.count { it.isCry })
         assertEquals(2, entries.size)
+    }
+
+    // ------------------------------------------------------ the envelope
+
+    /**
+     * The shape drawn on the card, and behind the clip player's scrubber.
+     *
+     * Every row stores the envelope as it stood when that row was written, so
+     * the opening row holds one point -- the instant the detector crossed its
+     * threshold. Reading from there left the player a flat line and the card no
+     * curve, and only on cries closed at the three-minute cap, because those
+     * write no CRY_ENDED row for the old code to fall back from.
+     */
+    @Test
+    fun `the entry takes the fullest envelope in the episode`() {
+        val rows = listOf(
+            row("CRY_STARTED", 1, 10_000, envelope = "41"),
+            row("SOOTHE_PLAYED", 1, 10_000, 20, envelope = "41,37,39,45,50"),
+            row("ESCALATED_TO_PARENT", 1, 10_000, 90, Severity.URGENT,
+                envelope = "41,37,39,45,50,52,50,49,48,48,46"),
+        )
+        val entry = Timeline.collapse(rows).single()
+        assertEquals(11, entry.envelope.size)
+    }
+
+    /** A cry cut off at the cap writes no CRY_ENDED row. It still has a shape. */
+    @Test
+    fun `an episode with no ending row still gets its curve`() {
+        val rows = listOf(
+            row("CRY_STARTED", 1, 10_000, envelope = "41"),
+            row("SOOTHE_FAILED", 1, 10_000, 55, envelope = "41,37,39,45,50,52,50"),
+        )
+        val entry = Timeline.collapse(rows).single()
+        assertTrue("a flat line is not a waveform", entry.envelope.size > 3)
+    }
+
+    @Test
+    fun `an episode with no envelope anywhere reports none`() {
+        assertTrue(Timeline.collapse(episode(1, 10_000)).single().envelope.isEmpty())
     }
 
     @Test
