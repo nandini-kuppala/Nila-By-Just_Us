@@ -73,14 +73,38 @@ class CameraWatch(
     @Volatile var lastPreRoll: java.io.File? = null; private set
     @Volatile private var lastDump: Long = 0L
 
+    /**
+     * Build the two models, off the main thread, exactly once.
+     *
+     * Between them this is a MediaPipe face detector, a 9.2 MB pose landmarker,
+     * and a real probe inference through each to check the delegate actually
+     * works -- one to two seconds on a good day and far longer on a cold start.
+     * It used to run on the main thread *before* the camera was bound, which
+     * is both halves of the bug it caused: the UI could not draw, and there was
+     * nothing to draw yet anyway.
+     */
+    @Synchronized
+    private fun ensureWatchers() {
+        if (watcher == null) watcher = FaceWatcher(context)
+        if (pose == null) pose = PoseWatcher(context)
+    }
+
+    /**
+     * Bind the camera first, load the models behind it.
+     *
+     * The preview is the thing somebody is waiting to see, and it needs no
+     * model to start -- so it is bound immediately and the detectors are built
+     * afterwards on the analysis executor. [analyse] already drops frames while
+     * they are null, which for the second or two of loading means a live
+     * picture with the assessment card still saying it is warming up. Before
+     * this the screen was simply black until both models had loaded.
+     */
     fun start(owner: LifecycleOwner, preview: Preview?) {
         val future = ProcessCameraProvider.getInstance(context)
         future.addListener({
             try {
                 val cameraProvider = future.get()
                 provider = cameraProvider
-                watcher = FaceWatcher(context)
-                pose = PoseWatcher(context)
 
                 val analysis = ImageAnalysis.Builder()
                     .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
@@ -94,6 +118,14 @@ class CameraWatch(
                     owner, CameraSelector.DEFAULT_BACK_CAMERA, *useCases
                 )
                 Log.i(TAG, "camera bound")
+                // Now the picture is live, load what reads it.
+                executor.execute {
+                    val started = System.currentTimeMillis()
+                    runCatching { ensureWatchers() }
+                        .onFailure { Log.e(TAG, "detectors failed to load", it) }
+                    Log.i(TAG, "detectors ready in " +
+                        "${System.currentTimeMillis() - started}ms")
+                }
             } catch (t: Throwable) {
                 lastError = t.message ?: t::class.java.simpleName
                 Log.e(TAG, "camera failed to start", t)
@@ -144,10 +176,7 @@ class CameraWatch(
      * camera to stay off -- on an emulator it would otherwise show a rendered
      * living room underneath a video of a baby.
      */
-    fun startHeadless() {
-        if (watcher == null) watcher = FaceWatcher(context)
-        if (pose == null) pose = PoseWatcher(context)
-    }
+    fun startHeadless() = ensureWatchers()
 
     private fun analyse(proxy: ImageProxy) {
         try {

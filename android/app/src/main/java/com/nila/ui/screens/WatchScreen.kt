@@ -64,7 +64,10 @@ import com.nila.vision.FaceWatcher
 import com.nila.vision.Posture
 import com.nila.vision.SafeZone
 import com.nila.vision.WatchState
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /**
  * The camera lane.
@@ -157,7 +160,13 @@ fun WatchScreen(state: AppState) {
     val footage = remember { DemoFootage(context) }
     LaunchedEffect(demo) {
         if (!demo) { shown = null; return@LaunchedEffect }
-        if (!footage.open()) { demo = false; return@LaunchedEffect }
+        // Opening the clip is a MediaMetadataRetriever setup plus a decoded
+        // frame to measure the letterbox bars, which is far too much to do on
+        // the thread that has to draw the result.
+        if (!withContext(Dispatchers.IO) { footage.open() }) {
+            demo = false
+            return@LaunchedEffect
+        }
         demoRules.reset()
         val camera = CameraWatch(context) { frame ->
             val assessment = demoRules.update(
@@ -175,22 +184,44 @@ fun WatchScreen(state: AppState) {
                 assessment = assessment, zone = live.zone,
             )
         }
-        camera.startHeadless()
         demoState = WatchState(running = true, simulated = true, zone = live.zone)
-        var position = 0L
         try {
-            while (demo) {
-                footage.frameAt(position)?.let {
-                    camera.offerFrame(it)
-                    shown = it
-                    demoState = demoState.copy(framesAnalysed = camera.framesAnalysed)
+            // Everything below is video decoding and two neural networks, and
+            // none of it may run on the main thread. It used to: opening the
+            // clip, building the detectors and then decoding and analysing
+            // every frame all happened in this coroutine on the UI dispatcher,
+            // so Compose could not draw and the screen stayed blank for a
+            // minute or more before the first frame appeared.
+            withContext(Dispatchers.Default) {
+                // The first frame, before the models. It is the thing somebody
+                // is waiting to see and it needs nothing loaded to show -- so
+                // the clip starts playing immediately and the detectors catch
+                // up behind it, which is the same order the live camera path
+                // now uses.
+                footage.frameAt(0L)?.let { shown = it }
+                camera.startHeadless()
+
+                var position = 0L
+                while (demo) {
+                    val frame = footage.frameAt(position)
+                    if (frame != null) {
+                        // Shown before it is analysed, never after. The two
+                        // detectors take longer than the frame interval on a
+                        // cold start, and making the picture wait on them is
+                        // what turns a video into a slideshow.
+                        shown = frame
+                        camera.offerFrame(frame)
+                        demoState = demoState.copy(framesAnalysed = camera.framesAnalysed)
+                    }
+                    position += DemoFootage.FRAME_INTERVAL_MS
+                    if (position >= footage.durationMs) position = 0L
+                    kotlinx.coroutines.delay(DemoFootage.FRAME_INTERVAL_MS)
                 }
-                position += DemoFootage.FRAME_INTERVAL_MS
-                if (position >= footage.durationMs) position = 0L
-                kotlinx.coroutines.delay(DemoFootage.FRAME_INTERVAL_MS)
             }
         } finally {
-            camera.shutdown()
+            withContext(NonCancellable + Dispatchers.Default) {
+                runCatching { camera.shutdown() }
+            }
             demoState = WatchState()
         }
     }
