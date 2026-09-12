@@ -27,6 +27,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -36,6 +37,9 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import java.io.File
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlin.math.roundToInt
 
 /**
@@ -69,34 +73,35 @@ fun CryClipPlayer(
         return
     }
 
+    val scope = rememberCoroutineScope()
+    var player by remember(path) { mutableStateOf<MediaPlayer?>(null) }
     var playing by remember(path) { mutableStateOf(false) }
-    var durationMs by remember(path) { mutableStateOf(0) }
+    var opening by remember(path) { mutableStateOf(false) }
     var positionMs by remember(path) { mutableStateOf(0) }
+    var pendingSeekMs by remember(path) { mutableStateOf(0) }
     var failed by remember(path) { mutableStateOf(false) }
 
-    val player = remember(path) {
-        runCatching {
-            MediaPlayer().apply {
-                setDataSource(file.absolutePath)
-                prepare()
-            }
-        }.onFailure { failed = true }.getOrNull()
-    }
+    /**
+     * Length read from the WAV header rather than from a prepared player.
+     *
+     * This is why nothing is decoded until somebody presses play. The clips are
+     * all 16 kHz mono PCM16 written by [com.nila.audio.EpisodeRecorder], so the
+     * duration is the data chunk divided by the byte rate -- one `length()`
+     * call, no codec, no I/O on the composition thread.
+     */
+    val durationMs = remember(path) { wavDurationMs(file) }
 
     DisposableEffect(path) {
-        player?.setOnCompletionListener {
-            playing = false
-            positionMs = 0
-            runCatching { player.seekTo(0) }
-        }
-        durationMs = player?.duration ?: 0
         onDispose {
             // Released rather than paused: this is 90 s of PCM behind a card
             // the reader has finished with, and a leaked MediaPlayer holds an
             // audio focus handle the soothing sounds then have to fight.
-            runCatching { player?.setOnCompletionListener(null) }
-            runCatching { player?.stop() }
-            runCatching { player?.release() }
+            player?.let { p ->
+                runCatching { p.setOnCompletionListener(null) }
+                runCatching { p.stop() }
+                runCatching { p.release() }
+            }
+            player = null
         }
     }
 
@@ -110,7 +115,64 @@ fun CryClipPlayer(
         }
     }
 
-    if (failed || player == null) {
+    /**
+     * Open the file on first press, not on first draw.
+     *
+     * The player used to be built in a `remember`, which put `setDataSource`
+     * and a synchronous `prepare()` on the main thread during composition --
+     * for every clip that scrolled into view, every time it scrolled back.
+     * In a timeline with several kept recordings that is a codec handle and a
+     * file open per item per pass, and it is what made the list stutter.
+     *
+     * Nothing about the card needs it: the envelope is drawn from numbers the
+     * pipeline already measured and the length comes from the header. The
+     * decoder is a consequence of pressing play, so it is created there, off
+     * the main thread.
+     */
+    fun toggle() {
+        player?.let { p ->
+            runCatching {
+                if (playing) p.pause() else p.start()
+                playing = !playing
+            }
+            return
+        }
+        if (opening) return
+        opening = true
+        scope.launch {
+            val opened = withContext(Dispatchers.IO) {
+                runCatching {
+                    MediaPlayer().apply {
+                        setDataSource(file.absolutePath)
+                        prepare()
+                    }
+                }.getOrNull()
+            }
+            opening = false
+            if (opened == null) {
+                failed = true
+                return@launch
+            }
+            opened.setOnCompletionListener {
+                playing = false
+                positionMs = 0
+                runCatching { opened.seekTo(0) }
+            }
+            if (pendingSeekMs > 0) runCatching { opened.seekTo(pendingSeekMs) }
+            player = opened
+            runCatching { opened.start(); playing = true }
+        }
+    }
+
+    fun seekTo(ms: Int) {
+        positionMs = ms
+        val p = player
+        // Before the file is open there is nothing to seek; the position is
+        // remembered and applied the moment it is.
+        if (p == null) pendingSeekMs = ms else runCatching { p.seekTo(ms) }
+    }
+
+    if (failed) {
         Text(
             "This clip could not be opened.",
             style = MaterialTheme.typography.bodyMedium,
@@ -137,14 +199,7 @@ fun CryClipPlayer(
                 .size(44.dp)
                 .clip(CircleShape)
                 .background(scheme.primary)
-                .pointerInput(path) {
-                    detectTapGestures {
-                        runCatching {
-                            if (playing) player.pause() else player.start()
-                            playing = !playing
-                        }
-                    }
-                },
+                .pointerInput(path) { detectTapGestures { toggle() } },
             contentAlignment = Alignment.Center,
         ) {
             Icon(
@@ -164,11 +219,7 @@ fun CryClipPlayer(
                 envelope = envelope,
                 fraction = fraction,
                 onSeek = { f ->
-                    if (durationMs > 0) {
-                        val target = (f * durationMs).roundToInt()
-                        runCatching { player.seekTo(target) }
-                        positionMs = target
-                    }
+                    if (durationMs > 0) seekTo((f * durationMs).roundToInt())
                 },
             )
             Row(
@@ -242,4 +293,19 @@ private fun ClipEnvelope(
 private fun clock(ms: Int): String {
     val total = ms / 1000
     return "%d:%02d".format(total / 60, total % 60)
+}
+
+/**
+ * Milliseconds of audio in a 16 kHz mono PCM16 WAV, from its size alone.
+ *
+ * Every clip this app writes has that format and a 44-byte canonical header,
+ * so the length is arithmetic rather than a decode. Anything unexpected
+ * returns zero, which the card renders as a scrubber with no end marker
+ * instead of a wrong one.
+ */
+private fun wavDurationMs(file: java.io.File): Int {
+    val bytes = runCatching { file.length() }.getOrDefault(0L) - 44L
+    if (bytes <= 0L) return 0
+    val bytesPerSecond = com.nila.audio.LogMelFrontend.SAMPLE_RATE * 2L
+    return ((bytes * 1000L) / bytesPerSecond).toInt()
 }

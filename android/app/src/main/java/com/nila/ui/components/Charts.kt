@@ -374,7 +374,10 @@ fun LineChart(
 
     val top = niceTop(maxOf(known.max(), threshold ?: 0f))
     val grid = scheme.outlineVariant
-    val measurer = rememberTextMeasurer()
+    // Sized for what this chart actually measures: three axis labels, seven
+    // day labels and two lines of tooltip. The default cache holds eight, so a
+    // drag across the plot thrashed it and re-shaped text on every frame.
+    val measurer = rememberTextMeasurer(cacheSize = 24)
     val description = points.joinToString(", ") { "${it.label} ${it.readout}" }
 
     val reveal by animateFloatAsState(
