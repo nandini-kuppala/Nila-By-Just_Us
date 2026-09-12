@@ -68,8 +68,11 @@ class AppState(app: Application) : AndroidViewModel(app) {
     private val assistant by lazy { Assistant(app, db, index, llm) }
     private val scanner by lazy { TextScanner(app) }
     val recordStore = RecordStore(app)
+    private val drugBank by lazy {
+        com.nila.ddi.DrugInteractionLookupImpl(app)
+    }
     private val medicineReview by lazy {
-        MedicineReviewPipeline(index, db.healthRecords())
+        MedicineReviewPipeline(index, db.healthRecords(), drugBank)
     }
 
     val monitor: StateFlow<com.nila.monitor.MonitorState> = MonitorService.state
@@ -382,7 +385,15 @@ class AppState(app: Application) : AndroidViewModel(app) {
      * night listening should not be carrying them.
      */
     fun prepareScanner() {
-        viewModelScope.launch(Dispatchers.IO) { scanner.prepare() }
+        viewModelScope.launch(Dispatchers.IO) {
+            scanner.prepare()
+            // The DrugBank tables and the interaction model, on the same
+            // principle and for the same reason: half a second of session
+            // construction belongs while somebody is aiming a camera, not on
+            // the shutter press. Failing here is silent by design -- the
+            // review runs without the addon exactly as it did before it.
+            runCatching { drugBank.prepare() }
+        }
     }
 
     /** Assign the sticker currently held by the inbox to a kind of event. */
@@ -1038,7 +1049,7 @@ class AppState(app: Application) : AndroidViewModel(app) {
                     db.medicineScans().insert(
                         com.nila.data.MedicineScanRecord(
                             atMs = System.currentTimeMillis(),
-                            name = result.medicine?.generic?.takeIf { it.isNotBlank() }
+                            name = result.displayName.takeIf { it.isNotBlank() }
                                 ?: result.medicine?.title
                                 ?: typed?.trim().orEmpty().ifBlank { "Unnamed medicine" },
                             verdict = result.verdict.name,

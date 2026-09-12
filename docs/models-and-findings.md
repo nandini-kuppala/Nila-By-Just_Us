@@ -10,13 +10,21 @@ seen the code.
 
 ## 1. The one-paragraph version
 
-Nila runs **eight models entirely on the phone**, with no network calls. Two of
-them are excellent, three are solid, one is honestly broken and we say so, and
+Nila runs **nine models entirely on the phone**, with no network calls. Two of
+them are excellent, four are solid, one is honestly broken and we say so, and
 two are large language models that are currently more trouble than they are
 worth. The cry detector — the model the whole product rests on — runs on the
 iQOO's **NPU**, the chip built for exactly this. The chat model does not, and
 this document explains why that is a limitation of the software libraries
 available rather than of the phone.
+
+The newest of the nine, a drug-interaction classifier over 1,710 drugs, is also
+the clearest example of the rule the rest of this document keeps arriving at:
+**measure what a model can actually be trusted with, then let it answer only
+that.** It is allowed to say what kind of interaction two drugs have, where it
+is right 96.6% of the time. It is not allowed to say whether they interact at
+all, because on that question it is barely better than a coin toss, and §3.5b
+shows the measurement that settled it.
 
 ---
 
@@ -137,8 +145,150 @@ than reporting the baby missing.
 Three ONNX models totalling 15.8 MB: detection (finds the text), angle
 classification (works out which way up), recognition (turns pixels into
 characters). Runs on device, handles rotated, upside-down and white-on-foil
-printing. Feeds five staged agents that check the medicine against the mother's
-own allergies and conditions.
+printing. Feeds staged agents that check the medicine against the mother's own
+allergies and conditions.
+
+Two ML Kit recognisers run alongside it — Latin and Devanagari — because Indian
+packaging carries the brand in one script and the manufacturer in the other, and
+because the three engines fail on different photographs. Every pass is pooled
+rather than replaced, so a hard image is read jointly by all of them.
+
+**A scan that never ended, and how we found it.** Scanning thirty real
+photographs back to back turned up a scan that stops: no error, no verdict, the
+process at 0% CPU. On the Scan screen that is a spinner under "Reading the
+label" that stays there.
+
+The first guess was ML Kit, which answers through a listener and could plausibly
+never call it. That guess was wrong, and the way it was settled is the
+interesting part. This phone throttles logcat for ordinary apps and will not let
+the shell signal another process for a thread dump, so both usual routes were
+closed — but an instrumentation test runs *inside* the app process, so it can
+dump its own stacks. A watchdog in the test did that after ninety seconds and
+named the culprit exactly:
+
+```
+Instr: androidx.test.runner.AndroidJUnitRunner [RUNNABLE]
+    at ai.onnxruntime.OrtSession.run(Native Method)
+    at com.nila.ocr.PaddleOcr.recognise(PaddleOcr.kt:349)
+    at com.nila.assistant.TextScanner.scan(TextScanner.kt:174)
+```
+
+**PP-OCR's own recogniser.** Its input width was computed straight from the
+aspect ratio of whatever the detector found, and nothing bounded it. A long thin
+box — small print running the length of a bottle, or a seam read as one region —
+gives a ratio in the hundreds, and at 48 pixels high that is a tensor tens of
+thousands of pixels wide. `OrtSession.run` then sits in native code for minutes
+at almost no CPU, or the allocation takes the process out; both were seen. The
+width is now capped at twenty times the crop height, about forty characters,
+and anything longer is squeezed to fit rather than padded.
+
+Separately, each ML Kit pass now gets a deadline too — an unbounded wait on a
+third-party callback in the one path a person is watching is worth a guard even
+though it was not the fault here. A pass that runs out of time contributes
+nothing, that recogniser is not asked again for the same image, and whatever
+earlier passes read is kept.
+
+**What the thirty photographs actually score.** They are Wikimedia photographs
+of real packaging — blister foil, Cyrillic and Japanese cartons, names debossed
+into bare tablets, a shop shelf with four other products in frame — chosen in
+`data/README.md` for the specific ways each defeats OCR. On the phone:
+
+| | |
+|---|---|
+| Reached the verdict its folder claims | **19–20 of 30** |
+| Read as the **wrong medicine** | **0** |
+| Could not be read at all | 10–11 |
+
+The second row is the one that matters, and it is the assertion the test fails a
+build over. Every miss is an honest *"I could not check this one"*, which for a
+name debossed into a bare tablet is the correct answer rather than a failure —
+one image in the set has no readable text at all and is there precisely to check
+that nothing is invented from it. The set has caught a wrong drug twice, and
+both are in the bug table below.
+
+It also caught a subtler thing worth recording: amoxicillin and Augmentin came
+back CAUTION where the table says *likely safe*, because the phone had the demo
+profile on it and that mother has a **penicillin allergy on file**. The app was
+right and the comparison was wrong. The test now holds stored records out, so a
+table that knows nothing about her is compared against a verdict that also does.
+
+### 3.5b Drug–drug interactions — a substructure cross-attention classifier
+
+| | |
+|---|---|
+| **What it does** | Names the interaction between two drugs — the scanned one and something she is already taking |
+| **Size** | 19.7 MB, plus 620 KB of tables |
+| **Library** | ONNX Runtime, the same one PP-OCR uses |
+| **Runs on** | CPU, one thread |
+| **Speed** | **7.2 ms** per pair on the iQOO |
+| **Accuracy** | 96.6% top-1 where it is allowed to answer |
+
+An 86-way classifier over the DrugBank interaction ontology, trained on the
+**DDI-Bench** random split (Shen et al. 2025, *Bioinformatics*). Its input is a
+pair of Morgan fingerprints; its output is one of 86 interaction types, in
+DrugBank's own wording — *"The risk or severity of adverse effects can be
+increased when Ibuprofen is combined with Prednisolone."*
+
+It exists because the curated corpus in `knowledge.json` covers **34** medicines
+and the interaction lists in it are hand-written. What a mother is actually
+taking — her thyroid tablet, her metformin, an antidepressant — is outside that
+corpus, and outside it the app had nothing to say. This covers **1,710** drugs
+and **188,240** recorded interactions.
+
+**The thing that shapes the whole design: it has no "these two do not interact"
+class.** Given any two drugs it returns one of 86 interaction types, including
+for two drugs with no relationship whatsoever. The obvious patch — trust it only
+when it is confident — does not work, and we measured that rather than assuming
+it:
+
+| separating a real DrugBank interaction from a pair that has none | AUC **0.78** |
+|---|---|
+| at a threshold keeping 90% of real interactions | **54%** of non-interacting pairs also pass |
+
+So confidence is not a gate, and the model is **never asked whether an
+interaction exists**. That question is answered by DrugBank's own interaction
+graph, shipped as a 366 KB bitset. The model is asked only *what kind*, and only
+about pairs the graph already says are real. Two questions, two answers, one of
+them a fact and the other a prediction — and they are kept apart in the code as
+well as in the prose.
+
+**When it declines to answer.** Accuracy depends almost entirely on whether the
+model was trained on both drugs, and barely at all on how confident it sounds:
+
+| | both drugs trained on | one novel | both novel |
+|---|---|---|---|
+| top-1 | **96.6%** | 69.7% | 43.2% |
+| macro-F1 | 0.852 | 0.585 | 0.183 |
+| at confidence ≥ 0.9 | 98.0% | 76.1% | 50.0% |
+
+That last row is the one that decided it. Raising the confidence bar moves the
+middle column by six points — it does not rescue it. So the gate is the training
+status of the two drugs, which is known exactly for all 1,710 of them (1,338 were
+trained on), rather than a threshold on the model's opinion of itself. For a
+pair involving a drug the model never saw, the recorded interaction is still
+reported and **the type is left unnamed**: *"DrugBank records an interaction with
+Tramadol, but I cannot say what kind."*
+
+Both worked examples of that are real misses we can point at. On
+Sertraline + Tramadol the model says *serotonergic* where DrugBank says
+*neuroexcitatory*; on Ondansetron + Azithromycin it misses the QTc prolongation
+entirely. Both involve a drug outside the training set. Both are withheld.
+
+**Why it is an addon and not a replacement.** It runs last, after the four
+curated stages have already produced a verdict. It may raise that verdict to
+*check with your doctor* and it can never lower one. If a table is missing, a
+name does not resolve, the model will not load or inference throws, the stage
+contributes nothing and the review is byte-for-byte what it was before. Nothing
+in this path can put an error on the screen.
+
+**Honesty about what was not done.** The 188,240 true interaction types could
+have been shipped as a lookup table instead of a model — about 900 KB, and exact.
+The model earns its place by being 20 MB that generalises rather than 900 KB that
+memorises, and by producing a probability per class; it does not earn it by being
+more accurate on the pairs in the table, because it is not. Int8 quantisation
+would have taken it from 19.7 MB to 7.1 MB at a cost of 2.2 macro-F1 points
+(0.852 → 0.830), concentrated in the rare interaction types. That is the wrong
+trade for a medicine check, so it ships as float32.
 
 ### 3.6 The vision language model — FastVLM-0.5B
 
@@ -361,6 +511,12 @@ Listed because each one was invisible until something was measured.
 | Cry filed on the wrong day | An hour in the wrong column of the colic count | The seeder wrote a cry's *end* as its start time |
 | Colic count disagreed with its own chart | Tile read 1/7 above a chart showing 2 | Rolling 24-hour windows in one place, calendar days in the other |
 | Timeline unreadable | 39 camera events buried every cry | Repeated events were not folded |
+| **A strip read as the wrong drug** | "Meftal Spas — Mefenamic acid + Dicyclomine" came back as **Aspirin**, an entry marked *avoid while breastfeeding* | Aspirin carries the alias "acetylsalicylic acid", so the lone token `acid` was a four-character name match — exactly the floor. The right answer and the one shown shared nothing but a salt word |
+| Half a combination checked | A tablet containing an NSAID reported "generally compatible" | The matcher returned the single best-scoring medicine, so on "Aceclofenac 100mg + Paracetamol 325mg" the paracetamol won and the ulcer and asthma cautions were never reached |
+| A brand read perfectly, recognised as nothing | "I could not check this one", under a photograph where the OCR panel plainly showed the name | 20 medicines with four aliases each against an Indian pharmacy; and no path from a brand to its composition |
+| A torn name resolved to nothing | Same | "PARACET MOL" across a crease is two tokens, neither of which is a drug |
+| **A fluconazole carton read as paracetamol** | A wrong drug, with a hedge attached to it | The new "Indian brands ending -P contain paracetamol" rule allowed the hyphen to be optional, so any word of five letters or more split into a stem and a tail — and **"STRIP"**, printed on every blister ever made, parsed as the brand "Stri" with the suffix "P". The hyphen is now mandatory, which is how real brands write it and ordinary words do not |
+| **A scan that never ended** | The Scan screen sat on "Reading the label" with a spinner, forever — or the process died outright | PP-OCR's recogniser took its input width from the detector's aspect ratio with nothing bounding it, so one long thin box became a tensor tens of thousands of pixels wide. Found by scanning thirty photographs in a row; identified by a watchdog in the test dumping the app's own thread stacks, because this phone throttles logcat and will not let the shell signal another process |
 
 ---
 
@@ -394,8 +550,13 @@ not that it is written and then deleted.
 | Cry detector latency | 0.2 ms, on the NPU |
 | Windows reaching the detector in a quiet room | **0 of 106** — the rest stop at the silence gate |
 | Memory while monitoring | ~206 MB |
-| Sourced corpus entries | 52 |
-| Unit tests | 293 |
+| Sourced corpus entries | 66 |
+| Medicines covered by the curated corpus | 34, with 202 brand names |
+| Drugs covered by the interaction addon | 1,710 |
+| Interactions DrugBank records between them | 188,240 |
+| Interaction type named correctly | 96.6% where it answers, and it declines the rest |
+| One interaction lookup, on the phone | 7.2 ms |
+| Unit tests | 316 |
 
 The silence-gate figure is the battery story, measured rather than claimed:
 below −55 dBFS a window is a loudness comparison and nothing else — no log-mel,
@@ -414,5 +575,9 @@ no inference, no NPU. In a quiet nursery that is almost every window.
 | Ask pipeline and the personal fork | `assistant/Assistant.kt`, `assistant/QueryRouter.kt` |
 | LLM backends, prompts and guards | `assistant/LlmBridge.kt` |
 | Vision language model | `vision/SceneDescriber.kt` |
+| Reading a strip, and the five stages | `assistant/TextScanner.kt`, `assistant/agents/MedicineReview.kt` |
+| Matching a brand to a medicine | `assistant/KnowledgeIndex.kt` (`findMedicines`) |
+| Drug interactions: graph, model, gate | `ddi/DrugInteractions.kt` |
+| Building the interaction assets | `ml/ddi/` |
 | Model export and the batch pin | `ml/src/export_tflite.py` |
 | The measured model card | `audio/ModelCard.kt` (generated, never typed) |

@@ -31,7 +31,7 @@ the breastfeeding mother — without a single network request.
   <img alt="Android" src="https://img.shields.io/badge/Android-8.1%2B-3DDC84?logo=android&logoColor=white">
   <img alt="Kotlin" src="https://img.shields.io/badge/Kotlin-2.0-7F52FF?logo=kotlin&logoColor=white">
   <a href="https://github.com/nandini-kuppala/Nila/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/nandini-kuppala/Nila/actions/workflows/ci.yml/badge.svg"></a>
-  <img alt="Tests" src="https://img.shields.io/badge/tests-278%20passing-2ea44f">
+  <img alt="Tests" src="https://img.shields.io/badge/tests-318%20passing-2ea44f">
   <img alt="Network" src="https://img.shields.io/badge/network%20calls-0-0F6B60">
   <img alt="Licence" src="https://img.shields.io/badge/licence-MIT-blue">
 </p>
@@ -141,7 +141,19 @@ the mother. Answers are the retrieved text shown with where it came from; an
 optional local model shortens them and is never allowed to supply a fact.
 
 **Checks medicines.** PP-OCRv4 on device reads a strip — rotated, upside down or
-on foil — then five staged agents check it against your own health records.
+on foil — then staged agents check it against your own health records. It reads
+*both* halves of a combination tablet, so the NSAID in a painkiller is not
+hidden by the paracetamol beside it; it puts back together a name OCR tore in
+half; and when the brand is one it has never heard of, it says which brand it
+read and asks for the generic line rather than shrugging.
+
+**And against everything else you take.** A drug-interaction model covering
+**1,710 drugs** runs alongside the curated checks, on the phone, in 7 ms. It is
+asked only what *kind* of interaction two drugs have — whether they interact at
+all is answered by DrugBank's own graph, because the model has no "they don't"
+answer to give. Where it was not trained on both drugs it says so and names
+nothing. Details, with the measurements behind those choices, in
+[models &amp; findings](docs/models-and-findings.md#35b-drugdrug-interactions--a-substructure-cross-attention-classifier).
 
 **Watches, continuously.** The camera lane runs in its own foreground service,
 so it keeps analysing with the screen off — it used to live inside the screen

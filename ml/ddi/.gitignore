@@ -1,0 +1,13 @@
+# The competition bundle (1.2 GB of CSVs) and the checkpoint it produced.
+input
+best_model.pt
+
+# Fetched from DDI-Bench by fetch_reference.sh.
+ref
+
+# Rebuilt by prepare.py / export_onnx.py / build_assets.py. The copies the app
+# actually ships live in android/app/src/main/assets/ddi and are tracked.
+*.npy
+*.onnx
+label_descriptions.json
+assets
