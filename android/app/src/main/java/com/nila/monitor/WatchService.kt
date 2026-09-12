@@ -221,12 +221,19 @@ class WatchService : LifecycleService() {
         Log.i(TAG, "watch started")
     }
 
+    /**
+     * Bind, and let the frames report what the detectors turned out to be.
+     *
+     * This used to read `camera.poseAvailable` on the line after `start()`,
+     * which could only ever be false: binding the camera goes through a
+     * listener on the main executor, so nothing has been built yet at the
+     * moment this returns, and the answer was never asked for again. The
+     * screen therefore claimed posture was unavailable for the whole session
+     * while displaying the postures the pose model was producing. The truth
+     * arrives with each frame instead -- see [onFrame].
+     */
     private fun bind(camera: CameraWatch) {
         camera.start(this, pendingPreview)
-        _state.value = _state.value.copy(
-            poseAvailable = camera.poseAvailable,
-            poseDelegate = camera.poseDelegate,
-        )
     }
 
     /**
@@ -251,6 +258,11 @@ class WatchService : LifecycleService() {
             assessment = assessment,
             motion = frame.motion,
             framesAnalysed = watch?.framesAnalysed ?: 0L,
+            // Cheap field reads, and this is the earliest point at which they
+            // are meaningful: a frame only reaches here once both detectors
+            // have loaded.
+            poseAvailable = watch?.poseAvailable == true,
+            poseDelegate = watch?.poseDelegate ?: "-",
             cameraMoved = sensors.cameraMoved,
             lightChanged = sensors.lightChanged,
             roomDark = sensors.roomDark,

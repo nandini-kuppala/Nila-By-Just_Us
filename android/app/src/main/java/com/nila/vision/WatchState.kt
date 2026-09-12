@@ -2,6 +2,9 @@ package com.nila.vision
 
 import com.nila.data.Severity
 
+/** Where the pose landmarker has got to, as the screen needs to say it. */
+enum class PoseStatus { LOADING, RUNNING, UNAVAILABLE }
+
 /** What the camera lane is doing right now, as the UI and the watch need it. */
 data class WatchState(
     val running: Boolean = false,
@@ -9,6 +12,16 @@ data class WatchState(
     val assessment: ActivityRules.Assessment? = null,
     val motion: MotionEnergy.Reading = MotionEnergy.Reading(0f, 0f, 1f),
     val framesAnalysed: Long = 0,
+    /**
+     * Whether the pose landmarker is loaded and answering.
+     *
+     * Re-read from the camera on every analysed frame rather than sampled once
+     * when the watch starts. It used to be sampled once, immediately after
+     * `start()`, at a point where the detectors had not been built yet and the
+     * field was necessarily false -- so the screen said posture was unavailable
+     * on a phone that was, at that moment, reporting posture in the panel above
+     * the warning.
+     */
     val poseAvailable: Boolean = false,
     val poseDelegate: String = "-",
     val zone: SafeZone = SafeZone.DEFAULT,
@@ -79,6 +92,22 @@ data class WatchState(
     /** The caveat for whatever is being claimed, or null when there is none. */
     val caveat: String?
         get() = assessment?.primary?.let { ActivityRules.caveat(it) }
+
+    /**
+     * Loading, running, or genuinely not available on this phone.
+     *
+     * The distinction the flag alone cannot make. No frame is analysed until
+     * both detectors exist -- [CameraWatch.analyse] drops frames while they are
+     * null -- so a zero frame count means the models are still loading, and
+     * only a frame that has been through them can say posture is unavailable.
+     * Without this the warning appeared for the second or two of warm-up on
+     * every phone, including the ones where pose works.
+     */
+    val poseStatus: PoseStatus get() = when {
+        poseAvailable -> PoseStatus.RUNNING
+        framesAnalysed == 0L -> PoseStatus.LOADING
+        else -> PoseStatus.UNAVAILABLE
+    }
 
     val calibrating: Boolean
         get() = assessment == null ||

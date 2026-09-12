@@ -61,6 +61,7 @@ import com.nila.vision.ActivityRules
 import com.nila.vision.CameraWatch
 import com.nila.vision.DemoFootage
 import com.nila.vision.FaceWatcher
+import com.nila.vision.PoseStatus
 import com.nila.vision.Posture
 import com.nila.vision.SafeZone
 import com.nila.vision.WatchState
@@ -211,7 +212,14 @@ fun WatchScreen(state: AppState) {
                         // what turns a video into a slideshow.
                         shown = frame
                         camera.offerFrame(frame)
-                        demoState = demoState.copy(framesAnalysed = camera.framesAnalysed)
+                        demoState = demoState.copy(
+                            framesAnalysed = camera.framesAnalysed,
+                            // Read per frame, not once at the start: the
+                            // detectors are built behind the first frames and
+                            // are not loaded yet when the demo begins.
+                            poseAvailable = camera.poseAvailable,
+                            poseDelegate = camera.poseDelegate,
+                        )
                     }
                     position += DemoFootage.FRAME_INTERVAL_MS
                     if (position >= footage.durationMs) position = 0L
@@ -396,13 +404,19 @@ private fun StatusCard(
 
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     CalmChip("On device")
-                    if (state.poseAvailable) CalmChip("Pose ${state.poseDelegate}")
-                    else CalmChip("Face only")
+                    when (state.poseStatus) {
+                        PoseStatus.RUNNING -> CalmChip("Pose ${state.poseDelegate}")
+                        PoseStatus.LOADING -> CalmChip("Warming up")
+                        PoseStatus.UNAVAILABLE -> CalmChip("Face only")
+                    }
                     state.lux?.let { CalmChip("${it.toInt()} lx") }
                 }
             }
 
-            if (!state.poseAvailable && state.running && !demo) {
+            // Only once a frame has been through the models. Before that the
+            // pose landmarker is still loading, and saying it failed is both
+            // wrong and the first thing a parent reads.
+            if (state.poseStatus == PoseStatus.UNAVAILABLE && state.running && !demo) {
                 WarningBox(
                     "Posture is unavailable on this phone",
                     "The pose model could not run, so the watch is reporting face " +
