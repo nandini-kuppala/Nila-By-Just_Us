@@ -259,8 +259,24 @@ class AppState(app: Application) : AndroidViewModel(app) {
     val answer: StateFlow<Assistant.Answer?> = _answer.asStateFlow()
 
     /** True while the model is shortening an answer that is already on screen. */
-    private val _phrasing = MutableStateFlow(false)
-    val phrasing: StateFlow<Boolean> = _phrasing.asStateFlow()
+    /**
+     * What the Ask screen is doing, so the wait can say which wait it is.
+     *
+     * Retrieval is under a second; a personalised answer means a 0.5B model is
+     * writing, which is several. A spinner that says the same thing for both
+     * reads as a hang for the second one.
+     */
+    enum class AskStage {
+        IDLE,
+        SEARCHING,
+        /** Corpus passages plus this family's facts, being joined by the model. */
+        WRITING_PERSONAL,
+        /** Nothing retrieved; the model is answering from general knowledge. */
+        WRITING_GENERAL,
+    }
+
+    private val _asking = MutableStateFlow(AskStage.IDLE)
+    val asking: StateFlow<AskStage> = _asking.asStateFlow()
 
     private val _thinking = MutableStateFlow(false)
     val thinking: StateFlow<Boolean> = _thinking.asStateFlow()
@@ -795,58 +811,47 @@ class AppState(app: Application) : AndroidViewModel(app) {
         if (question.isBlank()) return
         viewModelScope.launch {
             _thinking.value = true
+            _asking.value = AskStage.SEARCHING
             _answer.value = null
             val language = baby.value?.language ?: "en"
-            val result = withContext(Dispatchers.Default) {
+
+            // Retrieval, routing and the decision about whether a model step is
+            // needed. Cheap, and it always produces a complete answer -- what
+            // follows can only replace it with a better one.
+            val draft = withContext(Dispatchers.Default) {
                 assistant.ask(question, language)
             }
-            // On screen immediately, as retrieved text. Everything below is
-            // presentation, and if it fails this is what stands.
-            _answer.value = result
-            _thinking.value = false
 
-            _phrasing.value = llm.isReady
-            if (llm.isReady) {
-                val phrased = withTimeoutOrNull(PHRASING_TIMEOUT_MS) {
-                    withContext(llmDispatcher) { assistant.phrase(result, language) }
+            // One publish, not two.
+            //
+            // The screen used to show the retrieved passages the moment they
+            // arrived and then swap in the model's version underneath a
+            // "Shortening..." line. Two answers to one question, the second
+            // replacing the first while it was being read. If a model step is
+            // going to change the words, the reader should see the words once.
+            val final = if (draft.modelTask != null && llm.isReady) {
+                _asking.value = if (draft.modelTask!!.passages.isEmpty()) {
+                    AskStage.WRITING_GENERAL
+                } else {
+                    AskStage.WRITING_PERSONAL
                 }
-                if (phrased != null && _answer.value === result) {
-                    _answer.value = result.copy(text = phrased, refinedByLlm = true)
-                }
-                _phrasing.value = false
+                withTimeoutOrNull(PHRASING_TIMEOUT_MS) {
+                    withContext(llmDispatcher) { assistant.compose(draft, language) }
+                } ?: draft
+            } else {
+                draft
             }
 
-            // No generation in this path either, for the same reason it was
-            // removed from the medicine verdict -- and this time with a worse
-            // example.
-            //
-            // Asked "I don't feel bonded with my baby", the 0.5B model returned:
-            //
-            //   "The baby has not yet passed the newborn hearing screening,
-            //    which is a sign of potential hearing issues."
-            //
-            // No such thing had happened. It had taken a health record saying
-            // the screening was passed, inverted it, and attached a diagnosis.
-            //
-            // The grounding check could not catch it and no version of that
-            // check can: it measures how much of the output's vocabulary comes
-            // from the source, and every word of that sentence did. Overlap
-            // cannot see a flipped negation or a clause reassembled into a
-            // claim the source never made. Telling a new mother her baby may be
-            // deaf, on the strength of a fluent 0.5B model rearranging her own
-            // notes, is not a quality trade-off.
-            //
-            // The retrieved answer is already complete, sourced and readable.
-            // The model itself has since been removed from the app entirely:
-            // 25 MB of native library and around 210 MB of resident memory,
-            // for a feature that was making the answers worse.
+            _answer.value = final
+            _thinking.value = false
+            _asking.value = AskStage.IDLE
 
             db.conversations().insert(
                 com.nila.data.ConversationRecord(
                     atMs = System.currentTimeMillis(),
                     question = question,
-                    answer = result.text,
-                    sources = result.sources.joinToString(" | "),
+                    answer = final.text,
+                    sources = final.sources.joinToString(" | "),
                     language = language,
                 )
             )

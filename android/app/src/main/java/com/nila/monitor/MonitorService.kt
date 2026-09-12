@@ -421,6 +421,14 @@ class MonitorService : LifecycleService() {
                     sootheMemory.record(soother.id, escalation.judgeSettled(evidence))
                 }
                 pendingSoother = null
+                // Held, not read back later. `retainClipFor` needs the row to
+                // hang the recording on, and clearing the field first is how
+                // every cry that ended normally lost its audio: the function
+                // begins by reading `currentEventId` and returned immediately
+                // because this line had already blanked it. Only the cries cut
+                // off at the three-minute rung kept anything, because that
+                // path clears the field afterwards.
+                val endedEpisodeId = currentEventId
                 currentEventId = null
                 soothePlayer.duckCry(false)
                 note("The crying stopped after ${evidence.durationSeconds}s")
@@ -437,7 +445,7 @@ class MonitorService : LifecycleService() {
                     recorder.abandon()
                     null
                 }
-                summary?.let { retainClipFor(evidence, it) }
+                summary?.let { retainClipFor(endedEpisodeId, evidence, it) }
                 escalation.reset()
                 fired.clear()
                 _state.value = _state.value.copy(
@@ -558,10 +566,11 @@ class MonitorService : LifecycleService() {
      * week and nobody's evidence.
      */
     private suspend fun retainClipFor(
+        episodeId: Long?,
         evidence: CryEvidence,
         summary: MonitorState.EpisodeSummary,
     ) {
-        val id = currentEventId ?: return
+        val id = episodeId ?: return
         val path = summary.clipPath ?: return
         if (!worthKeeping(evidence, summary)) return
         val moved = runCatching { recorder.keep(java.io.File(path)) }.getOrNull() ?: return
@@ -692,7 +701,7 @@ class MonitorService : LifecycleService() {
                 )
                 note("Closed the episode at ${evidence.durationSeconds}s")
                 val summary = summarise(evidence, closedByTimeout = true)
-                retainClipFor(evidence, summary)
+                retainClipFor(currentEventId, evidence, summary)
                 _state.value = _state.value.copy(
                     phase = MonitorState.Phase.Closed(evidence.durationSeconds),
                     currentEvidence = null,

@@ -42,20 +42,67 @@ class Assistant(
         val cautions: List<String>,
         val context: List<String>,
         val kind: Kind,
-        /**
-         * Always false. No health-facing answer is generated -- see the note in
-         * [com.nila.ui.AppState.ask]. Kept on the type so that if generation
-         * is ever reintroduced, the UI has somewhere to say so.
-         */
+        /** True when the words on screen were written by the on-device model. */
         val refinedByLlm: Boolean = false,
+        /** Where the answer came from, which the card has to be able to say. */
+        val origin: Origin = Origin.CORPUS,
         /** Carried so a later refinement pass can rebuild the prompt. */
         val question: String = "",
         val logContext: List<String> = emptyList(),
         /** The retrieved passages, for the phrasing pass. Corpus text only. */
         val passages: List<String> = emptyList(),
+        /**
+         * The model step this answer is still waiting on, or null if it is final.
+         *
+         * Planning happens here and execution happens in the view model, for
+         * one reason: the model is a blocking JNI call that must run on its own
+         * single thread, and the decision about *whether* to run it belongs
+         * with the retrieval that produced the alternative. The text already in
+         * [text] is what stands if the step fails, so every path has an answer
+         * before the model is asked for anything.
+         */
+        val modelTask: ModelTask? = null,
     ) {
         enum class Kind { GUIDANCE, MEDICINE, LOG, NO_MATCH, EMERGENCY }
+
+        /**
+         * What produced the words on screen.
+         *
+         * On the card this decides one line of small print, and that line is
+         * the difference between an answer a reader can weigh and one they
+         * cannot. Text lifted from a sourced entry and text a 0.5B model wrote
+         * from general knowledge are not the same kind of thing, however
+         * similar they read.
+         */
+        enum class Origin {
+            /** Corpus text, verbatim, with its sources. */
+            CORPUS,
+            /** The model, from corpus passages plus this family's own facts. */
+            CORPUS_PERSONALISED,
+            /** The model, with nothing retrieved behind it. */
+            MODEL_ONLY,
+            /** This baby's own log. Exact. */
+            LOG,
+            /** A routed, written-in-advance response. */
+            CANNED,
+        }
     }
+
+    /**
+     * What to hand the model, and what it is allowed to be checked against.
+     *
+     * [facts] is the part the old design refused to supply. It was refused for
+     * a good reason -- a model handed a record saying a hearing screen was
+     * passed once inverted it -- and it is supplied now with the guard that was
+     * missing then: the grounding check is run against the passages *and* the
+     * facts together, so a sentence that flips one of them is caught by the
+     * same polarity rule that catches a flipped passage.
+     */
+    data class ModelTask(
+        val question: String,
+        val passages: List<String>,
+        val facts: List<String>,
+    )
 
     suspend fun ask(question: String, language: String = "en"): Answer {
         // Routing before retrieval. Some questions must never be answered with
@@ -75,6 +122,7 @@ class Assistant(
                     QueryRouter.Route.CaregiverDistress -> Answer.Kind.EMERGENCY
                     else -> Answer.Kind.NO_MATCH
                 },
+                origin = Answer.Origin.CANNED,
                 question = question,
             )
         }
@@ -112,14 +160,31 @@ class Assistant(
         // domperidone, a prescription galactagogue, above the page on supply.
         val hits = index.retrieveGuidance(question, audience, babyAge)
 
+        val facts = personalFacts(logContext, fromRecords)
+
+        // Nothing in the corpus. This used to end here, with "I don't have
+        // anything reliable on that offline" -- a true statement about the
+        // corpus and a useless one to somebody holding a baby at 2am. The
+        // question goes to the model instead, with what is known about this
+        // family and nothing else, and the card says plainly that the answer
+        // is general knowledge rather than a sourced entry.
+        //
+        // The text below is still what stands if no model is installed or the
+        // generation is rejected, so the honest floor has not moved.
         if (hits.isEmpty() && fromRecords.isEmpty()) {
             return Answer(
-                text = "I don't have anything reliable on that offline. For anything " +
-                    "urgent or unusual, contact your doctor rather than guessing.",
+                text = "I don't have a sourced entry on that, and there is no " +
+                    "on-device model installed to answer it from general " +
+                    "knowledge. For anything urgent or unusual, ask your doctor " +
+                    "rather than guessing.",
                 sources = emptyList(),
                 cautions = emptyList(),
                 context = logContext,
                 kind = Answer.Kind.NO_MATCH,
+                origin = Answer.Origin.CANNED,
+                question = question,
+                logContext = logContext,
+                modelTask = ModelTask(question, emptyList(), facts),
             )
         }
 
@@ -147,9 +212,19 @@ class Assistant(
             }
         }
 
-        // No language model in this path. Retrieval already produced a complete,
-        // sourced answer; making the user wait on generation to see it was the
-        // bug, not a feature. [refine] upgrades the prose afterwards.
+        // The fork this screen runs on.
+        //
+        // A general question has a general answer, and the corpus holds it
+        // word for word with a source attached. Putting a 0.5B model between
+        // the reader and that text can only make it worse, and it makes them
+        // wait to find out. So it is shown as retrieved, directly.
+        //
+        // A question that reaches for this family's own history has no answer
+        // in the corpus at all: the corpus knows what a penicillin allergy
+        // means, and only the profile knows she has one. That one goes to the
+        // model with both halves, and the retrieved text is the fallback.
+        val personal = QueryRouter.isPersonal(question) || fromRecords.isNotEmpty()
+
         return Answer(
             text = body,
             sources = fromRecords.map { "Your record: ${it.title}" } +
@@ -158,13 +233,76 @@ class Assistant(
             context = logContext,
             kind = Answer.Kind.GUIDANCE,
             refinedByLlm = false,
+            origin = Answer.Origin.CORPUS,
             question = question,
             logContext = logContext,
-            // Only the corpus passages, and never the records. The model is
-            // handed these to phrase; see LlmBridge for why the list is so
-            // carefully limited.
             passages = hits.map { it.doc.text },
+            modelTask = if (personal) {
+                ModelTask(question, hits.map { it.doc.text }, facts)
+            } else null,
         )
+    }
+
+    /**
+     * Run the pending model step, if there is one, and return the final answer.
+     *
+     * Called from the view model on the dedicated model thread. Returns the
+     * draft unchanged on every failure path -- no model installed, not loaded,
+     * generation error, or output the grounding check rejected -- so the caller
+     * can treat it as a pure upgrade and never has to handle a missing answer.
+     */
+    fun compose(draft: Answer, language: String): Answer {
+        val task = draft.modelTask ?: return draft
+        val engine = llm ?: return draft.copy(modelTask = null)
+        if (!engine.isReady) return draft.copy(modelTask = null)
+
+        val written = engine.answer(task.question, task.passages, task.facts, language)
+            ?: return draft.copy(modelTask = null)
+
+        return draft.copy(
+            text = written,
+            refinedByLlm = true,
+            modelTask = null,
+            // A generated answer with nothing retrieved behind it is a
+            // different claim from one built on sourced passages, and the card
+            // has to be able to say which it is holding.
+            origin = if (task.passages.isEmpty()) Answer.Origin.MODEL_ONLY
+                     else Answer.Origin.CORPUS_PERSONALISED,
+            kind = if (draft.kind == Answer.Kind.NO_MATCH) Answer.Kind.GUIDANCE
+                   else draft.kind,
+        )
+    }
+
+    /**
+     * Everything true of this mother and baby that the model may be shown.
+     *
+     * The log lines, the mother's own profile, and a short extract of any filed
+     * record the question actually matched. Records are included at last only
+     * because the grounding check now validates against this list as well as
+     * the passages -- a claim about a record is held to the record.
+     */
+    private suspend fun personalFacts(
+        logContext: List<String>,
+        records: List<com.nila.data.HealthRecord>,
+    ): List<String> = buildList {
+        addAll(logContext)
+        db.mother().get()?.let { mother ->
+            if (mother.isBreastfeeding) add("The mother is breastfeeding")
+            if (mother.conditions.isNotBlank()) {
+                add("Mother's conditions: ${mother.conditions}")
+            }
+            if (mother.allergies.isNotBlank()) {
+                add("Mother is allergic to: ${mother.allergies}")
+            }
+            if (mother.currentMedicines.isNotBlank()) {
+                add("Mother currently takes: ${mother.currentMedicines}")
+            }
+            if (mother.notes.isNotBlank()) add("Mother's notes: ${mother.notes}")
+        }
+        records.forEach { record ->
+            add("From her filed record \"${record.title}\": " +
+                record.extractedText.ifBlank { record.notes }.take(220))
+        }
     }
 
     /**
@@ -208,6 +346,7 @@ class Assistant(
             context = logContext,
             kind = Answer.Kind.MEDICINE,
             refinedByLlm = false,
+            origin = Answer.Origin.CORPUS,
             question = "Is this safe while breastfeeding?",
             logContext = logContext,
         )
@@ -255,6 +394,7 @@ class Assistant(
                 "buttons on the home screen, I can answer this exactly.",
             sources = emptyList(), cautions = emptyList(),
             context = logContext, kind = Answer.Kind.LOG,
+            origin = Answer.Origin.LOG,
         )
 
         return Answer(
@@ -264,6 +404,7 @@ class Assistant(
             cautions = emptyList(),
             context = logContext,
             kind = Answer.Kind.LOG,
+            origin = Answer.Origin.LOG,
         )
     }
 

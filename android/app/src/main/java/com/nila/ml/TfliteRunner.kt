@@ -118,6 +118,11 @@ class TfliteRunner private constructor(
         ): TfliteRunner {
             val model = loadAsset(context, assetName)
 
+            // NPU first, then GPU, and the CPU only because a monitor that
+            // cannot load its detector is worse than one running it slowly.
+            // Landing on CPU is a fault to be surfaced, not a quiet default:
+            // it is reported on the Insights screen, which is where the
+            // accelerator this device actually chose is on display.
             val order = when (preferred) {
                 Accelerator.NNAPI -> listOf(Accelerator.NNAPI, Accelerator.GPU, Accelerator.CPU)
                 Accelerator.GPU -> listOf(Accelerator.GPU, Accelerator.NNAPI, Accelerator.CPU)
@@ -151,11 +156,25 @@ class TfliteRunner private constructor(
                     options.addDelegate(d)
                 }
                 Accelerator.GPU -> {
-                    val compat = CompatibilityList()
-                    if (!compat.isDelegateSupportedOnThisDevice) {
-                        error("GPU delegate unsupported on this device")
+                    // `CompatibilityList` is a shipped allow-list, and it does
+                    // not know hardware newer than the build of TFLite it came
+                    // in. On a Snapdragon 8 Elite Gen 5 it answers "no" for a
+                    // GPU that works perfectly, which is how this device ended
+                    // up on the CPU with the delegate never attempted.
+                    //
+                    // So its answer is used for *tuning* and not for
+                    // permission: known device, take its options; unknown
+                    // device, try the defaults. Either way the real inference
+                    // below is what decides, which is the rule every other
+                    // option here is already held to.
+                    val compat = runCatching { CompatibilityList() }.getOrNull()
+                    val known = compat?.isDelegateSupportedOnThisDevice == true
+                    val d = if (known) {
+                        GpuDelegate(compat!!.bestOptionsForThisDevice)
+                    } else {
+                        Log.i(TAG, "GPU not in the compatibility list; trying anyway")
+                        GpuDelegate()
                     }
-                    val d = GpuDelegate(compat.bestOptionsForThisDevice)
                     gpu = d
                     options.addDelegate(d)
                 }

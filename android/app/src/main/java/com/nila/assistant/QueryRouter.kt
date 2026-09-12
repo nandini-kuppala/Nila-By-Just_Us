@@ -454,6 +454,67 @@ object QueryRouter {
     }
 
     /**
+     * Health nouns that only this family's own data can speak to.
+     *
+     * Matched behind a possessive, with room for the words people actually put
+     * in between -- "my blood test results", "her six week check". A literal
+     * phrase list was tried first and missed exactly that: it had "my results"
+     * and the question was "what did my blood test results say".
+     */
+    private const val PERSONAL_NOUNS =
+        "result|report|record|history|condition|allerg|asthma|anaem|anem|iron|" +
+        "thyroid|diabet|blood pressure|medicine|medication|tablet|prescription|" +
+        "note|chart|test|scan|screening|vaccination|immunisation|immunization|" +
+        "weight|growth|centile|percentile|age|hearing"
+
+    /**
+     * A possessive, then within a few words one of those nouns.
+     *
+     * `my`, `her` and `his` only -- not "the baby's", which is how people write
+     * general questions. The window is short so "my baby cries a lot and I read
+     * that iron helps" does not count as asking about her iron.
+     */
+    private val PERSONAL_POSSESSIVE = Regex(
+        """\b(my|her|his)\b[\w\s]{0,20}?\b($PERSONAL_NOUNS)""",
+        RegexOption.IGNORE_CASE,
+    )
+
+    /**
+     * Phrases that ask for an answer conditioned on the asker themselves.
+     *
+     * These carry no health noun of their own -- "is it safe for me" is a
+     * question about her, and what makes it one is the "for me".
+     */
+    private val PERSONAL_PHRASES = listOf(
+        "for me", "in my case", "for my case", "given my", "with my",
+        "because of my", "since i have", "i have asthma", "i take",
+        "i am taking", "i'm taking", "im taking", "am i allergic",
+        "at her age", "at his age", "was she", "was he", "did she have",
+        "did he have", "has she had", "has he had", "she is allergic",
+        "my own", "about me",
+    )
+
+    /**
+     * Does answering this well need facts about this family?
+     *
+     * The dividing line the Ask screen runs on. A general question has a
+     * general answer and the corpus already holds it, word for word and with a
+     * source -- putting a model between the reader and that text can only make
+     * it worse, and makes them wait to find out. A question that reaches for
+     * their own history has no answer in the corpus at all: the corpus knows
+     * what a penicillin allergy means, and only the profile knows she has one.
+     *
+     * Deliberately not triggered by a bare possessive. "My baby" is in almost
+     * every question on this screen, and a rule that fires on all of them sends
+     * everything through a 0.5B model for no benefit.
+     */
+    fun isPersonal(question: String): Boolean {
+        val q = " ${question.lowercase().trim()} "
+        if (PERSONAL_PHRASES.any { q.contains(it) }) return true
+        return PERSONAL_POSSESSIVE.containsMatchIn(q)
+    }
+
+    /**
      * Is the question about the future rather than about now?
      *
      * Age filtering exists so a four-month-old's parent is not shown advice for

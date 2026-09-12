@@ -24,6 +24,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -54,7 +55,7 @@ fun AskScreen(state: AppState) {
     val question by state.draftQuestion.collectAsState()
     val answer by state.answer.collectAsState()
     val thinking by state.thinking.collectAsState()
-    val phrasing by state.phrasing.collectAsState()
+    val stage by state.asking.collectAsState()
 
     /**
      * Leaving the screen puts it back to an empty box.
@@ -134,28 +135,29 @@ fun AskScreen(state: AppState) {
             }
         }
 
+        // One wait, naming itself. Retrieval is under a second; a personalised
+        // answer means a small model is writing, which is several -- and a
+        // spinner that says the same thing for both reads as a hang.
         if (thinking) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 CircularProgressIndicator(modifier = Modifier.size(20.dp))
-                Text("Searching the corpus",
-                     style = MaterialTheme.typography.bodyMedium)
+                Text(
+                    when (stage) {
+                        AppState.AskStage.WRITING_PERSONAL ->
+                            "Reading your records and writing an answer"
+                        AppState.AskStage.WRITING_GENERAL ->
+                            "Nothing filed on that - answering from what the model knows"
+                        else -> "Searching the corpus"
+                    },
+                    style = MaterialTheme.typography.bodyMedium,
+                )
             }
         }
 
         answer?.let { AnswerCard(it) }
-
-        // The answer is already readable; this only says a shorter version is
-        // on its way, so it sits under the answer rather than replacing it.
-        if (phrasing) {
-            Text(
-                "Shortening...",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
     }
 }
 
@@ -202,11 +204,26 @@ private fun AnswerCard(answer: Assistant.Answer) {
             // own health record restated back at them, below the part they
             // asked for. It is the least useful thing on the card and it was
             // the last thing on it.
-            Text(
-                answer.text,
-                style = MaterialTheme.typography.bodyLarge,
-                lineHeight = 24.sp,
+            AnswerBody(answer.text)
+        }
+
+        // What produced these words. One line, and the difference between an
+        // answer a reader can weigh and one they cannot: corpus text with a
+        // source behind it and a 0.5B model's general knowledge are not the
+        // same kind of thing, however similarly they read.
+        when (answer.origin) {
+            Assistant.Answer.Origin.MODEL_ONLY -> HedgeNote(
+                "Nothing in the sourced corpus covered this, so this was written " +
+                    "on this phone by the small local model from general knowledge " +
+                    "and what it knows about you. Treat it as a starting point, not " +
+                    "as a sourced answer, and check anything that matters with your " +
+                    "doctor."
             )
+            Assistant.Answer.Origin.CORPUS_PERSONALISED -> HedgeNote(
+                "Written on this phone from the sources below and your own records. " +
+                    "The sources are unchanged; the wording is not."
+            )
+            else -> Unit
         }
 
         // Every retrieved document carries its own caution, so an answer cannot
@@ -221,6 +238,66 @@ private fun AnswerCard(answer: Assistant.Answer) {
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+        }
+    }
+}
+
+/**
+ * The answer text, as paragraphs rather than one block.
+ *
+ * Two things arrive here that a single `Text` renders badly. Retrieved entries
+ * are separated by blank lines and ran together into a wall. And the model's
+ * output carries line breaks -- sometimes real ones, sometimes the two literal
+ * characters backslash-n, which is what put "...at night.\nIf it continues..."
+ * on screen. The literal form is converted in `LlmBridge.sanitise`; this is the
+ * other half, giving the breaks that survive somewhere to go.
+ *
+ * A leading "- " becomes a real bullet, because the model produces them despite
+ * being asked not to, and a hyphen at the start of a line is not a list.
+ */
+@Composable
+private fun AnswerBody(text: String) {
+    val blocks = remember(text) {
+        text.replace("\r\n", "\n")
+            .split(Regex("\n{2,}"))
+            .map { it.trim() }
+            .filter { it.isNotEmpty() }
+    }
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        blocks.forEach { block ->
+            val lines = block.lines().map { it.trim() }.filter { it.isNotEmpty() }
+            // A block with any bullet in it is drawn line by line, so a lead-in
+            // sentence above a list keeps the list. A block with none is one
+            // paragraph: single breaks inside it are the model wrapping, not
+            // structure, and joining them lets it reflow to the width it gets.
+            if (lines.any { it.startsWith("- ") }) {
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    lines.forEach { line ->
+                        if (line.startsWith("- ")) {
+                            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                Text("\u2022",
+                                     style = MaterialTheme.typography.bodyLarge,
+                                     color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text(
+                                    line.removePrefix("- ").trim(),
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    lineHeight = 24.sp,
+                                )
+                            }
+                        } else {
+                            Text(line,
+                                 style = MaterialTheme.typography.bodyLarge,
+                                 lineHeight = 24.sp)
+                        }
+                    }
+                }
+            } else {
+                Text(
+                    lines.joinToString(" "),
+                    style = MaterialTheme.typography.bodyLarge,
+                    lineHeight = 24.sp,
+                )
+            }
         }
     }
 }

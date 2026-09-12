@@ -22,6 +22,8 @@ the breastfeeding mother — without a single network request.
   &nbsp;·&nbsp;
   <a href="https://nandini-kuppala.github.io/Nila/deck.html">Deck</a>
   &nbsp;·&nbsp;
+  <a href="docs/models-and-findings.md">Models &amp; findings</a>
+  &nbsp;·&nbsp;
   <a href="https://nandini-kuppala.github.io/Nila/technical-record.html">Technical record</a>
 </p>
 
