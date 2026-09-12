@@ -85,6 +85,16 @@ class PaddleOcr private constructor(private val context: Context) : Closeable {
 
         private const val REC_HEIGHT = 48
         private const val REC_BASE_WIDTH = 320
+
+        /**
+         * The widest crop the recogniser will be given.
+         *
+         * Twenty times its height, which is a line of roughly forty characters
+         * and longer than anything printed on a strip. Beyond this the box is
+         * a detector artefact rather than a word, and the cost of taking it at
+         * face value is a tensor big enough to stall or kill the process.
+         */
+        private const val REC_MAX_WIDTH = 960
         private const val CLS_HEIGHT = 48
         private const val CLS_WIDTH = 192
         private const val CLS_THRESHOLD = 0.9f
@@ -336,7 +346,21 @@ class PaddleOcr private constructor(private val context: Context) : Closeable {
         // PaddleOCR pads every crop out to a common width so a batch can share
         // one tensor. Kept even at batch size one, because the network saw that
         // padding during training and reproducing it is free.
-        val paddedWidth = max(REC_BASE_WIDTH, ceil(REC_HEIGHT * ratio).toInt())
+        //
+        // Capped, because this width came straight from the aspect ratio of
+        // whatever the detector found and nothing bounded it. A long thin box --
+        // a line of small print running the length of a bottle, a seam read as
+        // one region -- produces a ratio in the hundreds, and at 48 pixels high
+        // that is a tensor tens of thousands of pixels wide. The symptom was
+        // not an error: `OrtSession.run` sat in native code for minutes at
+        // almost no CPU, or the allocation took the process out entirely. On
+        // the Scan screen either one is a spinner that never resolves.
+        //
+        // Past the cap the crop is squeezed to fit rather than padded. Text
+        // that long is a detector artefact far more often than it is a word,
+        // and a squeezed read of it beats a scan that never comes back.
+        val paddedWidth = ceil(REC_HEIGHT * ratio).toInt()
+            .coerceIn(REC_BASE_WIDTH, REC_MAX_WIDTH)
         val prepared = letterbox(crop, REC_HEIGHT, paddedWidth)
 
         val input = FloatBuffer.allocate(3 * REC_HEIGHT * paddedWidth)

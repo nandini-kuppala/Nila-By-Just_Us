@@ -10,6 +10,7 @@ import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.devanagari.DevanagariTextRecognizerOptions
 import com.google.mlkit.vision.text.latin.TextRecognizerOptions
 import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.coroutines.resume
 
 /**
@@ -32,7 +33,18 @@ import kotlin.coroutines.resume
  */
 class TextScanner(private val context: Context) {
 
-    private companion object { const val TAG = "TextScanner" }
+    private companion object {
+        const val TAG = "TextScanner"
+
+        /**
+         * How long one recogniser gets before the pass is abandoned.
+         *
+         * Generous: the slowest honest read in the test corpus -- a 12
+         * megapixel shop shelf -- is a little over four seconds. This is not a
+         * performance budget, it is the line between slow and never.
+         */
+        const val PASS_TIMEOUT_MS = 20_000L
+    }
 
     // Shared: the ONNX sessions are thread-safe and hold 16 MB of weights.
     private val paddle = PaddleOcr.shared(context)
@@ -124,11 +136,23 @@ class TextScanner(private val context: Context) {
         var everReady = false
         var passes = 0
 
+        /**
+         * A recogniser that has already failed to answer once.
+         *
+         * Cancelling the wait does not cancel ML Kit's work, so when one call
+         * does not come back the engine is still busy with it. Starting the
+         * next pass on the same recogniser would queue behind that and time out
+         * too, turning one slow pass into seven. Once a recogniser has missed
+         * its deadline it is not asked again for this image; the other one, and
+         * whatever PP-OCR already read, still count.
+         */
+        val wedged = mutableSetOf<com.google.mlkit.vision.text.TextRecognizer>()
+
         suspend fun attempt(candidate: Bitmap, label: String): Boolean {
             passes++
             val image = InputImage.fromBitmap(candidate, 0)
-            val latinResult = recognise(image, latin)
-            val devaResult = recognise(image, devanagari)
+            val latinResult = read(image, latin, wedged)
+            val devaResult = read(image, devanagari, wedged)
             if (!latinResult.modelMissing || !devaResult.modelMissing) everReady = true
             blocks += latinResult.blocks + devaResult.blocks
 
@@ -259,26 +283,72 @@ class TextScanner(private val context: Context) {
         val modelMissing: Boolean,
     )
 
+    /**
+     * The one [Partial] that means "it never answered".
+     *
+     * Compared by identity, so it is distinguishable from a recogniser that
+     * genuinely found nothing -- which is a normal, frequent result and must
+     * not take a recogniser out of the rest of the scan.
+     */
+    private val TIMED_OUT = Partial(emptyList(), 0, false)
+
+    /**
+     * One recogniser, one image, a deadline, and a memory of past failures.
+     *
+     * ML Kit answers through a listener, and a listener that is never called
+     * is indistinguishable from one that is slow. Nothing in this lane had a
+     * timeout, so a wait like that would never have ended -- and on the Scan
+     * screen an unending wait is a spinner under "Reading the label" that stays
+     * there, with no error and no verdict.
+     *
+     * Honest about provenance: the hang that prompted this turned out to be in
+     * PP-OCR rather than here (see [com.nila.ocr.PaddleOcr]'s recogniser width
+     * cap). This guard stayed anyway. An unbounded wait on a third-party
+     * callback, in the one path somebody is sitting and watching, is worth
+     * bounding on its own account.
+     *
+     * A pass that runs out of time contributes nothing and the next one is
+     * tried; the lines already pooled from earlier passes are kept. Failing a
+     * pass is survivable, which is the whole reason the escalation exists.
+     */
+    private suspend fun read(
+        image: InputImage,
+        recognizer: com.google.mlkit.vision.text.TextRecognizer,
+        wedged: MutableSet<com.google.mlkit.vision.text.TextRecognizer>,
+    ): Partial {
+        if (recognizer in wedged) return Partial(emptyList(), 0, false)
+        val result = recognise(image, recognizer)
+        if (result === TIMED_OUT) {
+            wedged += recognizer
+            Log.w(TAG, "a recogniser missed ${PASS_TIMEOUT_MS}ms; " +
+                "skipping it for the rest of this image")
+        }
+        return result
+    }
+
     private suspend fun recognise(
         image: InputImage,
         recognizer: com.google.mlkit.vision.text.TextRecognizer,
-    ): Partial = suspendCancellableCoroutine { cont ->
-        recognizer.process(image)
-            .addOnSuccessListener { result ->
-                val lines = result.textBlocks.flatMap { block ->
-                    block.lines.map { it.text }
+    ): Partial = withTimeoutOrNull(PASS_TIMEOUT_MS) {
+        suspendCancellableCoroutine { cont ->
+            recognizer.process(image)
+                .addOnSuccessListener { result ->
+                    val lines = result.textBlocks.flatMap { block ->
+                        block.lines.map { it.text }
+                    }
+                    if (cont.isActive) cont.resume(Partial(lines, result.textBlocks.size, false))
                 }
-                cont.resume(Partial(lines, result.textBlocks.size, false))
-            }
-            .addOnFailureListener { error ->
-                // A recogniser failing is not fatal -- the other may still read
-                // the strip. But "model still downloading" is a different state
-                // from "no text", and the caller needs to tell them apart.
-                val missing = (error as? MlKitException)?.errorCode ==
-                    MlKitException.UNAVAILABLE
-                cont.resume(Partial(emptyList(), 0, missing))
-            }
-    }
+                .addOnFailureListener { error ->
+                    // A recogniser failing is not fatal -- the other may still
+                    // read the strip. But "model still downloading" is a
+                    // different state from "no text", and the caller needs to
+                    // tell them apart.
+                    val missing = (error as? MlKitException)?.errorCode ==
+                        MlKitException.UNAVAILABLE
+                    if (cont.isActive) cont.resume(Partial(emptyList(), 0, missing))
+                }
+        }
+    } ?: TIMED_OUT
 
     fun close() {
         // Not paddle: it is shared with every other scanner in the process.
