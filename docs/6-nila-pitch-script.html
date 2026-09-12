@@ -1,0 +1,896 @@
+<title>Nila Shooting Script</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Spectral:ital,wght@0,400;0,600;1,400&family=Source+Sans+3:ital,wght@0,400;0,600;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+
+<style>
+:root{
+  --ground:#FFFFFF;
+  --surface:#FFFFFF;
+  --sunk:#F2F6F4;
+  --ink:#101D1A;
+  --ink-2:#465A55;
+  --ink-3:#76867F;
+  --rule:#E1E8E5;
+  --rule-2:#C6D3CE;
+  --accent:#0F6B60;
+  --accent-soft:#E2F1ED;
+  --moon:#41607F;
+  --moon-soft:#E7EDF3;
+  --warn:#8F5C0E;
+  --warn-soft:#FFF4E5;
+  --stop:#A6231C;
+  --stop-soft:#FBEAE8;
+}
+*{box-sizing:border-box}
+body{
+  background:var(--ground);
+  color:var(--ink);
+  font-family:"Source Sans 3",system-ui,-apple-system,"Segoe UI",sans-serif;
+  font-size:16px; line-height:1.62;
+  -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:1000px; margin:0 auto; padding:0 26px 96px}
+
+h1,h2,h3,h4{font-family:Spectral,Georgia,"Times New Roman",serif; text-wrap:balance; margin:0}
+a{color:var(--accent)}
+a:focus-visible,button:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+
+/* ---------------------------------------------------------- masthead */
+header.top{padding:56px 0 30px; border-bottom:1px solid var(--rule)}
+.kicker{
+  font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:11px; font-weight:500;
+  letter-spacing:.15em; text-transform:uppercase; color:var(--moon); margin:0 0 14px;
+}
+header.top h1{font-size:clamp(34px,5.4vw,52px); font-weight:600; line-height:1.06; letter-spacing:-.015em}
+header.top .sub{
+  margin:16px 0 0; max-width:60ch; font-size:18px; color:var(--ink-2);
+}
+.facts{
+  display:flex; flex-wrap:wrap; gap:10px 26px; margin-top:26px;
+  font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:12px; color:var(--ink-3);
+}
+.facts b{color:var(--ink); font-weight:500}
+
+/* ---------------------------------------------------------- sections */
+section{padding-top:52px}
+section > h2{
+  font-size:27px; font-weight:600; letter-spacing:-.01em; margin-bottom:6px;
+}
+.eyebrow{
+  font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:11px; font-weight:500;
+  letter-spacing:.14em; text-transform:uppercase; color:var(--accent); margin:0 0 10px;
+}
+.lede{max-width:66ch; color:var(--ink-2); font-size:17px; margin:0 0 8px}
+p{max-width:68ch; margin:14px 0}
+.hr{height:1px; background:var(--rule); margin:44px 0 0}
+
+/* ---------------------------------------------------------- the script */
+.beat{
+  display:grid; grid-template-columns:172px 1fr; gap:0 30px;
+  padding:22px 0; border-top:1px solid var(--rule);
+}
+.beat:first-of-type{border-top:1px solid var(--rule-2)}
+.rail{font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:12px; line-height:1.55}
+.tc{color:var(--moon); font-weight:600; font-variant-numeric:tabular-nums; letter-spacing:.02em}
+.slug{
+  display:block; margin-top:5px; font-size:10.5px; letter-spacing:.11em;
+  text-transform:uppercase; color:var(--ink-3);
+}
+.onscreen{
+  display:block; margin-top:11px; color:var(--ink-2); font-size:11.5px; line-height:1.6;
+  border-left:2px solid var(--rule-2); padding-left:9px;
+}
+.say{
+  font-size:19px; line-height:1.66; max-width:56ch;
+}
+.say p{margin:0 0 12px; max-width:none}
+.say p:last-child{margin-bottom:0}
+.say em{font-style:italic; color:var(--accent)}
+.dir{
+  display:inline-block; font-family:"IBM Plex Mono",ui-monospace,monospace;
+  font-size:11px; letter-spacing:.06em; text-transform:uppercase;
+  color:var(--warn); background:var(--warn-soft);
+  padding:2px 8px; border-radius:3px; margin-bottom:10px;
+}
+.beat.pivot .say{border-left:3px solid var(--accent); padding-left:18px; margin-left:-21px}
+
+/* ---------------------------------------------------------- tables */
+.tablewrap{overflow-x:auto; margin:22px 0}
+table{border-collapse:collapse; width:100%; font-size:14.5px; min-width:520px}
+th,td{text-align:left; padding:11px 14px 11px 0; border-bottom:1px solid var(--rule); vertical-align:top}
+th{
+  font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:10.5px; font-weight:500;
+  letter-spacing:.11em; text-transform:uppercase; color:var(--ink-3);
+  border-bottom:1px solid var(--rule-2); padding-bottom:8px;
+}
+td.w{font-family:"IBM Plex Mono",ui-monospace,monospace; font-variant-numeric:tabular-nums; color:var(--accent); font-weight:500; white-space:nowrap}
+td.name{font-weight:600}
+td.dim{color:var(--ink-2)}
+
+/* ---------------------------------------------------------- stat entries */
+.stat{padding:20px 0; border-top:1px solid var(--rule)}
+.stat:first-of-type{border-top:1px solid var(--rule-2)}
+.claim{font-family:Spectral,Georgia,serif; font-size:20px; font-weight:600; line-height:1.35; margin:0; max-width:60ch}
+.meta{
+  display:flex; flex-wrap:wrap; gap:6px 18px; margin-top:9px;
+  font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:11.5px; color:var(--ink-3);
+}
+.stat p{margin:10px 0 0; font-size:15px; color:var(--ink-2)}
+.careful{
+  margin-top:10px; font-size:14px; color:var(--warn);
+  border-left:2px solid var(--warn); padding-left:11px; max-width:64ch;
+}
+.careful b{font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:10.5px; letter-spacing:.1em; text-transform:uppercase; display:block; margin-bottom:2px}
+
+/* ---------------------------------------------------------- pipeline */
+.pipe{padding:20px 0; border-top:1px solid var(--rule)}
+.pipe:first-of-type{border-top:1px solid var(--rule-2)}
+.pipe h3{font-size:19px; font-weight:600; margin-bottom:4px}
+.pipe h3 span{
+  font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:11px; font-weight:500;
+  letter-spacing:.09em; text-transform:uppercase; color:var(--ink-3); margin-left:10px;
+}
+.chain{
+  font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:12.5px; line-height:1.85;
+  color:var(--ink-2); margin:10px 0 0; overflow-x:auto; white-space:nowrap;
+  padding-bottom:6px;
+}
+.chain b{color:var(--accent); font-weight:500}
+.pipe p{font-size:15px; margin:10px 0 0}
+
+/* ---------------------------------------------------------- qa */
+.qa{padding:18px 0; border-top:1px solid var(--rule)}
+.qa:first-of-type{border-top:1px solid var(--rule-2)}
+.q{font-family:Spectral,Georgia,serif; font-size:18px; font-weight:600; margin:0; color:var(--ink)}
+.qa p{margin:8px 0 0; font-size:15px; color:var(--ink-2)}
+
+/* ---------------------------------------------------------- never list */
+.never{
+  background:var(--stop-soft); border:1px solid var(--stop);
+  border-radius:8px; padding:20px 22px; margin-top:22px;
+}
+.never h3{font-size:17px; font-weight:600; margin-bottom:10px; color:var(--stop)}
+.never ul{margin:0; padding-left:19px}
+.never li{margin:7px 0; font-size:15px; max-width:64ch}
+.never li b{font-weight:600}
+
+ul.plain{padding-left:19px; max-width:66ch}
+ul.plain li{margin:8px 0}
+
+
+/* ---------------------------------------------------------- form fields */
+.field{padding:26px 0; border-top:1px solid var(--rule)}
+.field:first-of-type{border-top:1px solid var(--rule-2)}
+.fname{
+  display:flex; flex-wrap:wrap; align-items:baseline; gap:6px 14px; margin:0 0 4px;
+}
+.fname h3{font-size:20px; font-weight:600}
+.fname .req{
+  font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:11px; letter-spacing:.08em;
+  text-transform:uppercase; color:var(--ink-3);
+}
+.fname .req.must{color:var(--stop)}
+.paste{
+  background:var(--sunk); border:1px solid var(--rule-2); border-left:3px solid var(--accent);
+  border-radius:0 6px 6px 0; padding:16px 20px; margin:14px 0 0;
+}
+.paste p{margin:0 0 11px; font-size:15.5px; max-width:70ch}
+.paste p:last-child{margin-bottom:0}
+.paste .url{font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:13.5px; word-break:break-all}
+.blank{
+  background:var(--warn-soft); color:var(--warn); border-bottom:1px solid var(--warn);
+  padding:0 5px; font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:13px;
+}
+.note{margin-top:12px; font-size:14.5px; color:var(--ink-2); max-width:68ch}
+.note b{color:var(--ink)}
+.alt{
+  margin-top:12px; font-size:14px; color:var(--ink-2);
+  font-family:"IBM Plex Mono",ui-monospace,monospace; line-height:1.75;
+}
+.alt span{color:var(--ink-3)}
+.pick{
+  display:inline-block; font-family:"IBM Plex Mono",ui-monospace,monospace;
+  font-size:10.5px; letter-spacing:.1em; text-transform:uppercase;
+  color:var(--accent); background:var(--accent-soft); padding:2px 8px; border-radius:3px;
+}
+
+@media (max-width:720px){
+  .beat{grid-template-columns:1fr; gap:12px}
+  .rail{display:flex; flex-wrap:wrap; gap:4px 14px; align-items:baseline}
+  .onscreen{border-left:none; padding-left:0; border-top:1px solid var(--rule-2); padding-top:7px; margin-top:4px; flex-basis:100%}
+  .slug{margin-top:0}
+  .say{font-size:17.5px}
+  .beat.pivot .say{margin-left:0}
+}
+@media (prefers-reduced-motion:reduce){*{animation:none!important; transition:none!important}}
+</style>
+
+<div class="wrap">
+
+<header class="top">
+  <p class="kicker">Shooting script · iQOO City Battles 2026 · HealthTech</p>
+  <h1>Nila</h1>
+  <p class="sub">A three-minute submission film, the statistics behind every line of it, and the
+  answers for the questions that follow.</p>
+  <div class="facts">
+    <span>Runtime <b>3:00</b></span>
+    <span>Hard cut at <b>2:00</b></span>
+    <span>Spoken words <b>≈430</b></span>
+    <span>Pace <b>140 wpm</b></span>
+    <span>Jury-scored share <b>75%</b></span>
+  </div>
+</header>
+
+<!-- ============================================================ 1 -->
+<section>
+  <p class="eyebrow">What you are being scored on</p>
+  <h2>Aim the film at the rubric</h2>
+  <p class="lede">City Battles splits 75% jury and 25% device telemetry. The telemetry is earned
+  on the floor in Hyderabad; the film has to win the 75%.</p>
+
+  <div class="tablewrap"><table>
+    <thead><tr><th>Criterion</th><th>Weight</th><th>Where the film earns it</th></tr></thead>
+    <tbody>
+      <tr><td class="name">End product quality</td><td class="w">30%</td><td class="dim">The demo runs uncut on a real build. Nothing is a mockup, and the airplane-mode indicator is on screen the whole time.</td></tr>
+      <tr><td class="name">Novelty and impact</td><td class="w">20%</td><td class="dim">The verify rung. Every monitor on the market stops at <i>notify</i>; this one acts, measures whether the action worked, and learns per baby.</td></tr>
+      <tr><td class="name">Technical depth</td><td class="w">15%</td><td class="dim">The leakage finding at 02:15. A team that reports 0.444 and explains it is remembered in a room of teams reporting 97%.</td></tr>
+      <tr><td class="name">Demo and presentation</td><td class="w">10%</td><td class="dim">One take, one thread, no slides. Statistics first, product second, method third.</td></tr>
+      <tr><td class="name">Creative phone use</td><td class="w">15%</td><td class="dim">Telemetry, on the day — but the film foreshadows it: microphone all night, camera, NPU delegate, infrared emitter.</td></tr>
+      <tr><td class="name">Office Kit usage</td><td class="w">10%</td><td class="dim">Telemetry, on the day. Nothing the film can do.</td></tr>
+    </tbody>
+  </table></div>
+
+  <p><b>Track:</b> HealthTech. Nila also qualifies for Open Innovation — “anything with a
+  local/open-source model at the core” describes it exactly — and touches Smart Living through
+  the infrared fan control. Enter HealthTech; mention the other two only if asked.</p>
+
+  <p><b>The alignment argument, in one sentence:</b> most teams will build a cloud app and then
+  be told to run it on the phone. Nila cannot be a cloud app — a monitor that needs Wi-Fi at
+  3&nbsp;a.m. is not a monitor, and audio of somebody’s baby leaving the house is the thing
+  parents are actually afraid of. Say that out loud on the floor.</p>
+</section>
+
+<div class="hr"></div>
+
+<!-- ============================================================ 2 -->
+<section>
+  <p class="eyebrow">The film</p>
+  <h2>Three minutes, eight beats</h2>
+  <p class="lede">Left rail is the clock and what is on screen. Right column is what you say,
+  set large enough to read off a second monitor. Read it slowly — the numbers need room.</p>
+
+  <div class="beat">
+    <div class="rail">
+      <span class="tc">00:00 – 00:20</span>
+      <span class="slug">Hook</span>
+      <span class="onscreen">Dark nursery, phone face-up, <b>Listening</b>. No voice-over music. Let the first line land in silence.</span>
+    </div>
+    <div class="say">
+      <p>A newborn cries about two hours a day. That is the pooled figure from two separate
+      meta-analyses — fifty-seven studies between them.</p>
+      <p>Almost none of it is an emergency. Of babies taken to an emergency department
+      <em>because they were crying</em>, five per cent had anything serious.</p>
+      <p>But the parent is woken for all of it. Mothers lose an hour of sleep a night, and it
+      does not come back for six years.</p>
+    </div>
+  </div>
+
+  <div class="beat pivot">
+    <div class="rail">
+      <span class="tc">00:20 – 00:35</span>
+      <span class="slug">Thesis</span>
+      <span class="onscreen">App opens. Hold on the Monitor tab. Airplane mode clearly visible in the status bar.</span>
+    </div>
+    <div class="say">
+      <p>Every baby monitor on the market ends at <em>notify</em>. It treats a baby who would
+      have settled in forty seconds exactly like one who needs you.</p>
+      <p>This is Nila. It adds two rungs before it wakes anybody. It tries something — and then
+      it checks whether that worked.</p>
+    </div>
+  </div>
+
+  <div class="beat">
+    <div class="rail">
+      <span class="tc">00:35 – 01:30</span>
+      <span class="slug">Demo · the ladder</span>
+      <span class="onscreen">Tap <b>Play a demo cry</b>. Let it run — it is 6× speed, so 115 seconds of episode takes about 20. Do not cut away. Let <b>WHAT NILA DID</b> fill in line by line.</span>
+    </div>
+    <div class="say">
+      <span class="dir">Point at the status bar first</span>
+      <p>Airplane mode. It stays on for this whole video. Nothing you are about to see touches
+      a network.</p>
+      <p>That is a real recording through the real detector. Three of five windows over
+      threshold, and the episode opens.</p>
+      <p>Twelve seconds — it logs a fuss. A baby who settles herself is not an event.</p>
+      <p>Twenty — it plays her mother’s own recorded voice. This phone has an infrared blaster,
+      so it turns the fan down a step at the same time.</p>
+      <p>Now the part that does not exist anywhere else. Thirty-five seconds later it re-reads
+      the loudness envelope and works out whether that sound <em>actually helped</em>.</p>
+      <p>It did not. Still rising. So it wakes me — and the alert says what it already tried.</p>
+      <p>And that result is written back. Her mother’s voice is now seven for nine on this baby.
+      Next time, that is what plays first.</p>
+    </div>
+  </div>
+
+  <div class="beat">
+    <div class="rail">
+      <span class="tc">01:30 – 01:50</span>
+      <span class="slug">Demo · medicine</span>
+      <span class="onscreen">Scan tab. Photograph the strip <b>rotated and upside down</b> — the whole point is that it still reads. Hold on the AVOID verdict and its reason line.</span>
+    </div>
+    <div class="say">
+      <p>A breastfeeding mother is handed a strip with no box. She photographs it at an angle,
+      upside down, on foil.</p>
+      <p>PP-OCR-v4, on the device. Rotated-box detection, an angle classifier, then character
+      recognition.</p>
+      <p>Then five checking stages — and no language model anywhere in this path, deliberately.
+      She is penicillin-allergic, and that is in her records on this phone. Avoid. And it names
+      which of her own facts caused it.</p>
+    </div>
+  </div>
+
+  <div class="beat">
+    <div class="rail">
+      <span class="tc">01:50 – 02:05</span>
+      <span class="slug">Demo · ask</span>
+      <span class="onscreen">Ask tab. Type a real question. Show the <b>source line</b> under the answer — that is the beat, not the answer itself.</span>
+    </div>
+    <div class="say">
+      <p>Forty-six clinically sourced entries, retrieved on the phone. The answer is the
+      retrieved text, with its source attached.</p>
+      <p>A half-gigabyte language model shortens it — and it is never allowed to supply a fact.
+      If it drifts, its output is thrown away and you get the retrieved text.</p>
+    </div>
+  </div>
+
+  <div class="beat">
+    <div class="rail">
+      <span class="tc">02:05 – 02:15</span>
+      <span class="slug">Demo · watch</span>
+      <span class="onscreen">Watch tab, crawling footage playing. Short beat. Do not linger.</span>
+    </div>
+    <div class="say">
+      <p>The camera watches for face presence and movement.</p>
+      <p>Not breathing. Not vital signs. We do not claim those, and we will not.</p>
+    </div>
+  </div>
+
+  <div class="beat pivot">
+    <div class="rail">
+      <span class="tc">02:15 – 02:45</span>
+      <span class="slug">The honest number</span>
+      <span class="onscreen">Cut to the metrics screen in the app, or the bar chart from the technical record. Slow down here — this is the technical-depth beat.</span>
+    </div>
+    <div class="say">
+      <p>One more thing, and it is the one we are proudest of.</p>
+      <p>Published infant-cry classifiers report ninety-plus per cent at guessing <em>why</em> a
+      baby is crying. We reproduced it — nought point nine five, splitting clips at random.</p>
+      <p>Then we split by infant instead, so no baby appears in both halves. It collapsed to
+      chance. Nought point four four.</p>
+      <p>Same model. Same data. The only difference was leakage. An independent paper published
+      last month got nought point four nine on the same corpus.</p>
+      <p>So detection ships as a measurement — nought point nine nine two. The cause ships as a
+      guess, and the app says so on screen, every time.</p>
+      <p>We would rather show you a number that is true than one that is impressive.</p>
+    </div>
+  </div>
+
+  <div class="beat">
+    <div class="rail">
+      <span class="tc">02:45 – 03:00</span>
+      <span class="slug">Close</span>
+      <span class="onscreen">Back to the phone, still in airplane mode, still listening. End on the device, not on a logo.</span>
+    </div>
+    <div class="say">
+      <p>Everything you just saw ran on this phone. No account, no cloud, no audio ever written
+      to disk.</p>
+      <p>Not because a rule said on-device. Because a monitor that needs Wi-Fi at three in the
+      morning is not a monitor.</p>
+    </div>
+  </div>
+
+  <p style="margin-top:26px"><b>If you need a two-minute cut:</b> keep 00:00, 00:20, 00:35 and
+  02:15 in full. Compress medicine, ask and watch into a single 15-second montage with one line
+  over it — “it also reads a medicine strip against her own allergies, answers from a sourced
+  corpus on the phone, and watches the cot — all offline.” Keep the close.</p>
+</section>
+
+<div class="hr"></div>
+
+<!-- ============================================================ 3 -->
+<section>
+  <p class="eyebrow">Every number, and what it does not say</p>
+  <h2>The statistics you must be able to defend</h2>
+  <p class="lede">Each of these is checked against the primary source. The amber note is the
+  overreach a judge could catch you in — read those before you record.</p>
+
+  <div class="stat">
+    <p class="claim">A newborn cries and fusses roughly two hours a day.</p>
+    <div class="meta"><span>126 min at 5–6 weeks</span><span>N = 7,580 · 57 studies · 17 countries</span><span>Vermillet et al., <i>Child Development</i> 2022</span></div>
+    <p>A second, independent meta-analysis — Wolke, Bilgin &amp; Samara, <i>Journal of
+    Pediatrics</i> 2017, 28 diary studies and 8,690 infants — puts it at 117–133 minutes a day
+    through the first six weeks, falling to 68 minutes by weeks 10–12. Two separate teams, two
+    separate corpora, the same magnitude. That is why you can say “about two hours” without
+    hedging.</p>
+    <div class="careful"><b>Careful</b>Do not say crying “peaks at six weeks.” Wolke found no
+    statistical evidence for a universal six-week peak, and Vermillet’s modelling puts it nearer
+    four weeks. Say “the first three months” and you are safe.</div>
+  </div>
+
+  <div class="stat">
+    <p class="claim">Of infants brought to an emergency department because of crying, 5.1% had a serious underlying cause.</p>
+    <div class="meta"><span>12 of 237</span><span>Freedman, Al-Harthy &amp; Thull-Freedman</span><span><i>Pediatrics</i> 2009;123(3):841–8</span></div>
+    <p>This is the strongest version of the argument available, because the population is
+    already selected for worry — these are parents alarmed enough to attend an emergency
+    department. Nineteen in twenty of them had nothing serious. In the general population the
+    rate is lower still.</p>
+    <div class="careful"><b>Careful</b>Never phrase it as “5% of crying babies are ill.” The
+    denominator is ED attendances for crying, not all crying. Say the full sentence — it is
+    more impressive anyway.</div>
+  </div>
+
+  <div class="stat">
+    <p class="claim">Mothers lose 62 minutes of sleep a night after a birth. It has not fully recovered six years later.</p>
+    <div class="meta"><span>2,541 women · 2,118 men</span><span>Fathers: 13 min</span><span>Richter et al., <i>Sleep</i> 2019;42(4)</span></div>
+    <p>Population-representative German panel, 2008–2015. Sleep satisfaction and duration both
+    reach their lowest point in the first three months postpartum — mothers drop 1.81 points on
+    a ten-point satisfaction scale — and neither returns to pre-pregnancy levels within six
+    years of a first child. Breastfeeding costs a further 14 minutes.</p>
+    <div class="careful"><b>Careful</b>“An hour a night” is a fair round-down of 62 minutes.
+    Do not round it up to “hours.”</div>
+  </div>
+
+  <div class="stat">
+    <p class="claim">In a randomised trial, 80% of newborns fell asleep within five minutes with white noise, against 25% without.</p>
+    <div class="meta"><span>16/20 vs 5/20</span><span>Neonates aged 2–7 days</span><span>Spencer et al., <i>Arch Dis Child</i> 1990;65:135–7</span></div>
+    <p>This is the evidence that the middle rung of the ladder is worth building at all — that
+    a sound, by itself, settles a large fraction of babies. It is a genuine randomised
+    comparison, which is rarer in this literature than you would expect.</p>
+    <div class="careful"><b>Careful</b>Forty babies, in 1990. Say “a small randomised trial,”
+    not “studies show.” If a judge with a clinical background pushes, concede the sample size
+    immediately and pivot to the real point: Nila does not assume it works, it measures whether
+    it worked, in this house, on this baby.</div>
+  </div>
+
+  <div class="stat">
+    <p class="claim">A recorded maternal voice lowers neonatal heart rate and pain scores.</p>
+    <div class="meta"><span>8 RCTs · 584 neonates</span><span>Meta-analysis, <i>Medicine</i> 2023</span></div>
+    <p>The justification for “your own recorded voice plays first.” Live or recorded both
+    qualify in the pooled trials, which is the part that matters for a phone.</p>
+    <div class="careful"><b>Careful</b>Every trial in this meta-analysis is <i>procedural pain
+    in a neonatal unit</i> — heel pricks, not settling at home at 2&nbsp;a.m. Say “the evidence
+    for a mother’s voice comes from neonatal units” and let it be suggestive. Do not present it
+    as proof it settles a four-month-old in a cot.</div>
+  </div>
+
+  <div class="stat">
+    <p class="claim">Infant crying is the most common trigger for abusive head trauma.</p>
+    <div class="meta"><span>Barr, <i>PNAS</i> 2012</span><span>Age-incidence curve, <i>Child Abuse Negl</i> 2006</span></div>
+    <p>The age-incidence curve of hospitalised shaken-baby cases tracks the normal cry curve.
+    This is the sharpest available answer to “is this a real problem or a convenience app,”
+    and it belongs in the Q&amp;A, not in the film.</p>
+    <div class="careful"><b>Careful</b>No percentage exists that you can quote here. State the
+    relationship qualitatively and stop. Do not imply Nila prevents abuse — you have no evidence
+    for that and it is an ugly claim to be caught making.</div>
+  </div>
+
+  <div class="stat">
+    <p class="claim">Pooled prevalence of postpartum depression in India is 23.5%.</p>
+    <div class="meta"><span>62 studies · 21,262 women · 2015–2023</span><span>Southern India: 22%</span><span>A second meta puts 2020–24 at 19%</span></div>
+    <p>The reason Nila carries a mother-facing side at all — her medicines, her records, her
+    questions — rather than treating her purely as the baby’s operator. Use this if a judge asks
+    why the app is not baby-only.</p>
+  </div>
+
+  <div class="stat">
+    <p class="claim">Over a million baby monitors were exposed by a single extracted key, across 118 countries.</p>
+    <div class="meta"><span>1.1M devices</span><span>Plus: 2018 Nest takeover · 2014 default-password livestream site</span></div>
+    <p>The offline argument, made by somebody else’s incident report rather than by you. Pair
+    it with the practical version: a cloud monitor is also useless in a hostel, on a train, or
+    anywhere the Wi-Fi drops at 3&nbsp;a.m.</p>
+  </div>
+
+  <div class="stat">
+    <p class="claim">The number nobody has: what fraction of cries would have settled on their own.</p>
+    <div class="meta"><span>Not established in the literature</span></div>
+    <p>No study reports it. Infants shift from signalling to self-soothing from around two
+    months, and by twelve months roughly half resettle without calling a parent
+    (Goodlin-Jones, Burnham, Gaylor &amp; Anders, 2001) — but nothing gives you a per-cry
+    figure. <b>Make that the argument rather than hiding it.</b> Every monitor on the market
+    implicitly answers zero: it wakes you for all of them. Nila is the first one that measures
+    the answer, in your house, on your baby, and shows it to you.</p>
+    <div class="careful"><b>Careful</b>This is the line most likely to be challenged, and the
+    one you most want challenged. Do not invent a percentage to fill the gap — the absence
+    <i>is</i> the pitch.</div>
+  </div>
+
+  <div class="stat">
+    <p class="claim">16–20 °C is the recommended room temperature for infant sleep.</p>
+    <div class="meta"><span>Lullaby Trust · NHS</span><span>Fan permitted, not aimed at the baby</span></div>
+    <p>The justification for the infrared rung — turning a fan down a step is a comfort action
+    with published guidance behind it, not an invention.</p>
+    <div class="careful"><b>Careful</b>The same guidance links overheating to SIDS. Do not go
+    near that in the film. Nila is not a medical device, does not monitor breathing, and must
+    never be described as reducing any risk of death. Say “the room is too warm” and stop.</div>
+  </div>
+</section>
+
+<div class="hr"></div>
+
+<!-- ============================================================ 4 -->
+<section>
+  <p class="eyebrow">One breath each</p>
+  <h2>How each feature actually works</h2>
+  <p class="lede">For the floor, not the film. If a judge picks a feature, this is the shape of
+  the answer — what it uses, why it is built that way, and the one detail that shows it was
+  measured rather than assumed.</p>
+
+  <div class="pipe">
+    <h3>Listening <span>all night · 206 MB · 0.04% of a core</span></h3>
+    <div class="chain">mic 16 kHz <b>UNPROCESSED</b> → log-mel 64 bands, 25/10 ms → 0.96 s patch every 480 ms → <b>CNN, 21,218 params, 38 KB</b> → hysteresis 3-of-5 in @ 0.62, 6-out @ 0.42 → episode</div>
+    <p>The audio source is deliberate: the usual speech source applies automatic gain control,
+    which flattens the very loudness envelope the ladder later reads. Windows overlap by half so
+    a cry starting mid-window is not split across two weak patches. Delegates are tried
+    NNAPI&nbsp;→&nbsp;GPU&nbsp;→&nbsp;CPU, each with a probe inference before it is trusted.
+    Below −55 dBFS nothing runs at all — in a quiet nursery that is nearly every window, and it
+    is most of why this survives a night on battery.</p>
+  </div>
+
+  <div class="pipe">
+    <h3>Guessing why <span>500 trees · ~1 ms · labelled a guess</span></h3>
+    <div class="chain">episode audio → 456 features → <b>RandomForest, flattened to arrays, walked in Kotlin</b> → “Probably tired · 34%”</div>
+    <p>This is the classifier from the original Why-is-my-Baby-Crying project, retrained through
+    its own pipeline and exported whole, so it reproduces <code>predict_proba</code> exactly.
+    It is shown as “probably”, with a note that it is a guess from the sound — because on
+    infants it has never heard, it is at chance. See the next section.</p>
+  </div>
+
+  <div class="pipe">
+    <h3>Acting, then checking <span>the product</span></h3>
+    <div class="chain">12 s log → 20 s <b>play</b> (your voice, else best-scoring sound, 15% explore) + <b>IR fires once</b> → +35 s <b>re-read envelope</b> → write outcome → 55 s escalate if rising → 100 s ceiling</div>
+    <p>“Settled” is defined, not felt: a settling trend, or an 18 dB drop from peak. The outcome
+    is written to that sound’s record whether it worked or not, Laplace-smoothed, with a 15%
+    exploration rate so the first thing that happens to work is not played forever. Two attempts
+    maximum. The alert names what was tried first — which is the difference between being woken
+    and being informed.</p>
+  </div>
+
+  <div class="pipe">
+    <h3>Reading a medicine strip <span>PP-OCRv4 · ONNX Runtime · no LLM</span></h3>
+    <div class="chain">photo → <b>DBNet rotated boxes</b> → angle classifier → CTC recognition → history → identify → interact → <b>adjudicate</b></div>
+    <p>ML Kit reads clean upright text well and returns nothing at all when text is rotated or
+    inverted — no rotated-box detection, no angle classifier. That is missing machinery, not a
+    tuning gap, which is why PP-OCRv4 replaced it. Verified on 25° rotation, upside down, and
+    white-on-silver foil. Fuzzy matching survives OCR damage — <code>1BUPROFENA00</code>
+    resolves. There is deliberately no language model in this path: it was wired in, and removed
+    after it invented a reassurance on top of a correct AVOID verdict for a penicillin-allergic
+    mother.</p>
+  </div>
+
+  <div class="pipe">
+    <h3>Answering a question <span>46 sourced entries · 7 guardrails</span></h3>
+    <div class="chain">router (emergency · dose · diagnosis · distress) → <b>field-weighted BM25</b> + stemming + synonyms + coverage gate → retrieved text <b>with its source</b> → Qwen2.5-0.5B shortens → grounding check or discard</div>
+    <p>The model shortens; retrieval supplies every fact. Guardrails are code, not prompt
+    instructions: emergency phrases bypass retrieval entirely, dose requests are refused outright
+    — a unit test greps the corpus for dose-shaped strings and fails the build if one appears —
+    and the model is never shown a health record. Scored on 159 real questions across three
+    batteries; the honest figure is 25/41 on first contact with the hardest set.</p>
+  </div>
+
+  <div class="pipe">
+    <h3>Watching the cot <span>BlazeFace · frame difference</span></h3>
+    <div class="chain">camera → <b>face presence</b> → motion energy → “can’t see the face” / “unusually still”</div>
+    <p>Presence and movement only. Not breathing, not vitals, not SIDS — the Owlet enforcement
+    history is the reason that line exists and it is not moving.</p>
+  </div>
+</section>
+
+<div class="hr"></div>
+
+<!-- ============================================================ 5 -->
+<section>
+  <p class="eyebrow">The technical-depth beat, in full</p>
+  <h2>What the models were trained on, and why 0.444 is the strongest slide</h2>
+
+  <div class="tablewrap"><table>
+    <thead><tr><th>Model</th><th>Macro AUC</th><th>Split</th><th>What it means</th></tr></thead>
+    <tbody>
+      <tr><td class="name">Cry detection — ours</td><td class="w">0.992</td><td class="dim">held-out infants</td><td class="dim">A measurement. 98% recall on cry. Ships as fact.</td></tr>
+      <tr><td class="name">Cry cause — ours</td><td class="w">0.953</td><td class="dim">clips split at random</td><td class="dim">What the literature reports. Leaky.</td></tr>
+      <tr><td class="name">Cry cause — ours</td><td class="w">0.444</td><td class="dim">held-out infants</td><td class="dim">The truth. Ships as a guess, labelled as one.</td></tr>
+      <tr><td class="name">Legacy forest, as shipped</td><td class="w">0.990</td><td class="dim">fitted on all 457 clips</td><td class="dim">Scores well on our held-out infants because it was trained on them.</td></tr>
+      <tr><td class="name">Legacy forest, retrained honestly</td><td class="w">0.462</td><td class="dim">held-out infants</td><td class="dim">Balanced accuracy exactly 0.200 — it predicts <i>hungry</i> for everything.</td></tr>
+      <tr><td class="name">Independent replication</td><td class="w">0.49</td><td class="dim">held-out infants</td><td class="dim">arXiv 2608.30456, 31 Aug 2026. Same corpus, unrelated team, same collapse.</td></tr>
+    </tbody>
+  </table></div>
+
+  <p><b>Trained on.</b> Detection: Donate-a-Cry positives against ESC-50 and UrbanSound8K
+  negatives — 50 environmental classes including the ones that actually fool a cry detector.
+  The first detector fired on cats in five of eight test clips, so every training negative was
+  scored and the hardest mined back in. Cause: the same 457 Donate-a-Cry clips from 221 infants,
+  whose distribution is the problem — 382 of 457 are <i>hungry</i>, and <i>burping</i> has eight
+  clips across seven infants.</p>
+
+  <p><b>Why the split matters.</b> One infant contributes several clips. Split clips at random
+  and the same baby lands in both halves, so the model learns to recognise the <i>infant</i>,
+  not the reason. Each subject is assigned to exactly one side by greedy iterative
+  stratification before anything else happens — an earlier per-class version was caught by an
+  assertion with four infant UUIDs on both sides. <b>Leakage alone is worth +0.51 AUC on the
+  identical model and the identical data.</b></p>
+
+  <p><b>Why it is better than the published work.</b> Not a better architecture — a valid
+  protocol. Two unrelated model families, ours and a 461-feature RandomForest from a separate
+  project, fail identically under an honest split. That is not a tuning problem, and no
+  architecture fixes it. The independent August 2026 paper adds the third data point: it
+  reproduces the field’s 97.9% by augmenting <i>before</i> splitting, and the same model
+  measures 0.49 subject-wise. <b>The fix is data collected properly — multiple sessions per
+  infant, labels confirmed by what actually worked — not a bigger model.</b></p>
+
+  <p><b>And the engineering that follows from it.</b> <code>export_tflite.py</code> generates
+  <code>ModelCard.kt</code> from the evaluation reports, so no accuracy claim in the app can
+  drift away from a measurement. The log-mel frontend exists twice — Python for training,
+  Kotlin for inference — pinned to agree bit-for-bit by a golden-fixture test, because a
+  frontend that disagrees means the model sees a different distribution on the device than it
+  was trained on. 182 tests, 0 failures.</p>
+</section>
+
+<div class="hr"></div>
+
+<!-- ============================================================ 6 -->
+<section>
+  <p class="eyebrow">On the floor</p>
+  <h2>What they will ask</h2>
+
+  <div class="qa">
+    <p class="q">“Your cause accuracy is terrible. Why are you showing me this?”</p>
+    <p>Because it is the real number, and the alternative was to show you a fake one. Every
+    published result on this corpus splits clips instead of infants. We built both arms and
+    measured the difference: half an AUC point, on identical model and data. An independent
+    paper last month reached the same conclusion. The app ships the estimate as a labelled
+    guess, and ships detection — which does work, 0.992 — as a measurement.</p>
+  </div>
+
+  <div class="qa">
+    <p class="q">“Is this a medical device?”</p>
+    <p>No, and it is engineered not to become one. It does not monitor breathing, oxygen or
+    vital signs. It never states a medicine dose — there is a unit test that greps the corpus
+    for dose-shaped strings and fails the build if one appears. It never diagnoses. The FDA’s
+    action against Owlet is why that line is where it is.</p>
+  </div>
+
+  <div class="qa">
+    <p class="q">“Why on-device? Cloud would be easier and more accurate.”</p>
+    <p>Two reasons, and neither is compliance. One: a monitor that needs Wi-Fi at 3 a.m. is not
+    a monitor. Two: over a million baby monitors were exposed last year by a single extracted
+    key across 118 countries. The app has no API keys because it calls no APIs; cleartext is
+    forbidden outright in the network security config; backup is disabled so health documents
+    cannot leave by a cloud transport; and no monitored audio is ever written to disk.</p>
+  </div>
+
+  <div class="qa">
+    <p class="q">“What does the iQOO 15 specifically give you?”</p>
+    <p>Three things. The NPU — the detector tries NNAPI first and falls back only if a probe
+    inference fails, and Settings shows you which unit it landed on. The infrared emitter — no
+    Pixel, Galaxy or iPhone flagship has one, which is why the fan rung only exists on hardware
+    like this. And headroom: the night loop is 206 MB resident, so the optional 547 MB language
+    model and a 1.1 GB vision model both fit without the memory manager killing the service.</p>
+  </div>
+
+  <div class="qa">
+    <p class="q">“What is not finished?”</p>
+    <p>The vision model is wired end to end and blocked on a LiteRT-LM runtime that is not
+    published yet. Infrared and Wear OS are implemented and test-covered as far as an emulator
+    allows, which is not far — both need real hardware to confirm. The corpus is English only;
+    the language plumbing exists, the 46 entries need a human translator, not a model.</p>
+  </div>
+
+  <div class="qa">
+    <p class="q">“Could you sell this tomorrow?”</p>
+    <p>Not without retraining the detector. ESC-50 supplies its negative examples and is
+    CC BY-NC — non-commercial — so the trained detector inherits that restriction. Retraining on
+    permissively licensed negatives is a day of compute, and we would rather say that than find
+    out later.</p>
+  </div>
+</section>
+
+<div class="hr"></div>
+
+<!-- ============================================================ 7 -->
+<section>
+  <p class="eyebrow">Before you record</p>
+  <h2>Six things not to say</h2>
+
+  <div class="never">
+    <h3>Each of these is checkable, and wrong</h3>
+    <ul>
+      <li><b>“Crying peaks at six weeks.”</b> The 2017 meta-analysis found no statistical
+      evidence for a universal peak. Say “the first three months.”</li>
+      <li><b>“5% of crying babies have something seriously wrong.”</b> The denominator is
+      emergency-department attendances <i>for crying</i>, not all crying babies.</li>
+      <li><b>“Studies show white noise settles 80% of babies.”</b> One randomised trial, forty
+      newborns, 1990. Say “a small randomised trial.”</li>
+      <li><b>“A mother’s recorded voice calms a crying baby.”</b> The trial evidence is
+      procedural pain in neonatal units. Say where it comes from.</li>
+      <li><b>Anything touching SIDS, breathing, or oxygen.</b> Not a claim the app makes, not a
+      claim you make on its behalf, not even as an aside about room temperature.</li>
+      <li><b>Any AUC number for the cause classifier other than 0.444.</b> Including in a
+      passing “well, it gets 95% if you…” — that is the exact sentence the whole beat exists to
+      criticise.</li>
+    </ul>
+  </div>
+
+  <ul class="plain" style="margin-top:26px">
+    <li><b>Turn airplane mode on before you hit record</b>, not during. It should be in the
+    status bar from the first frame, and you should point at it once.</li>
+    <li><b>Reset to demo data first</b> (Settings → Reset to demo data) so the colic panel,
+    the timeline and the soother ranking all have a week of history behind them.</li>
+    <li><b>Record on the phone, not the emulator</b>, if the iQOO is in hand — the self-test
+    reporting NNAPI instead of CPU is worth three seconds of screen time on its own.</li>
+    <li><b>Do not add music.</b> The first twenty seconds are three statistics in a dark room.
+    Silence carries them.</li>
+  </ul>
+</section>
+
+
+<div class="hr"></div>
+
+<!-- ============================================================ 8 -->
+<section>
+  <p class="eyebrow">Screening submission</p>
+  <h2>The form, field by field</h2>
+  <p class="lede">Paste-ready copy for every box. Amber marks the only things I cannot write for
+  you — they are facts about your history, and guessing at them is the one way this form can
+  hurt you.</p>
+
+  <div class="field">
+    <div class="fname"><h3>Idea title</h3><span class="req must">5 characters minimum · “Nila” is 4</span></div>
+    <div class="paste"><p>Nila — the baby monitor that acts before it wakes you</p></div>
+    <div class="alt">
+      <span>shorter →</span> Nila · offline infant care<br>
+      <span>plainest →</span> Nila Baby Monitor
+    </div>
+    <p class="note">The counter is rejecting the bare product name. Use the first one — it is the
+    only title in the pile that states a claim, and “acts before it wakes you” is the whole
+    differentiator in five words.</p>
+  </div>
+
+  <div class="field">
+    <div class="fname"><h3>Description</h3><span class="req must">50 characters minimum</span><span class="pick">≈250 words</span></div>
+    <div class="paste">
+      <p>Nila is an offline infant-care companion for Android, for parents in the first year —
+      and for the breastfeeding mother, not only the baby.</p>
+      <p>Every monitor on the market ends at <i>notify</i>. It treats a baby who would have
+      settled in forty seconds exactly like one who needs a parent. Yet of infants taken to an
+      emergency department because of crying, only 5.1% had anything serious (Freedman,
+      Pediatrics 2009), while mothers lose 62 minutes of sleep a night and have not recovered it
+      six years later (Richter, Sleep 2019).</p>
+      <p>Nila adds two rungs before the alert. A 38 KB quantised CNN detects a cry — 0.992 AUC on
+      infants never heard in training — and a hysteresis state machine opens an episode. At 20
+      seconds it plays the caregiver's own recorded voice, and fires a taught infrared code to
+      turn the fan down. Thirty-five seconds later it re-reads the loudness envelope and measures
+      whether that sound actually helped, writing the outcome back so the sound that works for
+      this baby plays first next time. Only then does it wake anyone — and the alert names what
+      it already tried.</p>
+      <p>It also reads a medicine strip with PP-OCRv4 on device, rotated or upside down or on
+      foil, and checks it against the mother's own allergies through five staged agents with no
+      language model in that path. Questions are answered from 46 sourced entries retrieved on
+      the phone; an optional Qwen2.5-0.5B shortens the answer and is never allowed to supply a
+      fact.</p>
+      <p>Zero network calls. No account, no cloud, no audio ever written to disk. Every model
+      ships inside the APK.</p>
+    </div>
+    <p class="note"><b>If the box turns out to be short</b>, cut to this: “An offline infant-care
+    companion for Android. Every baby monitor ends at <i>notify</i>; Nila plays the caregiver's
+    own recorded voice at 20 seconds, then re-reads the loudness envelope to measure whether that
+    sound actually helped, and learns which sound settles this baby. It also reads a medicine
+    strip on device and checks it against the mother's allergies, and answers questions from a
+    sourced corpus on the phone. Zero network calls — every model ships in the APK.”</p>
+  </div>
+
+  <div class="field">
+    <div class="fname"><h3>Video walkthrough URL</h3><span class="req">optional — do it anyway</span></div>
+    <p class="note">This is the shooting script above, once you have recorded it. Upload
+    <code>docs/nila-demo.mp4</code> or the new cut to YouTube as <b>Unlisted</b> — not Private,
+    which reviewers cannot open — and paste the <code>youtu.be</code> link. Optional fields on a
+    screening form are where a shortlist is decided; a jury that can watch the ladder run will
+    not need to imagine it.</p>
+  </div>
+
+  <div class="field">
+    <div class="fname"><h3>Prototype URL</h3><span class="req">filled</span></div>
+    <div class="paste"><p class="url">https://appetize.io/app/b_bsweclr2qfx2w4rdwjuwuptp5y</p></div>
+    <p class="note">The repository and landing page pointed at your previous Appetize build; both
+    now point here. <b>Open it once before you submit</b> and check that the demo family is
+    populated — if the colic panel and the timeline are empty, this build predates the seeding
+    and needs re-uploading from <code>Nila-emulator-x86_64.apk</code>.</p>
+  </div>
+
+  <div class="field">
+    <div class="fname"><h3>Deck / document</h3><span class="req must">required</span></div>
+    <div class="paste"><p class="url">https://nandini-kuppala.github.io/Nila/technical-record.html</p></div>
+    <p class="note">Paste that. It is eighteen chapters with the embedded recording, every
+    measurement, and every negative result — considerably more than a deck, and it is already
+    published. Keep <code>https://github.com/nandini-kuppala/Nila</code> in your back pocket for
+    the interview.</p>
+  </div>
+
+  <div class="field">
+    <div class="fname"><h3>Android proficiency</h3><span class="req">you selected: Intermediate</span></div>
+    <p class="note"><b>Change it to Advanced.</b> This is not a confidence question, it is a
+    filter — a screener reading “Intermediate” against a submission that needs an NPU will assume
+    you cannot ship it. What you actually did: a foreground service holding a partial wake lock
+    all night, NNAPI → GPU → CPU delegate selection with a probe inference before each is
+    trusted, ABI splits, R8 in release with two release-only failures diagnosed and fixed,
+    Room + DataStore, CameraX, a Wear OS module, and 62 instrumented tests alongside 120 JVM
+    tests. That is not intermediate work.</p>
+  </div>
+
+  <div class="field">
+    <div class="fname"><h3>LLM proficiency</h3><span class="req">you selected: Deployed local LLMs on-device</span></div>
+    <p class="note">Correct, and the strongest option on the list for this hackathon. If it takes
+    a note: Qwen2.5-0.5B running through MediaPipe LLM Inference, fetched by DownloadManager
+    behind one tap, constrained to shortening retrieved text, with a grounding check that
+    discards its output when it drifts — and deliberately removed from the medicine path after it
+    invented a reassurance on top of a correct AVOID verdict.</p>
+  </div>
+
+  <div class="field">
+    <div class="fname"><h3>Prior builds &amp; hackathons</h3><span class="req">helps shortlisting</span></div>
+    <div class="paste">
+      <p><b>Nila</b> — open-sourced at github.com/nandini-kuppala/Nila (MIT). 182 tests passing,
+      release APKs for phone, emulator and Wear, a browser-runnable build on Appetize, and a
+      published technical record. Trains its own cry detector and generates its in-app accuracy
+      strings from the evaluation report.</p>
+      <p><b>Why-is-my-Baby-Crying</b> — the infant-cry classifier this project began from: a
+      461-feature RandomForest over the Donate-a-Cry corpus. Retrained through its own pipeline
+      under a subject-wise split for Nila, and exported whole so it reproduces
+      <code>predict_proba</code> exactly when walked in Kotlin.</p>
+      <p><b>Nurture-Sync</b> — the cloud predecessor to Nila's assistant: PaddleOCR server-side
+      with CrewAI over Gemini 1.5 Flash and web search for drug lookups. Nila is that system
+      taken entirely on-device.</p>
+      <p><span class="blank">→ your hackathon results, if any: “Won X at Y, 2025”</span></p>
+      <p><span class="blank">→ what you have shipped at work — team size, users, platform</span></p>
+      <p><span class="blank">→ any other public repos worth naming</span></p>
+    </div>
+    <p class="note">The three projects are verifiable and I have written them from the code. The
+    amber lines are yours — <b>leave them out entirely rather than soften them</b>. An empty
+    hackathon record costs you nothing next to three shipped builds in one domain; an
+    embellished one costs you everything if a screener checks.</p>
+  </div>
+
+  <div class="field">
+    <div class="fname"><h3>What makes you and your team stand out?</h3><span class="req">helps shortlisting</span></div>
+    <div class="paste">
+      <p>This is the third build on the same problem, not a weekend idea. Nurture-Sync was the
+      cloud version — PaddleOCR on a server, CrewAI over Gemini, web search for drug lookups.
+      Why-is-my-Baby-Crying was the cry classifier. Nila is both of them taken fully on-device:
+      the OCR became PP-OCRv4 on ONNX Runtime, the agents became five deterministic stages with
+      no model in them at all, and the classifier was retrained and exported as flat arrays
+      walked in Kotlin. I know what each of those moves cost, because I measured it.</p>
+      <p>The domain edge is that I stopped trusting the benchmark. Published infant-cry
+      classifiers report 90%-plus at guessing why a baby is crying. I reproduced it — 0.953 AUC,
+      splitting clips at random — then split by infant instead, so no baby appears in both
+      halves, and it collapsed to 0.444. Chance. Same model, same data; leakage alone was worth
+      +0.51 AUC. An independent paper published on 31 August 2026 measured 0.49 on the same
+      corpus. So detection ships as a measurement, 0.992, and the cause ships as a labelled guess
+      on screen, every time. I would rather ship a number that is true than one that demos well.</p>
+      <p>And the shipping discipline behind it: a log-mel frontend written twice, in Python and
+      Kotlin, pinned bit-for-bit by a golden-fixture test; two R8-only release failures found and
+      fixed that were invisible in debug and in all 182 tests; the all-night state profiled down
+      to 206 MB resident so a phone's memory manager does not kill it at 2 a.m.; and every
+      accuracy string in the app generated from the evaluation report, so no claim can drift away
+      from a measurement.</p>
+      <p>Phone-first is not a rule I am complying with. A monitor that needs Wi-Fi at three in the
+      morning is not a monitor, and over a million baby cameras were exposed last year by a single
+      extracted key. Offline is the product, and the iQOO 15 is the first device I have targeted
+      that has the NPU, the memory headroom and the infrared emitter to run all of it at once.</p>
+      <p><span class="blank">→ if you are entering as a team, add one line per person: name, what they own</span></p>
+    </div>
+    <p class="note">That last paragraph is doing specific work: it answers “why this hardware”
+    before a judge asks, which is the question this hackathon exists to ask. <b>Do not cut it for
+    length.</b></p>
+  </div>
+</section>
+
+</div>

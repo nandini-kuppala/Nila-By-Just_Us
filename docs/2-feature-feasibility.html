@@ -1,0 +1,495 @@
+<title>Three Pipelines, Not Eight Features</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chivo:wght@600;700&family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+
+<style>
+:root{
+  --ground:#F3F6F5;
+  --surface:#FFFFFF;
+  --sunken:#E7ECEA;
+  --ink:#0F1614;
+  --ink2:#525E5A;
+  --ink3:#83908B;
+  --hair:#D8E0DD;
+  --hair2:#BAC6C2;
+  --build:#0B6B5B;
+  --build-bg:#DFEEEA;
+  --risk:#8E5B0E;
+  --risk-bg:#F4EBDA;
+  --skip:#9C3527;
+  --skip-bg:#F6E4E0;
+  --shadow:0 1px 2px rgba(15,22,20,.05),0 10px 26px -20px rgba(15,22,20,.4);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --ground:#0B100F;
+    --surface:#131A18;
+    --sunken:#1A2321;
+    --ink:#E6ECEA;
+    --ink2:#95A29D;
+    --ink3:#697672;
+    --hair:#232D2B;
+    --hair2:#36423F;
+    --build:#4FBFA6;
+    --build-bg:#0F2A25;
+    --risk:#D8A44A;
+    --risk-bg:#2A2114;
+    --skip:#E07A66;
+    --skip-bg:#2B1714;
+    --shadow:0 1px 2px rgba(0,0,0,.5),0 12px 32px -22px rgba(0,0,0,.95);
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#0B100F;
+  --surface:#131A18;
+  --sunken:#1A2321;
+  --ink:#E6ECEA;
+  --ink2:#95A29D;
+  --ink3:#697672;
+  --hair:#232D2B;
+  --hair2:#36423F;
+  --build:#4FBFA6;
+  --build-bg:#0F2A25;
+  --risk:#D8A44A;
+  --risk-bg:#2A2114;
+  --skip:#E07A66;
+  --skip-bg:#2B1714;
+  --shadow:0 1px 2px rgba(0,0,0,.5),0 12px 32px -22px rgba(0,0,0,.95);
+}
+
+*{box-sizing:border-box}
+body{
+  background:var(--ground);color:var(--ink);
+  font-family:"IBM Plex Sans",system-ui,sans-serif;
+  font-size:16.5px;line-height:1.62;margin:0;-webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:1120px;margin:0 auto;padding:0 26px 92px}
+
+.mast{padding:52px 0 26px;border-bottom:1px solid var(--hair2)}
+.kicker{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.15em;
+  text-transform:uppercase;color:var(--build);margin:0 0 16px}
+h1{font-family:"Chivo",system-ui,sans-serif;font-weight:700;
+  font-size:clamp(34px,5.4vw,58px);line-height:1.04;letter-spacing:-.028em;
+  margin:0 0 16px;max-width:17ch;text-wrap:balance}
+.dek{font-size:19px;line-height:1.52;color:var(--ink2);max-width:64ch;margin:0}
+.dek strong{color:var(--ink);font-weight:500}
+
+section{padding-top:58px}
+.eyebrow{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.15em;
+  text-transform:uppercase;color:var(--ink3);margin:0 0 10px;
+  display:flex;align-items:center;gap:12px}
+.eyebrow::after{content:"";flex:1;height:1px;background:var(--hair)}
+h2{font-family:"Chivo",sans-serif;font-weight:700;font-size:clamp(25px,3.2vw,33px);
+  line-height:1.14;letter-spacing:-.02em;margin:0 0 18px;max-width:26ch;text-wrap:balance}
+h3{font-family:"Chivo",sans-serif;font-weight:600;font-size:19px;letter-spacing:-.008em;
+  margin:34px 0 11px;text-wrap:balance}
+p{margin:0 0 16px;max-width:70ch}
+ul,ol{max-width:70ch;margin:0 0 16px;padding-left:21px}
+li{margin-bottom:8px}
+li::marker{color:var(--ink3)}
+strong{font-weight:600}
+a{color:var(--build);text-decoration-thickness:1px;text-underline-offset:2px}
+code,.mono{font-family:"IBM Plex Mono",monospace;font-size:.87em}
+code{background:var(--sunken);padding:1px 5px;border-radius:2px}
+
+.callout{border-left:3px solid var(--build);padding:1px 0 1px 20px;margin:24px 0 28px;max-width:62ch}
+.callout p{font-family:"Chivo",sans-serif;font-weight:600;font-size:19px;
+  line-height:1.44;letter-spacing:-.012em;margin:0}
+
+.tscroll{overflow-x:auto;margin:20px 0 24px}
+table{border-collapse:collapse;width:100%;min-width:620px;font-size:14.5px;line-height:1.46}
+th{font-family:"IBM Plex Mono",monospace;font-size:10px;font-weight:600;letter-spacing:.11em;
+  text-transform:uppercase;color:var(--ink3);text-align:left;
+  padding:0 14px 8px 0;border-bottom:1px solid var(--hair2);vertical-align:bottom;white-space:nowrap}
+td{padding:11px 14px 11px 0;border-bottom:1px solid var(--hair);vertical-align:top;color:var(--ink2)}
+td:first-child{color:var(--ink);font-weight:600}
+tr:last-child td{border-bottom:0}
+td.n,th.n{text-align:right;padding-right:0;font-variant-numeric:tabular-nums;
+  font-family:"IBM Plex Mono",monospace;white-space:nowrap}
+
+.v{font-family:"IBM Plex Mono",monospace;font-size:10px;font-weight:600;letter-spacing:.08em;
+  text-transform:uppercase;padding:3px 7px;border-radius:2px;white-space:nowrap;display:inline-block}
+.v.b{background:var(--build-bg);color:var(--build)}
+.v.r{background:var(--risk-bg);color:var(--risk)}
+.v.s{background:var(--skip-bg);color:var(--skip)}
+
+figure{margin:28px 0 22px}
+figure svg{display:block;width:100%;height:auto}
+figcaption{font-size:13.5px;color:var(--ink3);margin-top:11px;max-width:66ch;line-height:1.5}
+
+.tiers{display:grid;gap:0;margin:22px 0 26px}
+.tier{display:grid;grid-template-columns:52px 1fr 96px;gap:18px;padding:16px 0;
+  border-bottom:1px solid var(--hair);align-items:baseline}
+.tier:last-child{border-bottom:0}
+.tier .lv{font-family:"IBM Plex Mono",monospace;font-size:12px;font-weight:600;color:var(--build)}
+.tier .lv.off{color:var(--skip)}
+.tier .bd{min-width:0}
+.tier .bd b{font-family:"Chivo",sans-serif;font-weight:600;font-size:16px;display:block;
+  margin-bottom:3px;color:var(--ink)}
+.tier .bd p{margin:0;font-size:15px;color:var(--ink2);max-width:64ch}
+.tier .ef{font-family:"IBM Plex Mono",monospace;font-size:11.5px;color:var(--ink3);
+  text-align:right;white-space:nowrap}
+
+.panel{background:var(--surface);border:1px solid var(--hair);border-radius:3px;
+  padding:22px 24px;margin:24px 0;box-shadow:var(--shadow)}
+.panel h3{margin-top:0}
+.panel p:last-child,.panel ul:last-child{margin-bottom:0}
+
+.clock{margin:22px 0 26px}
+.slot{display:grid;grid-template-columns:96px 1fr;gap:20px;padding:13px 0;
+  border-bottom:1px solid var(--hair)}
+.slot:last-child{border-bottom:0}
+.slot .h{font-family:"IBM Plex Mono",monospace;font-size:12.5px;font-weight:600;
+  color:var(--ink);font-variant-numeric:tabular-nums;padding-top:2px}
+.slot .w{min-width:0;font-size:15.5px;color:var(--ink2);max-width:66ch}
+.slot .w b{color:var(--ink);font-weight:600}
+.slot.cut{background:var(--risk-bg);margin:6px -12px;padding:13px 12px;border-radius:3px;border-bottom:0}
+.slot.cut .h{color:var(--risk)}
+.slot.rest .h{color:var(--ink3)}
+
+.foot{margin-top:70px;padding-top:20px;border-top:1px solid var(--hair2);
+  font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.08em;
+  text-transform:uppercase;color:var(--ink3);display:flex;justify-content:space-between;
+  flex-wrap:wrap;gap:12px}
+
+@media (max-width:720px){
+  body{font-size:16px}
+  .wrap{padding:0 18px 70px}
+  .tier{grid-template-columns:40px 1fr;gap:12px}
+  .tier .ef{grid-column:2;text-align:left;margin-top:4px}
+  .slot{grid-template-columns:1fr;gap:4px}
+}
+:focus-visible{outline:2px solid var(--build);outline-offset:3px;border-radius:2px}
+</style>
+
+<div class="wrap">
+
+<header class="mast">
+  <p class="kicker">Feasibility + build plan · Nila v2</p>
+  <h1>Three Pipelines, Not Eight Features</h1>
+  <p class="dek">Everything on your list is buildable, and most of it is buildable on-device. But it is not eight features — it is <strong>three pipelines and one log</strong>, and reading it that way is the difference between shipping it in 30 hours and shipping half of it. Here is the feasibility of each piece, the datasets to download, the watch answer, and where the hours go.</p>
+</header>
+
+<!-- ═══════════════════════════════════ -->
+<section>
+  <p class="eyebrow">The shape</p>
+  <h2>Eight features collapse into three pipelines</h2>
+
+  <p>The medicine checker, the toy checker, “what is my baby doing,” the health Q&amp;A and the tips are <strong>one pipeline</strong> — an image or a voice question, plus retrieved context, plus the log, into a multimodal model. Build it once, demo it four ways. Same for audio: cry detection and cry classification share one log-mel frontend and differ only in the head on top.</p>
+
+  <figure>
+    <svg viewBox="0 0 920 400" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Architecture: three on-device pipelines writing to a shared log">
+      <defs>
+        <marker id="a1" markerWidth="8" markerHeight="8" refX="6.5" refY="4" orient="auto">
+          <path d="M0,0 L8,4 L0,8 z" fill="var(--hair2)"/>
+        </marker>
+        <marker id="a2" markerWidth="8" markerHeight="8" refX="6.5" refY="4" orient="auto">
+          <path d="M0,0 L8,4 L0,8 z" fill="var(--build)"/>
+        </marker>
+      </defs>
+
+      <text x="8" y="26" font-family="IBM Plex Mono, monospace" font-size="10" letter-spacing="1.3" fill="var(--ink3)">SENSOR</text>
+      <text x="142" y="26" font-family="IBM Plex Mono, monospace" font-size="10" letter-spacing="1.3" fill="var(--ink3)">ON-DEVICE PIPELINE</text>
+      <text x="588" y="26" font-family="IBM Plex Mono, monospace" font-size="10" letter-spacing="1.3" fill="var(--ink3)">OUTPUT</text>
+      <text x="744" y="26" font-family="IBM Plex Mono, monospace" font-size="10" letter-spacing="1.3" fill="var(--build)">SHARED STATE</text>
+
+      <!-- lane A -->
+      <rect x="8" y="40" width="118" height="80" rx="3" fill="var(--sunken)" stroke="var(--hair2)"/>
+      <text x="22" y="72" font-family="Chivo, sans-serif" font-size="14" font-weight="600" fill="var(--ink)">Mic</text>
+      <text x="22" y="92" font-family="IBM Plex Mono, monospace" font-size="10" fill="var(--ink2)">16 kHz mono</text>
+      <rect x="142" y="40" width="430" height="80" rx="3" fill="var(--surface)" stroke="var(--hair2)"/>
+      <text x="158" y="63" font-family="IBM Plex Mono, monospace" font-size="10" letter-spacing="1.2" fill="var(--build)">PIPELINE A · LISTEN</text>
+      <text x="158" y="85" font-family="Chivo, sans-serif" font-size="14.5" font-weight="600" fill="var(--ink)">One log-mel frontend, two heads</text>
+      <text x="158" y="105" font-family="IBM Plex Mono, monospace" font-size="10.5" fill="var(--ink2)">log-mel 64 › detect head › episode tracker › classify head</text>
+      <rect x="588" y="40" width="140" height="80" rx="3" fill="var(--sunken)" stroke="var(--hair2)"/>
+      <text x="602" y="66" font-family="Chivo, sans-serif" font-size="13.5" font-weight="600" fill="var(--ink)">Soothe · escalate</text>
+      <text x="602" y="86" font-family="IBM Plex Mono, monospace" font-size="10" fill="var(--ink2)">speaker, then</text>
+      <text x="602" y="100" font-family="IBM Plex Mono, monospace" font-size="10" fill="var(--ink2)">wrist, then alarm</text>
+
+      <!-- lane B -->
+      <rect x="8" y="146" width="118" height="80" rx="3" fill="var(--sunken)" stroke="var(--hair2)"/>
+      <text x="22" y="178" font-family="Chivo, sans-serif" font-size="14" font-weight="600" fill="var(--ink)">Camera</text>
+      <text x="22" y="198" font-family="IBM Plex Mono, monospace" font-size="10" fill="var(--ink2)">5 fps analysis</text>
+      <rect x="142" y="146" width="430" height="80" rx="3" fill="var(--surface)" stroke="var(--hair2)"/>
+      <text x="158" y="169" font-family="IBM Plex Mono, monospace" font-size="10" letter-spacing="1.2" fill="var(--build)">PIPELINE B · WATCH</text>
+      <text x="158" y="191" font-family="Chivo, sans-serif" font-size="14.5" font-weight="600" fill="var(--ink)">Face presence + motion energy</text>
+      <text x="158" y="211" font-family="IBM Plex Mono, monospace" font-size="10.5" fill="var(--ink2)">BlazeFace › frame-diff energy › hysteresis rules</text>
+      <rect x="588" y="146" width="140" height="80" rx="3" fill="var(--sunken)" stroke="var(--hair2)"/>
+      <text x="602" y="172" font-family="Chivo, sans-serif" font-size="13.5" font-weight="600" fill="var(--ink)">Alert + frame</text>
+      <text x="602" y="192" font-family="IBM Plex Mono, monospace" font-size="10" fill="var(--ink2)">“I can’t see</text>
+      <text x="602" y="206" font-family="IBM Plex Mono, monospace" font-size="10" fill="var(--ink2)">your baby’s face”</text>
+
+      <!-- lane C -->
+      <rect x="8" y="252" width="118" height="80" rx="3" fill="var(--sunken)" stroke="var(--hair2)"/>
+      <text x="22" y="278" font-family="Chivo, sans-serif" font-size="14" font-weight="600" fill="var(--ink)">Photo · voice</text>
+      <text x="22" y="298" font-family="IBM Plex Mono, monospace" font-size="10" fill="var(--ink2)">strip, toy, crib,</text>
+      <text x="22" y="312" font-family="IBM Plex Mono, monospace" font-size="10" fill="var(--ink2)">spoken question</text>
+      <rect x="142" y="252" width="430" height="80" rx="3" fill="var(--surface)" stroke="var(--build)" stroke-width="1.5"/>
+      <text x="158" y="275" font-family="IBM Plex Mono, monospace" font-size="10" letter-spacing="1.2" fill="var(--build)">PIPELINE C · ASK</text>
+      <text x="158" y="297" font-family="Chivo, sans-serif" font-size="14.5" font-weight="600" fill="var(--ink)">OCR › retrieve › Gemma 3n E4B</text>
+      <text x="158" y="317" font-family="IBM Plex Mono, monospace" font-size="10.5" fill="var(--ink2)">ML Kit text › AI Edge RAG (SQLite) › multimodal LLM</text>
+      <rect x="588" y="252" width="140" height="80" rx="3" fill="var(--sunken)" stroke="var(--hair2)"/>
+      <text x="602" y="278" font-family="Chivo, sans-serif" font-size="13.5" font-weight="600" fill="var(--ink)">Answer + TTS</text>
+      <text x="602" y="298" font-family="IBM Plex Mono, monospace" font-size="10" fill="var(--ink2)">in the parent’s</text>
+      <text x="602" y="312" font-family="IBM Plex Mono, monospace" font-size="10" fill="var(--ink2)">own language</text>
+
+      <!-- log column -->
+      <rect x="744" y="40" width="168" height="292" rx="3" fill="var(--build-bg)" stroke="var(--build)" stroke-width="1.5"/>
+      <text x="760" y="66" font-family="Chivo, sans-serif" font-size="15" font-weight="600" fill="var(--ink)">The log</text>
+      <text x="760" y="86" font-family="IBM Plex Mono, monospace" font-size="10.5" fill="var(--ink2)">Room · SQLite · local</text>
+      <text x="760" y="118" font-family="IBM Plex Mono, monospace" font-size="10.5" fill="var(--ink2)">cry episodes</text>
+      <text x="760" y="136" font-family="IBM Plex Mono, monospace" font-size="10.5" fill="var(--ink2)">what settled them</text>
+      <text x="760" y="154" font-family="IBM Plex Mono, monospace" font-size="10.5" fill="var(--ink2)">safety events + frames</text>
+      <text x="760" y="172" font-family="IBM Plex Mono, monospace" font-size="10.5" fill="var(--ink2)">feeds, changes, sleep</text>
+      <text x="760" y="190" font-family="IBM Plex Mono, monospace" font-size="10.5" fill="var(--ink2)">medicines checked</text>
+      <text x="760" y="208" font-family="IBM Plex Mono, monospace" font-size="10.5" fill="var(--ink2)">questions asked</text>
+      <text x="760" y="248" font-family="IBM Plex Mono, monospace" font-size="10" letter-spacing="1.1" fill="var(--build)">FEEDS PIPELINE C</text>
+      <text x="760" y="268" font-family="IBM Plex Mono, monospace" font-size="10.5" fill="var(--ink2)">every answer is</text>
+      <text x="760" y="284" font-family="IBM Plex Mono, monospace" font-size="10.5" fill="var(--ink2)">grounded in this</text>
+      <text x="760" y="300" font-family="IBM Plex Mono, monospace" font-size="10.5" fill="var(--ink2)">baby’s actual day</text>
+
+      <!-- flow arrows -->
+      <path d="M126 80 L138 80" stroke="var(--hair2)" stroke-width="1.4" marker-end="url(#a1)"/>
+      <path d="M572 80 L584 80" stroke="var(--hair2)" stroke-width="1.4" marker-end="url(#a1)"/>
+      <path d="M728 80 L740 80" stroke="var(--build)" stroke-width="1.4" marker-end="url(#a2)"/>
+      <path d="M126 186 L138 186" stroke="var(--hair2)" stroke-width="1.4" marker-end="url(#a1)"/>
+      <path d="M572 186 L584 186" stroke="var(--hair2)" stroke-width="1.4" marker-end="url(#a1)"/>
+      <path d="M728 186 L740 186" stroke="var(--build)" stroke-width="1.4" marker-end="url(#a2)"/>
+      <path d="M126 292 L138 292" stroke="var(--hair2)" stroke-width="1.4" marker-end="url(#a1)"/>
+      <path d="M572 292 L584 292" stroke="var(--hair2)" stroke-width="1.4" marker-end="url(#a1)"/>
+      <path d="M728 292 L740 292" stroke="var(--build)" stroke-width="1.4" marker-end="url(#a2)"/>
+
+      <!-- log feeds back into C -->
+      <path d="M770 340 L770 356 L360 356 L360 338" stroke="var(--build)" stroke-width="1.4"
+            fill="none" stroke-dasharray="4 4" marker-end="url(#a2)"/>
+      <text x="380" y="378" font-family="IBM Plex Mono, monospace" font-size="10" letter-spacing="1.1" fill="var(--ink3)">CONTEXT RETRIEVAL — THIS IS WHAT MAKES THE ANSWERS SPECIFIC</text>
+    </svg>
+    <figcaption>Three pipelines, one shared log. Nothing leaves the phone. The log is what turns generic parenting advice into an answer about <em>this</em> baby, and it is the cheapest part of the build.</figcaption>
+  </figure>
+
+  <div class="callout">
+    <p>Pipeline C is the one to over-invest in. Point the phone at a medicine strip and get a grounded answer back — that is the exact shape of the project that won Bengaluru.</p>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════ -->
+<section>
+  <p class="eyebrow">Feasibility</p>
+  <h2>Every feature you named, with a verdict</h2>
+
+  <div class="tscroll">
+  <table>
+    <thead><tr><th>Feature</th><th>How, on-device</th><th>Verdict</th><th class="n">Hrs</th></tr></thead>
+    <tbody>
+      <tr><td>Cry detection</td><td>YAMNet TFLite — AudioSet class 20 is already “Baby cry, infant cry.” Fine-tune a head on its 1024-d embeddings</td><td><span class="v b">Build</span></td><td class="n">3</td></tr>
+      <tr><td>Cry classification</td><td>Retrain your RF as a small log-mel CNN → TFLite. See the porting section — the librosa path does not survive the move to Android</td><td><span class="v b">Build</span></td><td class="n">4</td></tr>
+      <tr><td>Play a song / mum’s recorded voice</td><td>MediaPlayer + the log recording which sound settled this baby last time</td><td><span class="v b">Build</span></td><td class="n">2</td></tr>
+      <tr><td>Escalate and wake the parent</td><td>Rising-envelope timer → notification → watch buzz → phone alarm if the watch doesn’t acknowledge</td><td><span class="v b">Build</span></td><td class="n">2</td></tr>
+      <tr><td>Watch / band alert</td><td>A plain Android notification. The band vendor’s own app bridges it over BLE — zero code</td><td><span class="v b">Build</span></td><td class="n">0.5</td></tr>
+      <tr><td>Local LLM Q&amp;A</td><td>Gemma 3n E4B <code>.litertlm</code> via MediaPipe LLM Inference. ~3 GB — trivial on a 12–16 GB iQOO 15</td><td><span class="v b">Build</span></td><td class="n">3</td></tr>
+      <tr><td>Local RAG over baby-health content</td><td>Google AI Edge RAG SDK — Gecko embeddings, SQLite vector store, persists across restarts</td><td><span class="v b">Build</span></td><td class="n">3</td></tr>
+      <tr><td>Daily logs feeding the LLM</td><td>Room tables → retrieved as context. The cheapest, highest-value thing in the whole build</td><td><span class="v b">Build</span></td><td class="n">2</td></tr>
+      <tr><td>Medicine photo → safety answer</td><td>ML Kit Text Recognition (offline, Devanagari supported) → match against a LactMed extract → Gemma 3n phrases it</td><td><span class="v b">Build</span></td><td class="n">3</td></tr>
+      <tr><td>Toy photo → safe to play?</td><td>Same pipeline, Gemma 3n vision instead of OCR. Answer must hedge — a photo cannot size a choking hazard</td><td><span class="v r">Careful</span></td><td class="n">1</td></tr>
+      <tr><td>“What is my baby doing?”</td><td>Grab a frame → Gemma 3n vision → one-sentence description. No infant-specific model needed</td><td><span class="v b">Build</span></td><td class="n">1.5</td></tr>
+      <tr><td>Posture / rollover from pose landmarks</td><td>MediaPipe Pose is adult-trained and measurably fails on infants. <strong>Use face presence + motion energy instead</strong></td><td><span class="v s">Redesign</span></td><td class="n">—</td></tr>
+      <tr><td>Face-not-visible + motion safety rules</td><td>BlazeFace detection + frame-difference energy + hysteresis. Robust, honest, and it degrades gracefully</td><td><span class="v b">Build</span></td><td class="n">4</td></tr>
+      <tr><td>Multilingual answers</td><td>Gemma 3n covers 140 languages for text. Android <code>TextToSpeech</code> speaks Hindi/Tamil/Telugu/Bengali offline</td><td><span class="v b">Build</span></td><td class="n">1.5</td></tr>
+      <tr><td>Voice questions in an Indian language</td><td>Gemma 3n takes raw audio in — mono WAV straight into the prompt, no separate ASR</td><td><span class="v b">Build</span></td><td class="n">1.5</td></tr>
+      <tr><td>Tips and guidance</td><td>Falls out of the RAG corpus for free. Surface them triggered by a logged event, not as a browsable library</td><td><span class="v b">Build</span></td><td class="n">1</td></tr>
+      <tr><td>Ask the watch “what’s my baby doing”</td><td>Needs a real Wear OS module and the Data Layer API. Lovely, and the first thing to cut</td><td><span class="v r">Stretch</span></td><td class="n">5</td></tr>
+      <tr><td>Cloud LLM API for video description</td><td>Breaks the offline story, which is your strongest differentiator. Gemma 3n already does this locally</td><td><span class="v s">Skip</span></td><td class="n">—</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <p>That totals about 38 hours of feature work against a 30-hour clock with no slack, no sleep and no rehearsal. The cut list is at the end.</p>
+
+  <h3>The one design change I'd push back on</h3>
+  <p>Infant pose estimation is a known-hard problem, not a MediaPipe configuration issue: adult-trained models fail on infants because of body-ratio differences, which is why researchers built a dedicated dataset (SyRIP, 1,700 images) and a domain-adapted model (FiDIP) specifically to fix it. You cannot fine-tune that at a hackathon.</p>
+
+  <p><strong>Face detection works on infants where pose does not</strong>, and it gives you a better safety semantic anyway. Make the alert <em>“I can’t see your baby’s face”</em> rather than <em>“rollover detected.”</em> It covers rolling prone, a blanket over the face, and the camera being blocked or knocked — one rule, three failure modes, and it never claims to know more than it does. Pair it with frame-difference motion energy so you can distinguish “face hidden and still moving” from “face hidden and gone quiet,” and you have a safety layer you can defend to a judge.</p>
+</section>
+
+<!-- ═══════════════════════════════════ -->
+<section>
+  <p class="eyebrow">Datasets</p>
+  <h2>Training the detector</h2>
+
+  <p>First, the shortcut: <strong>you may not need to train one at all.</strong> YAMNet is a 3.7 MB TFLite model pretrained on AudioSet whose 521 classes already include “Baby cry, infant cry.” Ship that in hour one and you have a working detector before you have written a single training script.</p>
+
+  <p>Then improve it the cheap way: freeze YAMNet, take its 1,024-dimension embeddings, and train a two-layer head on your own positives and negatives. That is roughly thirty lines of Keras, trains in under a minute on a laptop CPU, and gives you a defensible “we fine-tuned it on X hours of data” line plus a real precision/recall number for the slide.</p>
+
+  <h3>Positives — download these</h3>
+  <div class="tscroll">
+  <table>
+    <thead><tr><th>Dataset</th><th>What you get</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td>ICSD (2024)</td><td>3.3 h strongly labelled + 1 h weakly labelled + synthetic, purpose-built for cry <em>detection</em></td><td>The right dataset for this exact task. HuggingFace + GitHub, URL list</td></tr>
+      <tr><td>ESC-50 / ESC-10</td><td>40 clips of <code>crying_baby</code>, 5 s each</td><td>Start here — direct GitHub download, tiny, clean, and its other 49 classes are your negatives</td></tr>
+      <tr><td>AudioSet</td><td>“Baby cry, infant cry” — thousands of 10 s segments</td><td>Needs YouTube fetching; slow and lossy. Use only if you have the pre-event time</td></tr>
+      <tr><td>FSD50K</td><td>51,197 Freesound clips over 200 AudioSet classes, incl. crying/sobbing</td><td>CC-licensed, direct download, good for both sides</td></tr>
+      <tr><td>Donate-A-Cry</td><td>457 clips</td><td>You already have it. Fine as positives; you know why it is bad for <em>reason</em> labels</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>Negatives — this is what actually decides whether the demo works</h3>
+  <p>A detector is only as good as what you taught it to reject. Pull from ESC-50’s other 49 classes (vacuum, washing machine, door knock, clock alarm, siren, dog, rooster, rain), UrbanSound8K’s 8,732 urban clips, and MUSAN or DEMAND for speech, music and noise beds to mix in.</p>
+
+  <div class="panel">
+    <h3>The negatives that matter most are not in any dataset</h3>
+    <p>Record thirty minutes yourself, on the iQOO, in the room you will demo in: adult conversation, laughter, applause, a squeaky toy, a phone ringtone, a chair scraping, an AC, a ceiling fan, a TV. <strong>Then add adult crying and a cat meowing</strong> — the two classic false positives.</p>
+    <p>This matters because of where you will be standing. A hackathon demo floor is a hall with two hundred people in it. A detector that fires on the judges’ laughter ends your pitch in the first fifteen seconds, and no public dataset will protect you from that. Gate on energy, require a 3-of-5 majority vote before declaring a cry, and rehearse it in the actual noise.</p>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════ -->
+<section>
+  <p class="eyebrow">Porting</p>
+  <h2>Your classifier will not survive the move to Android as-is</h2>
+
+  <p>The 461-feature pipeline in <code>ai.py</code> and <code>sample2.py</code> is pure librosa and scipy — <code>pre_emphasis</code>, a 5th-order Butterworth band-pass, then MFCC + deltas + spectral contrast + chroma + tonnetz + mel, reduced to mean/std/skew/max/min. There is no librosa on Android. Reimplementing all of it in Kotlin so the numbers match closely enough that a Random Forest trained on the Python features still behaves is a multi-day job with silent failure as the reward — a slightly different window function and the model just starts guessing.</p>
+
+  <div class="callout">
+    <p>Retrain the classifier as a small CNN on log-mel spectrograms, export TFLite, and run it on the NPU. Then the detector and the classifier share one frontend and differ only in the head.</p>
+  </div>
+
+  <p>Concretely: keep the same audio and the same labels; drop the 461-d handcrafted vector; compute 64-band log-mel over a 960 ms window; train a 3-block CNN or a MobileNetV3-small head; export to TFLite; run through LiteRT with the Qualcomm AI Engine Direct accelerator. You get real-time inference, a CPU-vs-GPU-vs-NPU latency table for the technical-depth slide, and an architecture you can draw on one line.</p>
+
+  <p>Do this <strong>before the event</strong> — it is training work, not build work, and there is no reason to spend hackathon hours on it. While you are retraining, fix the evaluation too: split first, augment only the training fold. It costs you an hour in the notebook and it means the confidence numbers your UI prints are real. Given you are showing classification, having honest confidence is what keeps that feature defensible rather than fragile.</p>
+
+  <p>One rule to carry over from the earlier plan, since you are keeping classification: show the label <em>with</em> its confidence and the context that supports it, and never print a bare “Your baby is hungry.” <span class="mono">“Most likely hunger — 68% confident, and it’s been 3h10 since the last feed”</span> costs you nothing, survives any judge who knows this literature, and is genuinely more useful to a parent at 3am.</p>
+</section>
+
+<!-- ═══════════════════════════════════ -->
+<section>
+  <p class="eyebrow">The wrist</p>
+  <h2>Yes, the watch works — and the cheapest tier is free</h2>
+
+  <div class="tiers">
+    <div class="tier">
+      <span class="lv">T0</span>
+      <div class="bd"><b>Any band the parent already owns</b>
+        <p>Mi Band, boAt, Noise, Fire-Boltt, Amazfit. Your app posts a normal Android notification; the band vendor’s own companion app is already listening via <code>NotificationListenerService</code> and forwards it over BLE. The wrist buzzes and shows your text. You write no Bluetooth code at all.</p>
+      </div>
+      <span class="ef">0 h</span>
+    </div>
+    <div class="tier">
+      <span class="lv">T1</span>
+      <div class="bd"><b>Any Wear OS watch, no watch app</b>
+        <p>Wear OS bridges phone notifications to the paired watch automatically. Same zero code, plus you can attach actions the parent can tap from the wrist.</p>
+      </div>
+      <span class="ef">0 h</span>
+    </div>
+    <div class="tier">
+      <span class="lv">T2</span>
+      <div class="bd"><b>A real Wear OS module</b>
+        <p>Data Layer API — <code>MessageClient</code> and <code>WearableListenerService</code>. Now you get a distinct vibration pattern per severity, a live cry timer on the watch face, “what’s my baby doing?” from the wrist, and dismiss-from-watch. This is where the demo gets memorable, and it is also the first thing to cut.</p>
+      </div>
+      <span class="ef">5 h</span>
+    </div>
+    <div class="tier">
+      <span class="lv off">T3</span>
+      <div class="bd"><b>Custom BLE GATT to a cheap band</b>
+        <p>Every band speaks a proprietary protocol. Gadgetbridge-style reverse engineering is real work and gains you nothing a notification doesn’t already do. Don’t.</p>
+      </div>
+      <span class="ef">skip</span>
+    </div>
+  </div>
+
+  <h3>The constraint nobody mentions until it fails on stage</h3>
+  <p>BLE reaches roughly ten metres, less through a wall. If the phone is in the nursery and the parent is asleep in another room, the link is marginal exactly when it matters. Wear OS papers over this by routing bridged notifications through Wi-Fi and the cloud when Bluetooth drops — which quietly destroys the offline claim that is your best differentiator.</p>
+
+  <p>Don’t fight it. <strong>Reframe it, using something that is already true of your market.</strong> Co-sleeping is the norm in Indian homes; the baby is usually in the same room. So the watch is not solving range — it is solving <em>noise</em>:</p>
+
+  <div class="callout">
+    <p>The alert can’t be a sound, because a sound wakes the baby you’re trying to settle, and the partner who finally got to sleep. So it’s a tap on your wrist.</p>
+  </div>
+
+  <p>That is a better product argument than range extension, it is honest about the physics, and it makes the watch feel designed-in rather than bolted-on. Keep one failsafe from the earlier severity model: for a genuine safety event, if the watch doesn’t acknowledge within two seconds, <strong>the phone alarms out loud on its own.</strong> The critical alert must never depend on a radio link.</p>
+
+  <p class="mono" style="color:var(--ink3);font-size:14px">Practical: the loaner phones come from iQOO, the watch does not. Bring your own — one Wear OS watch for T2, and one cheap band so you can show T0 working on hardware a real parent already owns.</p>
+</section>
+
+<!-- ═══════════════════════════════════ -->
+<section>
+  <p class="eyebrow">Languages</p>
+  <h2>Multilingual, fully offline — confirmed</h2>
+
+  <p>You can do this entirely on-device, and you should. Here is the stack that works without a network.</p>
+
+  <div class="tscroll">
+  <table>
+    <thead><tr><th>Job</th><th>On-device</th><th>Coverage</th></tr></thead>
+    <tbody>
+      <tr><td>Understanding a typed question</td><td>Gemma 3n E2B/E4B</td><td>Trained on 140+ languages; multimodal understanding across 35</td></tr>
+      <tr><td>Understanding a spoken question</td><td>Gemma 3n audio input — mono WAV straight into the prompt</td><td>No separate ASR component to build or ship</td></tr>
+      <tr><td>Answering in the parent’s language</td><td>Gemma 3n generation</td><td>Hindi, Tamil, Telugu, Kannada, Bengali, Marathi and more</td></tr>
+      <tr><td>Speaking the answer aloud</td><td>Android <code>TextToSpeech</code> with downloaded offline voices</td><td>Major Indian languages; free, built in, no model to ship</td></tr>
+      <tr><td>Reading a Devanagari medicine strip</td><td>ML Kit Text Recognition v2</td><td>Latin and Devanagari script models, on-device</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>Where Sarvam fits — and where it doesn’t</h3>
+  <p>Sarvam is India’s sovereign-AI stack and the models are genuinely strong for Indic work: <strong>Saaras v3</strong> ASR across 23 languages, <strong>Bulbul v3</strong> TTS across 11, <strong>Sarvam-Translate</strong> across 23, <strong>Sarvam Vision</strong> for 23-language document OCR, and <strong>Sarvam-105B</strong> for chat. All of it is cloud API.</p>
+
+  <p>That is the problem. Your headline claim is that nothing about a baby leaves the room, and the hackathon is explicitly about <em>local and open-source models on the Snapdragon NPU</em>. Routing a parent’s question about their infant through a hosted API contradicts both at once, and a judge will notice.</p>
+
+  <p><strong>Recommendation: on-device as the default, Sarvam as an explicit, opt-in quality upgrade.</strong> Ship a settings toggle that is off by default and says exactly what it does — <em>“Better regional-language answers. Sends your question to Sarvam’s servers. Never sends audio, video, or your baby’s log.”</em> Then in the pitch you get to say the strongest version of the sentence: <span class="mono">“It works in Tamil with the phone in airplane mode. If you want higher-quality Tamil and you’re willing to send a question to an Indian provider, that’s a switch — and it’s off by default.”</span> That reads as a considered privacy architecture rather than a limitation, and it flatters both the NPU story and the India story at once.</p>
+</section>
+
+<!-- ═══════════════════════════════════ -->
+<section>
+  <p class="eyebrow">The clock</p>
+  <h2>Where the 30 hours go</h2>
+
+  <div class="clock">
+    <div class="slot"><span class="h">Pre-event</span><span class="w"><b>All training and all content.</b> Retrain the classifier as a log-mel CNN and export TFLite. Fine-tune the YAMNet detection head on ESC-50 + ICSD + your own room recordings. Build the RAG corpus and the LactMed extract. Record mum’s-voice and demo cry audio. Pre-download Gemma 3n E4B. None of this is hackathon work and none of it should eat hackathon hours.</span></div>
+    <div class="slot"><span class="h">H0 – H2</span><span class="w"><b>Spine.</b> App skeleton, Room schema, foreground service with mic + camera types, and — first — a notification firing on a real band on someone’s wrist. Prove the output path before you build anything that feeds it.</span></div>
+    <div class="slot"><span class="h">H2 – H7</span><span class="w"><b>Pipeline A.</b> AudioRecord → log-mel → detect head on the NPU → episode tracker → classify head. Log the measured latency; you will quote it on stage.</span></div>
+    <div class="slot"><span class="h">H7 – H10</span><span class="w"><b>The actions.</b> Soothing playback, the escalation timer, watch alert, phone-alarm failsafe, and the verify step that records whether the cry actually settled. <b>This is the part that wins</b> — protect these three hours.</span></div>
+    <div class="slot"><span class="h">H10 – H12</span><span class="w"><b>Pipeline B, minimal.</b> Face presence + motion energy, two rules, hysteresis, alert with the frame attached. Stop here; the richer version is optional.</span></div>
+    <div class="slot"><span class="h">H12 – H17</span><span class="w"><b>Pipeline C.</b> Gemma 3n loaded, AI Edge RAG with the SQLite store, ask screen, log retrieval as context, multilingual output with offline TTS.</span></div>
+    <div class="slot rest"><span class="h">H17 – H20</span><span class="w"><b>Sleep, in shifts.</b> Non-negotiable. Teams that skip this demo badly at hour 29.</span></div>
+    <div class="slot"><span class="h">H20 – H23</span><span class="w"><b>Camera-as-question.</b> Photo → ML Kit OCR → LactMed lookup → Gemma 3n phrasing. Then the toy check and “what is my baby doing” on the same pipeline — both are prompt changes, not new code.</span></div>
+    <div class="slot cut"><span class="h">H23</span><span class="w"><b>The cut line.</b> Everything above must be finished and stable by here. If it is not, stop adding and start hardening. Anything below this line is optional and was always optional.</span></div>
+    <div class="slot"><span class="h">H23 – H26</span><span class="w">Timeline UI, event-triggered tip cards, Office Kit night review, and the Wear OS module if — and only if — you are genuinely ahead.</span></div>
+    <div class="slot"><span class="h">H26 – H28</span><span class="w"><b>Loud-room hardening.</b> Run the full demo with the venue’s actual noise, or a recording of it. Airplane-mode pass on everything. Record a backup video of every feature working, then demo live anyway.</span></div>
+    <div class="slot"><span class="h">H28 – H30</span><span class="w">Rehearse the pitch out loud, timed, three times.</span></div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════ -->
+<section>
+  <p class="eyebrow">Focus</p>
+  <h2>What to spend more on, and what to cut</h2>
+
+  <h3>Spend more here</h3>
+  <ol>
+    <li><strong>The actions, not the detection.</strong> Detection is a solved primitive you get from YAMNet in an afternoon. Nobody has ever been impressed by a label appearing on a screen. What lands is the phone <em>doing something</em> — playing mum’s recorded voice and then checking whether it worked. That is the loop that only a phone can close, and it is the pattern that won Bengaluru.</li>
+    <li><strong>Pipeline C, aimed at physical objects.</strong> Point the phone at a real medicine strip on the table and get a grounded, sourced, offline answer in Tamil. That is a Tokito-shaped demo: physical object in, real-world understanding out, all on the device. It is the single most demo-able thing on your whole list.</li>
+    <li><strong>Working in a noisy room.</strong> Worth more than any additional feature. Your hardest technical constraint is not the model, it is two hundred people talking.</li>
+  </ol>
+
+  <h3>Cut without regret</h3>
+  <ul>
+    <li><strong>The Wear OS module (T2).</strong> Five hours for something T0 already does for free. Build it only if you hit H23 clean.</li>
+    <li><strong>Pose landmarks.</strong> Replaced by face presence — this is a cut that makes the product <em>better</em>, not smaller.</li>
+    <li><strong>Any cloud call.</strong> Gemma 3n does vision, audio and 140 languages locally. Reaching for an API costs you your best claim.</li>
+    <li><strong>A browsable tips library.</strong> Ten cards triggered by real logged events beat an empty shelf with a search box.</li>
+    <li><strong>The 8-class pathology model.</strong> Research slide only. It stays out of the app.</li>
+  </ul>
+
+  <h3>Say this about the toy checker</h3>
+  <p>It is a good feature and a small one, but a photo cannot measure whether something fits through a choke tube. Have the answer name what it checked and what it couldn’t: <span class="mono">“Small detachable parts visible — for under-3s the rule of thumb is anything that fits through a toilet-roll tube. I can’t judge size from this photo; check it against one.”</span> That is more useful than a confident yes, and it is the difference between a feature a judge likes and one they poke a hole in.</p>
+</section>
+
+<footer class="foot">
+  <span>Nila v2 · feasibility + build plan</span>
+  <span>Single phone + wrist · fully on-device</span>
+</footer>
+
+</div>

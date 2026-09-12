@@ -1,0 +1,770 @@
+<title>Winning the iQOO Battle</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=Newsreader:opsz,wght@6..72,400;6..72,500&family=JetBrains+Mono:wght@400;500;700&display=swap">
+
+<style>
+:root{
+  --ground:#F6F7FA;
+  --surface:#FFFFFF;
+  --sunken:#EDEFF4;
+  --ink:#11151B;
+  --ink2:#59626F;
+  --ink3:#8A93A0;
+  --hair:#DCE1E8;
+  --hair-strong:#C3CAD4;
+  --signal:#D8451F;
+  --signal-soft:#FBE9E4;
+  --good:#186B52;
+  --good-soft:#E2F0EA;
+  --warn:#9A6410;
+  --warn-soft:#F7EDDB;
+  --shadow:0 1px 2px rgba(17,21,27,.05),0 8px 24px -18px rgba(17,21,27,.35);
+  --measure:69ch;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --ground:#0D1014;
+    --surface:#151A21;
+    --sunken:#1B212A;
+    --ink:#E8ECF2;
+    --ink2:#9AA4B2;
+    --ink3:#6B7482;
+    --hair:#252C36;
+    --hair-strong:#37404C;
+    --signal:#FF6F47;
+    --signal-soft:#2E1A14;
+    --good:#5CBE9A;
+    --good-soft:#132A23;
+    --warn:#D9A03F;
+    --warn-soft:#2B2216;
+    --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 30px -20px rgba(0,0,0,.9);
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#0D1014;
+  --surface:#151A21;
+  --sunken:#1B212A;
+  --ink:#E8ECF2;
+  --ink2:#9AA4B2;
+  --ink3:#6B7482;
+  --hair:#252C36;
+  --hair-strong:#37404C;
+  --signal:#FF6F47;
+  --signal-soft:#2E1A14;
+  --good:#5CBE9A;
+  --good-soft:#132A23;
+  --warn:#D9A03F;
+  --warn-soft:#2B2216;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 30px -20px rgba(0,0,0,.9);
+}
+
+*{box-sizing:border-box}
+body{
+  background:var(--ground);
+  color:var(--ink);
+  font-family:"Newsreader",Georgia,serif;
+  font-size:17px;
+  line-height:1.62;
+  margin:0;
+  -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:1080px;margin:0 auto;padding:0 28px 96px}
+
+/* ── masthead ───────────────────────────── */
+.mast{padding:56px 0 30px;border-bottom:2px solid var(--ink);}
+.kicker{
+  font-family:"JetBrains Mono",ui-monospace,monospace;
+  font-size:11px;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--signal);margin:0 0 18px;
+}
+h1{
+  font-family:"Archivo",system-ui,sans-serif;
+  font-weight:700;font-size:clamp(38px,6.2vw,66px);
+  line-height:1.02;letter-spacing:-.028em;margin:0 0 18px;
+  text-wrap:balance;max-width:16ch;
+}
+.dek{font-size:20px;line-height:1.5;color:var(--ink2);max-width:62ch;margin:0 0 26px}
+.dek strong{color:var(--ink);font-weight:500}
+.factbar{
+  display:flex;flex-wrap:wrap;gap:0;border-top:1px solid var(--hair);
+  padding-top:16px;
+}
+.fact{padding-right:34px;margin-right:34px;border-right:1px solid var(--hair)}
+.fact:last-child{border-right:0;margin-right:0;padding-right:0}
+.fact dt{
+  font-family:"JetBrains Mono",monospace;font-size:10px;letter-spacing:.12em;
+  text-transform:uppercase;color:var(--ink3);margin:0 0 4px;
+}
+.fact dd{
+  font-family:"Archivo",sans-serif;font-weight:600;font-size:16px;
+  margin:0;color:var(--ink);font-variant-numeric:tabular-nums;
+}
+
+/* ── sections ───────────────────────────── */
+section{padding-top:62px}
+.eyebrow{
+  font-family:"JetBrains Mono",monospace;font-size:11px;letter-spacing:.15em;
+  text-transform:uppercase;color:var(--ink3);margin:0 0 10px;
+  display:flex;align-items:center;gap:12px;
+}
+.eyebrow::after{content:"";flex:1;height:1px;background:var(--hair)}
+h2{
+  font-family:"Archivo",sans-serif;font-weight:700;
+  font-size:clamp(27px,3.4vw,36px);line-height:1.12;letter-spacing:-.02em;
+  margin:0 0 20px;text-wrap:balance;max-width:24ch;
+}
+h3{
+  font-family:"Archivo",sans-serif;font-weight:600;font-size:20px;
+  letter-spacing:-.01em;margin:38px 0 12px;text-wrap:balance;
+}
+h4{
+  font-family:"JetBrains Mono",monospace;font-weight:700;font-size:11px;
+  letter-spacing:.12em;text-transform:uppercase;color:var(--ink3);
+  margin:0 0 12px;
+}
+p{margin:0 0 17px;max-width:var(--measure)}
+ul,ol{max-width:var(--measure);margin:0 0 17px;padding-left:22px}
+li{margin-bottom:9px}
+li::marker{color:var(--ink3)}
+strong{font-weight:500;color:var(--ink)}
+em{font-style:italic}
+a{color:var(--signal);text-decoration-thickness:1px;text-underline-offset:2px}
+.mono{font-family:"JetBrains Mono",monospace;font-size:.88em;font-variant-numeric:tabular-nums}
+
+/* ── pull statement ─────────────────────── */
+.thesis{
+  border-left:3px solid var(--signal);
+  padding:2px 0 2px 22px;margin:26px 0 30px;max-width:60ch;
+}
+.thesis p{
+  font-family:"Archivo",sans-serif;font-weight:500;font-size:20px;
+  line-height:1.42;letter-spacing:-.012em;margin:0;
+}
+
+/* ── data table ─────────────────────────── */
+.tscroll{overflow-x:auto;margin:22px 0 26px;-webkit-overflow-scrolling:touch}
+table{
+  border-collapse:collapse;width:100%;min-width:560px;
+  font-family:"Archivo",sans-serif;font-size:14.5px;line-height:1.45;
+}
+th{
+  font-family:"JetBrains Mono",monospace;font-size:10px;font-weight:700;
+  letter-spacing:.11em;text-transform:uppercase;color:var(--ink3);
+  text-align:left;padding:0 14px 9px 0;border-bottom:1px solid var(--hair-strong);
+  vertical-align:bottom;
+}
+td{
+  padding:12px 14px 12px 0;border-bottom:1px solid var(--hair);
+  vertical-align:top;color:var(--ink2);
+}
+td:first-child{color:var(--ink);font-weight:600;white-space:nowrap}
+tr:last-child td{border-bottom:0}
+td.num,th.num{text-align:right;padding-right:0;font-variant-numeric:tabular-nums;
+  font-family:"JetBrains Mono",monospace}
+
+/* ── scorecard ──────────────────────────── */
+.score{
+  background:var(--surface);border:1px solid var(--hair);border-radius:3px;
+  padding:26px 26px 20px;margin:26px 0 12px;box-shadow:var(--shadow);
+}
+.score-head{
+  display:grid;grid-template-columns:1fr 62px 62px 62px;gap:10px;
+  padding-bottom:10px;border-bottom:1px solid var(--hair-strong);
+  font-family:"JetBrains Mono",monospace;font-size:10px;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--ink3);
+}
+.score-head span:not(:first-child){text-align:right}
+.row{
+  display:grid;grid-template-columns:1fr 62px 62px 62px;gap:10px;
+  align-items:baseline;padding:13px 0;border-bottom:1px solid var(--hair);
+}
+.row:last-of-type{border-bottom:0}
+.crit{min-width:0}
+.crit b{
+  display:block;font-family:"Archivo",sans-serif;font-weight:600;font-size:15px;
+  color:var(--ink);letter-spacing:-.005em;
+}
+.crit .bar{
+  height:4px;background:var(--sunken);border-radius:2px;margin-top:7px;
+  position:relative;overflow:hidden;max-width:320px;
+}
+.crit .bar i{position:absolute;top:0;bottom:0;display:block}
+.crit .bar .now{left:0;background:var(--signal);border-radius:2px}
+.crit .bar .was{width:2px;background:var(--ink);opacity:.55;border-radius:0}
+.v{
+  font-family:"JetBrains Mono",monospace;font-size:15px;font-weight:500;
+  text-align:right;font-variant-numeric:tabular-nums;color:var(--ink3);
+}
+.v.hi{color:var(--signal);font-weight:700}
+.v.mid{color:var(--ink2)}
+.total{
+  display:grid;grid-template-columns:1fr 62px 62px 62px;gap:10px;
+  align-items:baseline;padding-top:15px;margin-top:5px;
+  border-top:2px solid var(--ink);
+}
+.total b{font-family:"Archivo",sans-serif;font-weight:700;font-size:15px}
+.total .v{font-size:21px;font-weight:700;color:var(--ink)}
+.total .v.hi{color:var(--signal)}
+.caption{font-size:14px;color:var(--ink3);max-width:64ch;margin:0 0 8px;
+  font-family:"Archivo",sans-serif;line-height:1.5}
+
+/* ── verdict block ──────────────────────── */
+.verdict{
+  display:grid;grid-template-columns:auto 1fr;gap:24px;align-items:center;
+  background:var(--signal-soft);border:1px solid var(--signal);
+  border-radius:3px;padding:22px 26px;margin:30px 0;
+}
+.verdict .n{
+  font-family:"JetBrains Mono",monospace;font-weight:700;font-size:44px;
+  line-height:1;color:var(--signal);font-variant-numeric:tabular-nums;
+}
+.verdict p{margin:0;font-family:"Archivo",sans-serif;font-size:16px;
+  line-height:1.5;color:var(--ink);max-width:none}
+
+/* ── loop diagram ───────────────────────── */
+figure{margin:30px 0 26px}
+figure svg{display:block;width:100%;height:auto}
+figcaption{font-family:"Archivo",sans-serif;font-size:13.5px;color:var(--ink3);
+  margin-top:12px;max-width:64ch;line-height:1.5}
+
+/* ── flag list ──────────────────────────── */
+.flags{display:grid;gap:14px;margin:24px 0 26px}
+.flag{
+  display:grid;grid-template-columns:auto 1fr;gap:18px;
+  border-top:1px solid var(--hair);padding-top:14px;
+}
+.tag{
+  font-family:"JetBrains Mono",monospace;font-size:10px;font-weight:700;
+  letter-spacing:.09em;text-transform:uppercase;padding:4px 8px;
+  border-radius:2px;height:fit-content;white-space:nowrap;
+}
+.tag.stop{background:var(--signal-soft);color:var(--signal)}
+.tag.check{background:var(--warn-soft);color:var(--warn)}
+.tag.go{background:var(--good-soft);color:var(--good)}
+.flag .body{min-width:0}
+.flag .body b{font-family:"Archivo",sans-serif;font-weight:600;font-size:15.5px;
+  display:block;margin-bottom:4px;color:var(--ink)}
+.flag .body p{font-size:15.5px;margin:0;color:var(--ink2);max-width:66ch}
+
+/* ── delta checklist ────────────────────── */
+.deltas{list-style:none;padding:0;margin:24px 0;max-width:none;
+  display:grid;gap:0}
+.deltas li{
+  display:grid;grid-template-columns:34px 1fr auto;gap:16px;align-items:baseline;
+  padding:14px 0;border-bottom:1px solid var(--hair);margin:0;
+}
+.deltas li:last-child{border-bottom:0}
+.deltas .idx{font-family:"JetBrains Mono",monospace;font-size:12px;
+  color:var(--ink3);font-weight:500}
+.deltas .txt{font-family:"Archivo",sans-serif;font-size:15.5px;line-height:1.5;
+  color:var(--ink2)}
+.deltas .txt b{color:var(--ink);font-weight:600}
+.deltas .cost{font-family:"JetBrains Mono",monospace;font-size:11px;
+  color:var(--ink3);white-space:nowrap;letter-spacing:.04em}
+
+/* ── run of show ────────────────────────── */
+.show{margin:26px 0;display:grid;gap:0}
+.beat{
+  display:grid;grid-template-columns:88px 1fr;gap:22px;
+  padding:18px 0;border-bottom:1px solid var(--hair);
+}
+.beat:last-child{border-bottom:0}
+.beat .t{font-family:"JetBrains Mono",monospace;font-size:13px;font-weight:700;
+  color:var(--signal);font-variant-numeric:tabular-nums;padding-top:2px}
+.beat .c{min-width:0}
+.beat .c b{font-family:"Archivo",sans-serif;font-weight:600;font-size:16.5px;
+  display:block;margin-bottom:5px;color:var(--ink)}
+.beat .c p{margin:0;font-size:16px;max-width:62ch;color:var(--ink2)}
+.beat .c .say{
+  font-family:"Archivo",sans-serif;font-style:normal;font-size:15px;
+  display:block;margin-top:9px;padding-left:14px;border-left:2px solid var(--hair-strong);
+  color:var(--ink);
+}
+
+.foot{
+  margin-top:74px;padding-top:22px;border-top:2px solid var(--ink);
+  font-family:"JetBrains Mono",monospace;font-size:11px;letter-spacing:.08em;
+  text-transform:uppercase;color:var(--ink3);
+  display:flex;justify-content:space-between;flex-wrap:wrap;gap:14px;
+}
+
+@media (max-width:720px){
+  body{font-size:16px}
+  .wrap{padding:0 20px 72px}
+  .fact{padding-right:22px;margin-right:22px}
+  .score{padding:20px 18px 16px}
+  .score-head,.row,.total{grid-template-columns:1fr 48px 48px 48px;gap:6px}
+  .v{font-size:13.5px}
+  .total .v{font-size:18px}
+  .verdict{grid-template-columns:1fr;gap:12px}
+  .beat{grid-template-columns:1fr;gap:6px}
+  .deltas li{grid-template-columns:26px 1fr;gap:10px}
+  .deltas .cost{grid-column:2;font-size:10px}
+}
+@media (prefers-reduced-motion:no-preference){
+  a,summary{transition:color .15s ease}
+}
+:focus-visible{outline:2px solid var(--signal);outline-offset:3px;border-radius:2px}
+</style>
+
+<div class="wrap">
+
+<header class="mast">
+  <p class="kicker">Strategy brief · iQOO City Battles 2026</p>
+  <h1>Winning the iQOO Battle</h1>
+  <p class="dek">Your baby-cry work is a strong asset pointed at the wrong target. iQOO is not buying a good app — they are buying <strong>proof that their ₹73,000 phone is necessary</strong>. Here is what they want, what the Bengaluru winners actually did, and the three changes that take Nila from a good hackathon project to the one that wins the room.</p>
+  <dl class="factbar">
+    <div class="fact"><dt>Verdict</dt><dd>Build it — with the role swap</dd></div>
+    <div class="fact"><dt>Fit, as specced</dt><dd>7.7 / 10</dd></div>
+    <div class="fact"><dt>Fit, refined</dt><dd>8.9 / 10</dd></div>
+    <div class="fact"><dt>Bucket</dt><dd>Working Professionals</dd></div>
+  </dl>
+</header>
+
+<!-- ══════════════════════════════════════ -->
+<section>
+  <p class="eyebrow">The client</p>
+  <h2>What iQOO is actually paying ₹40 lakh for</h2>
+
+  <p>Read the rubric as a purchase order and it becomes obvious. Twenty-five percent of your score is <strong>read off device telemetry, not self-reported</strong> — they built a tracker to measure how hard you used the phone. They force you to build <em>on</em> the phone during Red Light. They gave Office Kit, a feature that shipped weeks ago with zero mindshare, its own 10% line. None of that is about your idea. It is about their device.</p>
+
+  <p>The context that explains it: the iQOO 15 launched in India at <span class="mono">₹72,999–79,999</span>. That is Samsung and OnePlus flagship money for a brand that has spent five years being known as the cheap fast one for gamers. Their hardware argument is already won — Snapdragon 8 Elite Gen 5, three 50MP cameras, a 7,000mAh cell, a 14,000mm² vapour chamber. What they do not have is a <em>software</em> reason to cost ₹73,000, and they have no developer ecosystem at all. Apple has WWDC. Samsung has SDC. iQOO has this hackathon.</p>
+
+  <div class="thesis">
+    <p>So the question every judge is silently scoring is not “is this a good product.” It is: <em>could this have been built on a ₹15,000 phone?</em> If yes, you are invisible, no matter how polished.</p>
+  </div>
+
+  <h3>Their five goals, in the order they care about them</h3>
+  <div class="tscroll">
+  <table>
+    <thead><tr><th>What they want</th><th>Why</th><th>How you feed it</th></tr></thead>
+    <tbody>
+      <tr><td>Justify the price</td><td>Move perception from “gaming phone” to “flagship computer”</td><td>Sustained NPU load, thermal headroom, all-night battery — measured and shown</td></tr>
+      <tr><td>Give Office Kit a job</td><td>New feature, no use cases, competing with Apple Continuity</td><td>The laptop does something the phone genuinely can’t, from hour 3 onward</td></tr>
+      <tr><td>Social proof</td><td>Both Bengaluru winners wrote 600-word LinkedIn posts. <em>That</em> was the deliverable</td><td>Give them a story worth posting, with the phone as the hero of it</td></tr>
+      <tr><td>NPU utility</td><td>Prove on-device AI is more than a spec-sheet number</td><td>Multiple models, concurrently, offline, with a latency table</td></tr>
+      <tr><td>Dev community in India</td><td>They have none; vivo/iQOO ship no SDK story</td><td>Talk to their engineers on the floor. Ask for things. Be memorable</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <p>One more read of the brief that most teams will miss: <strong>“phone-first” is a constraint they are testing, not a theme.</strong> Green Light gives you both devices, Red Light takes the laptop away. Teams that treat Red Light as a penalty to survive will look different on the telemetry from teams that treat the phone as their primary machine. Anchor’s team did the second thing, on purpose, and said so.</p>
+</section>
+
+<!-- ══════════════════════════════════════ -->
+<section>
+  <p class="eyebrow">The precedent</p>
+  <h2>Why Tokito and Anchor won</h2>
+
+  <p>Two very different projects. Strip them down and they are the same shape.</p>
+
+  <h3>Tokito Companion — 1st, Working Professionals</h3>
+  <p>Point the phone at a circuit board; on-device vision, voice and AR bring the project’s schematic context onto the physical board in front of you. Why it won:</p>
+  <ul>
+    <li><strong>It is physically impossible without a phone.</strong> You cannot demo it on a laptop. Camera → understanding → overlay on the real world. The device isn’t a container for the product, it <em>is</em> the product.</li>
+    <li><strong>Four device surfaces at once</strong> — camera, NPU, voice, display-as-AR. That is close to the ceiling of the 15% “creative phone use” line by construction.</li>
+    <li><strong>The poster’s own highlight was the hardware:</strong> “the craziest part was seeing all of this running locally on an iQOO 15.” That sentence is what iQOO paid for.</li>
+    <li><strong>It demos in ten seconds with no explanation.</strong> Point, see, understand.</li>
+  </ul>
+
+  <h3>Anchor — 1st Runner-Up, ₹80,000</h3>
+  <p>Detects GPS spoofing by checking whether a reported location is physically plausible against movement and device signals. Why it won:</p>
+  <ul>
+    <li><strong>Sensor fusion is the entire product.</strong> Pure phone-as-instrument.</li>
+    <li><strong>They built the app on the phone</strong> — Termux, proot, Office Kit, Codex — and made that part of the story. Maximum HackTracker and Office Kit telemetry, plus a narrative iQOO loves.</li>
+    <li><strong>They opened with a scenario, not a feature list.</strong> The stolen-saree delivery story. Their own stated takeaway: <em>“A good project isn’t enough. People need to understand why they should care.”</em></li>
+    <li><strong>They pre-researched the failure modes</strong> — battery, memory, accuracy, latency, what happens when it’s wrong — because judges ask, and having the answer reads as engineering maturity.</li>
+    <li><strong>They pre-empted the AI question:</strong> “we designed the architecture ourselves, then used Codex to implement.”</li>
+  </ul>
+
+  <div class="thesis">
+    <p>The shared pattern: <strong>a sensor → inference → real-world-consequence loop that only a phone can close</strong>, demoed in under fifteen seconds, wrapped in a story that made the problem feel physical.</p>
+  </div>
+
+  <p>Note what neither of them had: a published research paper, a validated market, or six months of prior work. You have all three. That is your edge — but only after you convert it into a device-first product, which is what the rest of this document is about.</p>
+</section>
+
+<!-- ══════════════════════════════════════ -->
+<section>
+  <p class="eyebrow">The verdict</p>
+  <h2>Does the baby project fit?</h2>
+
+  <p>Yes — decisively — but only in one of its three possible forms. Scored against their published rubric, ten-point scale per line, weighted to their percentages.</p>
+
+  <div class="score">
+    <div class="score-head">
+      <span>Criterion</span><span>Wt</span><span>Now</span><span>Refined</span>
+    </div>
+
+    <div class="row">
+      <div class="crit"><b>End product quality</b>
+        <div class="bar"><i class="now" style="width:80%"></i><i class="was" style="left:calc(80% - 1px)"></i></div>
+      </div>
+      <div class="v">30%</div><div class="v mid">8</div><div class="v hi">8</div>
+    </div>
+
+    <div class="row">
+      <div class="crit"><b>Novelty and impact</b>
+        <div class="bar"><i class="now" style="width:90%"></i><i class="was" style="left:calc(80% - 1px)"></i></div>
+      </div>
+      <div class="v">20%</div><div class="v mid">8</div><div class="v hi">9</div>
+    </div>
+
+    <div class="row">
+      <div class="crit"><b>HackTracker — creative phone use</b>
+        <div class="bar"><i class="now" style="width:100%"></i><i class="was" style="left:calc(80% - 1px)"></i></div>
+      </div>
+      <div class="v">15%</div><div class="v mid">8</div><div class="v hi">10</div>
+    </div>
+
+    <div class="row">
+      <div class="crit"><b>Technical depth</b>
+        <div class="bar"><i class="now" style="width:90%"></i><i class="was" style="left:calc(80% - 1px)"></i></div>
+      </div>
+      <div class="v">15%</div><div class="v mid">8</div><div class="v hi">9</div>
+    </div>
+
+    <div class="row">
+      <div class="crit"><b>HackTracker — Office Kit</b>
+        <div class="bar"><i class="now" style="width:90%"></i><i class="was" style="left:calc(60% - 1px)"></i></div>
+      </div>
+      <div class="v">10%</div><div class="v mid">6</div><div class="v hi">9</div>
+    </div>
+
+    <div class="row">
+      <div class="crit"><b>Demo and presentation</b>
+        <div class="bar"><i class="now" style="width:90%"></i><i class="was" style="left:calc(70% - 1px)"></i></div>
+      </div>
+      <div class="v">10%</div><div class="v mid">7</div><div class="v hi">9</div>
+    </div>
+
+    <div class="total">
+      <b>Weighted total</b>
+      <div class="v"></div>
+      <div class="v">7.7</div>
+      <div class="v hi">8.9</div>
+    </div>
+  </div>
+  <p class="caption">“Now” is Nila exactly as your existing build spec describes it. “Refined” applies the three changes below. For reference, the original Streamlit + Random Forest + Gemini project scores <strong>3.0</strong> on this rubric — it is a laptop app with a cloud dependency and an accuracy claim that a competent judge will dismantle.</p>
+
+  <div class="verdict">
+    <div class="n">8.9</div>
+    <p><strong>Build it.</strong> The domain is unglamorous but the mechanics are near-perfect for this rubric: continuous multimodal inference, two devices in different roles, offline by necessity, real market, real stakes, and a research story no other team can tell. The risk is not the idea — it is that the current spec casts the iQOO in the wrong role.</p>
+  </div>
+
+  <h3>The one thing in your spec that would cost you the win</h3>
+  <p>Your build spec assigns the <strong>old phone from a drawer</strong> to be the Guardian — the device at the crib that runs all the vision, all the audio and all the inference — and gives the <strong>iQOO</strong> the parent unit, where it displays a video feed and some cards.</p>
+
+  <p>Read that back as an iQOO marketing lead would. You are demonstrating, on their stage, with their loaner device, that <em>a five-year-old phone does the AI and the flagship is the dumb screen</em>. It is the most expensive possible framing error, and it is a fifteen-minute fix.</p>
+
+  <div class="thesis">
+    <p><strong>Swap the roles. The iQOO is the Guardian.</strong> Put the flagship at the crib doing ten hours of continuous vision + audio + LLM inference, and let the second phone be the viewport that could be anything.</p>
+  </div>
+
+  <p>Now every hardware fact you were going to bury becomes an argument: the vapour chamber is why it doesn’t thermally throttle at hour six; the 7,000mAh cell is why it lasts the night; the periscope telephoto is why it can sit two metres away instead of hovering over the baby; the NPU is why three models run at once without the phone becoming a hand-warmer. The pitch line writes itself: <em>“the specs you bought for eight hours of BGMI are exactly the specs that let this watch a crib all night.”</em></p>
+</section>
+
+<!-- ══════════════════════════════════════ -->
+<section>
+  <p class="eyebrow">The reframe</p>
+  <h2>Stop building a monitor. Build the loop that closes.</h2>
+
+  <p>Every product in this category — Nanit, Cubo AI, Miku, and your current spec — ends at <strong>notify</strong>. Something happens, a parent is woken, the parent fixes it. That is where all of them stop, and it is where the interesting half of the problem starts.</p>
+
+  <p>The single highest-value addition to Nila is an <strong>action tier between detection and waking the parent</strong>. Most night wakings self-settle. Some need a sound. Some need the room to be cooler. Only a few need a human. Right now the product treats all four identically.</p>
+
+  <figure>
+    <svg viewBox="0 0 880 210" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Four-stage loop: Sense, Reason, Act, Verify, feeding back into Sense">
+      <defs>
+        <marker id="ah" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto">
+          <path d="M0,0 L9,4.5 L0,9 z" fill="var(--hair-strong)"/>
+        </marker>
+      </defs>
+
+      <g>
+        <rect x="8" y="14" width="188" height="94" rx="3" fill="var(--surface)" stroke="var(--hair-strong)" stroke-width="1"/>
+        <text x="24" y="40" font-family="JetBrains Mono, monospace" font-size="10" letter-spacing="1.4" fill="var(--signal)">01 · SENSE</text>
+        <text x="24" y="64" font-family="Archivo, sans-serif" font-size="16" font-weight="600" fill="var(--ink)">Mic + camera</text>
+        <text x="24" y="85" font-family="Archivo, sans-serif" font-size="12.5" fill="var(--ink2)">Cry onset, envelope,</text>
+        <text x="24" y="100" font-family="Archivo, sans-serif" font-size="12.5" fill="var(--ink2)">pose, safety state</text>
+      </g>
+
+      <g>
+        <rect x="236" y="14" width="188" height="94" rx="3" fill="var(--surface)" stroke="var(--hair-strong)" stroke-width="1"/>
+        <text x="252" y="40" font-family="JetBrains Mono, monospace" font-size="10" letter-spacing="1.4" fill="var(--signal)">02 · REASON</text>
+        <text x="252" y="64" font-family="Archivo, sans-serif" font-size="16" font-weight="600" fill="var(--ink)">Gemma 3n</text>
+        <text x="252" y="85" font-family="Archivo, sans-serif" font-size="12.5" fill="var(--ink2)">Evidence + context log,</text>
+        <text x="252" y="100" font-family="Archivo, sans-serif" font-size="12.5" fill="var(--ink2)">on-device, no label</text>
+      </g>
+
+      <g>
+        <rect x="464" y="14" width="188" height="94" rx="3" fill="var(--signal-soft)" stroke="var(--signal)" stroke-width="1.5"/>
+        <text x="480" y="40" font-family="JetBrains Mono, monospace" font-size="10" letter-spacing="1.4" fill="var(--signal)">03 · ACT</text>
+        <text x="480" y="64" font-family="Archivo, sans-serif" font-size="16" font-weight="600" fill="var(--ink)">Soothe, cool, wake</text>
+        <text x="480" y="85" font-family="Archivo, sans-serif" font-size="12.5" fill="var(--ink2)">Speaker · IR blaster ·</text>
+        <text x="480" y="100" font-family="Archivo, sans-serif" font-size="12.5" fill="var(--ink2)">parent alert, in that order</text>
+      </g>
+
+      <g>
+        <rect x="692" y="14" width="180" height="94" rx="3" fill="var(--surface)" stroke="var(--hair-strong)" stroke-width="1"/>
+        <text x="708" y="40" font-family="JetBrains Mono, monospace" font-size="10" letter-spacing="1.4" fill="var(--signal)">04 · VERIFY</text>
+        <text x="708" y="64" font-family="Archivo, sans-serif" font-size="16" font-weight="600" fill="var(--ink)">Did it settle?</text>
+        <text x="708" y="85" font-family="Archivo, sans-serif" font-size="12.5" fill="var(--ink2)">Re-read the envelope.</text>
+        <text x="708" y="100" font-family="Archivo, sans-serif" font-size="12.5" fill="var(--ink2)">Log what worked</text>
+      </g>
+
+      <path d="M200 61 L230 61" stroke="var(--hair-strong)" stroke-width="1.5" fill="none" marker-end="url(#ah)"/>
+      <path d="M428 61 L458 61" stroke="var(--hair-strong)" stroke-width="1.5" fill="none" marker-end="url(#ah)"/>
+      <path d="M656 61 L686 61" stroke="var(--hair-strong)" stroke-width="1.5" fill="none" marker-end="url(#ah)"/>
+
+      <path d="M782 108 L782 158 Q782 168 772 168 L112 168 Q102 168 102 158 L102 116"
+            stroke="var(--hair-strong)" stroke-width="1.5" fill="none" stroke-dasharray="4 4" marker-end="url(#ah)"/>
+      <text x="442" y="192" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10.5" letter-spacing="1.2" fill="var(--ink3)">LEARNS WHICH ACTION WORKS FOR THIS BABY</text>
+    </svg>
+    <figcaption>The loop is the product. Stage 03 is what nobody else has, and stage 04 is what makes stage 03 defensible rather than a gimmick.</figcaption>
+  </figure>
+
+  <h3>The graduated response</h3>
+  <div class="tscroll">
+  <table>
+    <thead><tr><th>Tier</th><th>Trigger</th><th>Action</th><th>Hardware</th></tr></thead>
+    <tbody>
+      <tr><td>A — Settle</td><td>Cry &lt; 25s, not rising</td><td>Play the sound that worked last time at measured volume</td><td>Dual speakers, Hi-Res DAC</td></tr>
+      <tr><td>B — Adjust</td><td>Cry rising, room warm, baby restless</td><td>Drop the AC two degrees from the crib phone</td><td>IR blaster</td></tr>
+      <tr><td>C — Escalate</td><td>Cry still rising past 90s, or Tier A/B failed</td><td>Wake the parent — with the reasoning and the three seconds before</td><td>LAN, haptics</td></tr>
+      <tr><td>D — Safety</td><td>Rollover, face covered, climb-out</td><td>Local alarm immediately, no tiers, no network wait</td><td>Guardian speaker</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <p><strong>Tiers A and D go in first.</strong> Tier B is the showstopper but carries a real technical risk — see the flags section. Tier C is what you already have.</p>
+
+  <div class="thesis">
+    <p>The demo line, and the reason this beats a monitor: <strong>“Most nights, the parent never wakes up. That’s the product.”</strong></p>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════ -->
+<section>
+  <p class="eyebrow">The hardware</p>
+  <h2>Every surface on the iQOO 15, and what it’s worth to you</h2>
+
+  <p>Confirmed sensor complement is thinner than you might hope: accelerometer, gyroscope, proximity, compass, ultrasonic fingerprint, ambient light. <strong>No barometer, no ambient thermometer, no depth sensor.</strong> The value is not in the sensor list — it is in the cameras, the audio path, the IR blaster and the compute envelope.</p>
+
+  <div class="tscroll">
+  <table>
+    <thead><tr><th>Surface</th><th>Use in Nila</th><th>Value</th><th class="num">Hrs</th></tr></thead>
+    <tbody>
+      <tr><td>Mic array @16kHz</td><td>Cry onset, RMS envelope, rising/settling trend, room noise floor</td><td>Core — already specced</td><td class="num">—</td></tr>
+      <tr><td>Main 50MP + NPU</td><td>Pose, rollover, face-covered, presence</td><td>Core — already specced</td><td class="num">—</td></tr>
+      <tr><td><strong>IR blaster</strong></td><td>Turn the AC or fan down when the room is warm and the cry is rising</td><td><strong>Highest.</strong> No Samsung, Pixel or iPhone flagship has one. Closes the loop into the physical world</td><td class="num">2–3</td></tr>
+      <tr><td><strong>Dual speakers</strong></td><td>Adaptive soothing — play, then measure whether the cry settled, then learn</td><td><strong>Highest.</strong> Turns detection into intervention, and it is a genuine feedback loop</td><td class="num">3</td></tr>
+      <tr><td><strong>NFC</strong></td><td>Tap a sticker on the bottle or changing table to log a feed or a change</td><td><strong>High.</strong> The context log is what feeds the LLM, and typing at 3am is why every baby-log app dies. Zero-tap logging is a real product insight</td><td class="num">1.5</td></tr>
+      <tr><td>Periscope telephoto 3×, AF</td><td>Guardian sits 2m from the crib, framed tight, not looming over the baby</td><td>High — and it is a spec only a flagship has</td><td class="num">1</td></tr>
+      <tr><td>1080p @240fps</td><td>Rolling pre-roll buffer — every alert ships with the 3 seconds <em>before</em> it fired</td><td>High. Small feature, disproportionate “oh, nice” from judges</td><td class="num">2</td></tr>
+      <tr><td>7,000mAh + vapour chamber</td><td>Measured overnight endurance run: hours, % drain, peak surface temp</td><td>High — this is your technical-depth slide, and it flatters exactly what iQOO sells</td><td class="num">0.5</td></tr>
+      <tr><td>Ultrasonic fingerprint</td><td>Disarming the monitor requires a fingerprint; unlocking an alert works in the dark with wet hands</td><td>Medium. Small, real, and specific to ultrasonic vs optical</td><td class="num">0.5</td></tr>
+      <tr><td>Ambient light + camera EV</td><td>“The nursery is too bright for melatonin” — a real, measurable sleep-hygiene metric</td><td>Medium</td><td class="num">1</td></tr>
+      <tr><td>Accelerometer (parent unit)</td><td>Phone in pocket → escalate by haptic + sound, not a visual card</td><td>Medium</td><td class="num">0.5</td></tr>
+      <tr><td>Accelerometer (Guardian)</td><td>“Your camera was moved — re-check the crib zone”</td><td>Medium. Answers the “what if it breaks” question judges love</td><td class="num">0.5</td></tr>
+      <tr><td>Wi-Fi 7 / Wi-Fi Direct</td><td>Sub-second LAN video with the router unplugged</td><td>Core — already specced</td><td class="num">—</td></tr>
+      <tr><td>Ultrawide with AF</td><td>Wide crib coverage; macro for label scanning</td><td>Low priority for 30 hours</td><td class="num">—</td></tr>
+      <tr><td>Speaker + mic @18–20kHz</td><td>Ultrasonic Doppler for motion sensing</td><td>Real research, wrong weekend. Put it on the roadmap slide</td><td class="num">—</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>Office Kit — give the laptop a job the phone can’t do</h3>
+  <p>Mirroring the event timeline, as your spec currently proposes, is a weak use — it is the phone’s screen on a bigger screen, and a judge will read it as a checkbox. Make the laptop the <strong>night review station</strong> instead: scrub a full night’s timeline with the intensity curves, mark false alarms to tune the thresholds, and export a one-page PDF for the paediatric visit. That is a genuinely desktop-shaped task, you will actually use it while debugging from hour 3, and it produces an artifact you can hand a judge.</p>
+</section>
+
+<!-- ══════════════════════════════════════ -->
+<section>
+  <p class="eyebrow">The health question</p>
+  <h2>What you can measure without becoming a medical device</h2>
+
+  <p>You asked about health monitoring. The answer has a hard line through it, and knowing exactly where that line sits is itself worth points — it reads as maturity, and one informed judge is enough to end a pitch that gets it wrong.</p>
+
+  <p>The precedent is Owlet. In October 2021 the FDA sent them a warning letter over the Smart Sock: the device carried a disclaimer, and the FDA held that alerting caregivers to low oxygen saturation made it an unapproved medical device regardless. Owlet pulled it from the US market and only returned two years later with de novo clearance. <strong>Anything that alerts on a physiological state is a medical device.</strong> That rules out breathing rate, apnoea alerts, heart rate, and oxygen — including via camera, including with a disclaimer.</p>
+
+  <div class="flags">
+    <div class="flag">
+      <span class="tag stop">Don’t</span>
+      <div class="body">
+        <b>Breathing, vitals, apnoea, SIDS, “sleep safety score”</b>
+        <p>Even framed as “stillness detection,” an alert on the absence of breathing motion is an apnoea alarm. Do not build it, do not show it, do not put it on a roadmap slide.</p>
+      </div>
+    </div>
+    <div class="flag">
+      <span class="tag stop">Don’t</span>
+      <div class="body">
+        <b>Pathology screening from cry acoustics</b>
+        <p>Your 8-class merged model with the asphyxia and hearing-loss labels is scientifically interesting and clinically radioactive. Keep it in the research slide as prior work; keep it out of the app entirely.</p>
+      </div>
+    </div>
+    <div class="flag">
+      <span class="tag go">Do</span>
+      <div class="body">
+        <b>Objective cry-duration tracking against the colic criteria</b>
+        <p>This is the best health feature available to you, and it is genuinely novel. Infantile colic is defined by the Wessel rule of threes — crying ≥3 hours a day, ≥3 days a week, for ≥3 weeks — carried into the Rome IV criteria for research use. It is <em>purely a measurement of duration</em>. No diagnosis, no physiology.</p>
+      </div>
+    </div>
+  </div>
+
+  <p>Here is why that last one is strong enough to lead a slide. The Rome IV committee’s own stated objection to the Wessel criteria is that they are <strong>caregiver-reported</strong> — “arbitrary, culturally dependent, impractical.” Parents currently track this with a paper diary while sleep-deprived. You are proposing an instrument that measures the exact quantity the clinical standard is built on, objectively, automatically, on-device, and exports it as a page a paediatrician can read.</p>
+
+  <div class="thesis">
+    <p>“We don’t diagnose anything. We measure the one number the clinical definition is actually made of, and we measure it better than a sleep-deprived parent with a notebook.”</p>
+  </div>
+
+  <p>That claim survives any level of scrutiny, gives Office Kit a real reason to exist, and turns your cry work into a health contribution without going anywhere near regulated territory. Safe companions to it: sleep-window logs, feed and change intervals, and nursery light levels — all measured, none interpreted.</p>
+</section>
+
+<!-- ══════════════════════════════════════ -->
+<section>
+  <p class="eyebrow">The deltas</p>
+  <h2>Changes to your existing build spec</h2>
+
+  <p>Everything else in <span class="mono">Nila_Build_Spec.html</span> holds — the Nightlight design system, the severity model, the honesty components, the scope guard, the hour-13 rule. These are the edits.</p>
+
+  <ol class="deltas">
+    <li><span class="idx">01</span><span class="txt"><b>Swap the device roles.</b> iQOO becomes the Guardian and runs every model. The second phone is the viewport. Rewrite the pitch around compute, thermals and endurance.</span><span class="cost">0.25 h</span></li>
+    <li><span class="idx">02</span><span class="txt"><b>Add adaptive soothing with verification.</b> Cry detected → play a sound → re-read the RMS envelope 30s later → log whether it settled → rank sounds per baby. This is the closed loop, and it works even if IR fails.</span><span class="cost">3 h</span></li>
+    <li><span class="idx">03</span><span class="txt"><b>Add IR actuation, behind a day-one feasibility test.</b> Turn the AC down when the room is warm and the cry is rising. Highest-upside feature in the build; see the flags for the risk.</span><span class="cost">2–3 h</span></li>
+    <li><span class="idx">04</span><span class="txt"><b>NFC tags for zero-tap logging.</b> Sticker on the bottle, sticker on the changing table. Solves the real reason context logs go stale, and uses a surface no other team will touch.</span><span class="cost">1.5 h</span></li>
+    <li><span class="idx">05</span><span class="txt"><b>Three-second pre-roll on every alert.</b> Rolling buffer at high frame rate so the alert ships with the moments before it fired, not after.</span><span class="cost">2 h</span></li>
+    <li><span class="idx">06</span><span class="txt"><b>Repurpose Office Kit as the night review station.</b> Scrub the timeline, mark false alarms to tune thresholds, export the paediatrician PDF. Use it as your debugging surface from hour 3 so the telemetry is genuine.</span><span class="cost">2 h</span></li>
+    <li><span class="idx">07</span><span class="txt"><b>Instrument the endurance run.</b> Log battery %, surface temperature and per-model latency across the whole night. One slide, entirely from real numbers, that no other team will have.</span><span class="cost">0.5 h</span></li>
+    <li><span class="idx">08</span><span class="txt"><b>Add the colic-criteria tracker.</b> Cumulative cry duration per day against the ≥3h / ≥3d threshold. Small feature, big claim, zero regulatory exposure.</span><span class="cost">1.5 h</span></li>
+    <li><span class="idx">09</span><span class="txt"><b>Guardian self-checks.</b> Camera moved, mic dead, lens obstructed, battery low — surfaced on the parent phone within 10 seconds. A monitor that fails silently is worse than none, and a judge <em>will</em> ask.</span><span class="cost">1 h</span></li>
+    <li><span class="idx">10</span><span class="txt"><b>Grandparent mode.</b> Gemma 3n speaks the guidance aloud in Tamil or Hindi through the Guardian’s speakers. India’s joint-family reality, offline, on a phone — and it lands hard with an Indian jury.</span><span class="cost">1 h</span></li>
+  </ol>
+
+  <p>That is roughly 15 hours of additions against a 30-hour clock, which is too much. Take <strong>01, 02, 07, 09</strong> as non-negotiable — they cost about five hours combined and carry most of the gain. Then 06 and 10, then 03 and 04 if the build is ahead at hour 18. Drop 05 and 08 to the pitch as “built, not demoed” only if you actually built them.</p>
+</section>
+
+<!-- ══════════════════════════════════════ -->
+<section>
+  <p class="eyebrow">The pitch</p>
+  <h2>Five minutes, rewritten</h2>
+
+  <p>Your existing demo script opens with a self-test and a latency number. That is a good engineering opener and a weak <em>story</em> opener. Anchor’s lesson was that the room has to feel the problem before it can care about the solution — and Tokito’s was that the phone should visibly do something impossible before you have said a word.</p>
+
+  <div class="show">
+    <div class="beat">
+      <div class="t">0:00</div>
+      <div class="c">
+        <b>Cold open. Say nothing.</b>
+        <p>The iQOO is on the table facing a doll. Play a recorded cry from a small speaker. The phone detects it, shows its reasoning on screen, plays a shushing sound back — and then <strong>the air conditioner in the room turns on.</strong> Let that land for two full seconds before you speak.</p>
+        <span class="say">“Nobody woke up. That’s the whole product.”</span>
+      </div>
+    </div>
+    <div class="beat">
+      <div class="t">0:40</div>
+      <div class="c">
+        <b>The stake. One slide, three numbers.</b>
+        <p>From your own deck, all sourced: 5.6% of parents of six-month-olds reported smothering, slapping or shaking their baby over crying. 27% report problems with infant crying in the first four months. ~20% of infants cry excessively, linked to parental anxiety and depression.</p>
+        <span class="say">“The existing answer costs ₹30,000, needs your Wi-Fi, and uploads video of your baby.”</span>
+      </div>
+    </div>
+    <div class="beat">
+      <div class="t">1:20</div>
+      <div class="c">
+        <b>Safety, live, with the doll.</b>
+        <p>Roll it prone — L3 fires. Towel over the face — L3. Lift it toward the rail — L4, and the crib phone alarms on its own.</p>
+        <span class="say">“That alarm never touched the network. It has to beat the fall, not report it.”</span>
+      </div>
+    </div>
+    <div class="beat">
+      <div class="t">2:20</div>
+      <div class="c">
+        <b>The honesty beat. This is the moment they remember.</b>
+        <p>Show the Reading card with its evidence chips and its hedge line. Then the research: published cry classifiers report 96–99%. You built one — 98.76%. Then you split by infant instead of by clip and it fell to chance, matching the 2026 controlled study on this corpus.</p>
+        <span class="say">“So we don’t tell you why your baby is crying. We show you the evidence and we say what we can’t know.”</span>
+      </div>
+    </div>
+    <div class="beat">
+      <div class="t">3:10</div>
+      <div class="c">
+        <b>Why it needs this phone.</b>
+        <p>Airplane mode on both devices — everything still works. Then the numbers: the latency table, NPU vs GPU vs CPU. The endurance run: hours watched, battery drained, peak surface temperature. Gemma 3n answering a follow-up in Tamil, offline.</p>
+        <span class="say">“Three models, all night, on the NPU. The vapour chamber you bought for gaming is why it doesn’t throttle at hour six.”</span>
+      </div>
+    </div>
+    <div class="beat">
+      <div class="t">4:10</div>
+      <div class="c">
+        <b>The gap, in thirty seconds.</b>
+        <p>Real safety AI exists only inside $199–$399 hardware. The free two-phone monitor apps have no intelligence at all. India is the fastest-growing market in Asia Pacific at 8.9% CAGR, and nobody occupies the middle.</p>
+      </div>
+    </div>
+    <div class="beat">
+      <div class="t">4:40</div>
+      <div class="c">
+        <b>Close on the constraint, not the roadmap.</b>
+        <p>No cloud, no subscription, no new hardware. An awareness aid, not a medical device — and say that you are careful about that line. Then stop talking.</p>
+      </div>
+    </div>
+  </div>
+
+  <p>Two things to have ready and unprompted, because Anchor got asked and had answers: <strong>what happens when it’s wrong</strong> (false-alarm rate from your own overnight run, and the hysteresis constants you tuned), and <strong>who designed this</strong> (you architected the severity model and the event fusion; the agent implemented it). Both questions are coming.</p>
+</section>
+
+<!-- ══════════════════════════════════════ -->
+<section>
+  <p class="eyebrow">Flags</p>
+  <h2>Check these before you write any code</h2>
+
+  <div class="flags">
+    <div class="flag">
+      <span class="tag check">Verify</span>
+      <div class="body">
+        <b>Are you and Vishal in the same bucket?</b>
+        <p>Teams must stay within one bucket — students or working professionals, not mixed. Your email is a company domain; if Vishal is still a student, you may not be allowed to team up. This decides your roster, so confirm it with Reskilll before anything else.</p>
+      </div>
+    </div>
+    <div class="flag">
+      <span class="tag check">Verify</span>
+      <div class="body">
+        <b>IR blaster access may be blocked.</b>
+        <p><span class="mono">ConsumerIrManager</span> is the Android API and <span class="mono">TRANSMIT_IR</span> the permission, but it is deprecated on Android 12+ and reportedly not enabled in legacy mode on vivo and iQOO builds. Test this in your first hour on the loaner. If it fails, ask iQOO’s engineers on the floor — asking is itself a good move, and worst case the answer is no and you fall back to speaker-only actuation, which still closes the loop.</p>
+      </div>
+    </div>
+    <div class="flag">
+      <span class="tag check">Verify</span>
+      <div class="body">
+        <b>Prior-work rules and your city’s date.</b>
+        <p>Bengaluru has already run, which means the judges’ reference point now includes Tokito. Confirm your city, and confirm what you are allowed to bring pre-built — pre-trained models and static content are normally fine, but state it openly on stage either way. “The research is ours from a published paper; every line of this app was written in 30 hours” is a strong sentence, and a discovered omission is a fatal one.</p>
+      </div>
+    </div>
+    <div class="flag">
+      <span class="tag stop">Fix now</span>
+      <div class="body">
+        <b>The committed Gemini API key.</b>
+        <p>Still live in <span class="mono">ai.py</span> and <span class="mono">sample2.py</span> in a public repo, and in git history even if you delete the line. Revoke it in Google AI Studio today. The hackathon build should hold no cloud key at all — that is a feature, not a chore.</p>
+      </div>
+    </div>
+    <div class="flag">
+      <span class="tag stop">Never say</span>
+      <div class="body">
+        <b>“98.76% accurate” about the cry classifier.</b>
+        <p>Any judge who searches this space finds the leakage literature and the “snake oil” press coverage in about four minutes. The number is only safe when you are the one dismantling it. Grep the codebase before you demo: the string “your baby is hungry” must not exist anywhere in the UI.</p>
+      </div>
+    </div>
+    <div class="flag">
+      <span class="tag go">Do this week</span>
+      <div class="body">
+        <b>Pre-build everything that isn’t event code.</b>
+        <p>Onboarding and log screens, micro-lesson cards, the demo cry recordings, the crib polygon preset, the pitch deck, the doll and the towel. Pre-download Gemma 3n and YAMNet. Rehearse the Office Kit pairing on a laptop you own. Most teams arrive with nothing pre-cut; the hours you save are hours on the demo.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer class="foot">
+  <span>Nila · iQOO City Battles 2026</span>
+  <span>Strategy brief · 5 Sept 2026</span>
+</footer>
+
+</div>

@@ -1,0 +1,406 @@
+<title>Nila Build Report</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Public+Sans:wght@400;500;600;700&family=Roboto+Mono:wght@400;500;700&display=swap">
+
+<style>
+:root{
+  --paper:#FAF9F6;
+  --card:#FFFFFF;
+  --sunk:#F1EFE9;
+  --ink:#17171C;
+  --ink2:#5D5D69;
+  --ink3:#8C8C97;
+  --rule:#E4E2DB;
+  --rule2:#CFCCC2;
+  --accent:#3D3A8C;
+  --accent-soft:#E7E6F4;
+  --pass:#1F6F4A;
+  --pass-soft:#E1F0E7;
+  --fail:#A63A2E;
+  --fail-soft:#F8E7E4;
+  --hold:#8A6212;
+  --hold-soft:#F6EEDB;
+  --shadow:0 1px 2px rgba(23,23,28,.04),0 10px 28px -22px rgba(23,23,28,.5);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --paper:#111014;
+    --card:#191820;
+    --sunk:#1F1E27;
+    --ink:#EDECF2;
+    --ink2:#9E9DAA;
+    --ink3:#71707C;
+    --rule:#292833;
+    --rule2:#3B3A47;
+    --accent:#A9A5F0;
+    --accent-soft:#22203C;
+    --pass:#5CBE93;
+    --pass-soft:#132A20;
+    --fail:#E8887A;
+    --fail-soft:#2C1815;
+    --hold:#D9A94A;
+    --hold-soft:#2A2214;
+    --shadow:0 1px 2px rgba(0,0,0,.5),0 12px 32px -24px rgba(0,0,0,.95);
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#111014;--card:#191820;--sunk:#1F1E27;--ink:#EDECF2;--ink2:#9E9DAA;
+  --ink3:#71707C;--rule:#292833;--rule2:#3B3A47;--accent:#A9A5F0;
+  --accent-soft:#22203C;--pass:#5CBE93;--pass-soft:#132A20;--fail:#E8887A;
+  --fail-soft:#2C1815;--hold:#D9A94A;--hold-soft:#2A2214;
+  --shadow:0 1px 2px rgba(0,0,0,.5),0 12px 32px -24px rgba(0,0,0,.95);
+}
+
+*{box-sizing:border-box}
+body{background:var(--paper);color:var(--ink);
+  font-family:"Public Sans",system-ui,sans-serif;font-size:16.5px;line-height:1.6;
+  margin:0;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1080px;margin:0 auto;padding:0 26px 88px}
+
+.mast{padding:54px 0 24px;border-bottom:1px solid var(--rule2)}
+.kicker{font-family:"Roboto Mono",monospace;font-size:11px;letter-spacing:.16em;
+  text-transform:uppercase;color:var(--accent);margin:0 0 14px}
+h1{font-family:"Instrument Serif",Georgia,serif;font-weight:400;
+  font-size:clamp(42px,7vw,74px);line-height:1;letter-spacing:-.015em;
+  margin:0 0 16px;max-width:14ch}
+.dek{font-size:19px;line-height:1.5;color:var(--ink2);max-width:62ch;margin:0 0 24px}
+.dek strong{color:var(--ink);font-weight:600}
+.pills{display:flex;flex-wrap:wrap;gap:8px}
+.pill{font-family:"Roboto Mono",monospace;font-size:11px;font-weight:500;
+  letter-spacing:.06em;padding:5px 10px;border-radius:3px;background:var(--sunk);
+  color:var(--ink2)}
+.pill.ok{background:var(--pass-soft);color:var(--pass)}
+.pill.hold{background:var(--hold-soft);color:var(--hold)}
+
+section{padding-top:56px}
+.eyebrow{font-family:"Roboto Mono",monospace;font-size:11px;letter-spacing:.16em;
+  text-transform:uppercase;color:var(--ink3);margin:0 0 10px;
+  display:flex;align-items:center;gap:12px}
+.eyebrow::after{content:"";flex:1;height:1px;background:var(--rule)}
+h2{font-family:"Instrument Serif",Georgia,serif;font-weight:400;
+  font-size:clamp(28px,4vw,40px);line-height:1.1;letter-spacing:-.01em;
+  margin:0 0 18px;max-width:24ch}
+h3{font-family:"Public Sans",sans-serif;font-weight:600;font-size:18px;
+  margin:32px 0 10px}
+p{margin:0 0 15px;max-width:70ch}
+ul{max-width:70ch;margin:0 0 15px;padding-left:20px}
+li{margin-bottom:7px}
+li::marker{color:var(--ink3)}
+strong{font-weight:600}
+code,.mono{font-family:"Roboto Mono",monospace;font-size:.87em}
+code{background:var(--sunk);padding:1px 5px;border-radius:2px}
+
+.lede{border-left:3px solid var(--accent);padding-left:20px;margin:22px 0 26px;
+  max-width:60ch}
+.lede p{font-family:"Instrument Serif",Georgia,serif;font-size:23px;line-height:1.35;
+  margin:0;color:var(--ink)}
+
+/* ---- chart ------------------------------------------------------- */
+.chart{background:var(--card);border:1px solid var(--rule);border-radius:4px;
+  padding:26px 26px 18px;margin:22px 0 10px;box-shadow:var(--shadow);
+  position:relative}
+.chart h3{margin:0 0 4px;font-size:17px}
+.chart .sub{font-size:14px;color:var(--ink3);margin:0 0 22px}
+.plot{position:relative;padding-left:0}
+.chance{position:absolute;top:-4px;bottom:18px;width:0;border-left:2px dashed var(--rule2);
+  pointer-events:none}
+.chance span{position:absolute;top:-16px;left:6px;font-family:"Roboto Mono",monospace;
+  font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink3);
+  white-space:nowrap}
+.barrow{display:grid;grid-template-columns:1fr;gap:5px;margin-bottom:18px;position:relative}
+.barrow .lbl{display:flex;justify-content:space-between;align-items:baseline;gap:12px}
+.barrow .name{font-size:14.5px;font-weight:500;color:var(--ink)}
+.barrow .note{font-size:13px;color:var(--ink3)}
+.track{height:26px;background:var(--sunk);border-radius:3px;position:relative;
+  overflow:hidden}
+.track .fill{position:absolute;left:0;top:0;bottom:0;background:var(--accent);
+  border-radius:0 4px 4px 0;transition:filter .15s ease}
+.barrow:hover .track .fill{filter:brightness(1.12)}
+.track .val{position:absolute;top:0;bottom:0;display:flex;align-items:center;
+  font-family:"Roboto Mono",monospace;font-size:13px;font-weight:700;
+  padding-left:9px;color:var(--card)}
+.track .val.outside{color:var(--ink);padding-left:9px}
+.axis{display:flex;justify-content:space-between;font-family:"Roboto Mono",monospace;
+  font-size:10.5px;color:var(--ink3);border-top:1px solid var(--rule);padding-top:6px}
+.tip{position:absolute;background:var(--ink);color:var(--paper);font-size:12.5px;
+  padding:6px 9px;border-radius:3px;pointer-events:none;opacity:0;
+  transition:opacity .12s ease;white-space:nowrap;z-index:5;
+  font-family:"Roboto Mono",monospace}
+.barrow:hover .tip{opacity:1}
+.caption{font-size:14px;color:var(--ink3);max-width:66ch;margin:0 0 4px;line-height:1.5}
+
+/* ---- tables ------------------------------------------------------ */
+.tscroll{overflow-x:auto;margin:20px 0 24px}
+table{border-collapse:collapse;width:100%;min-width:580px;font-size:14.5px;
+  line-height:1.45}
+th{font-family:"Roboto Mono",monospace;font-size:10px;font-weight:700;
+  letter-spacing:.11em;text-transform:uppercase;color:var(--ink3);text-align:left;
+  padding:0 14px 8px 0;border-bottom:1px solid var(--rule2);vertical-align:bottom;
+  white-space:nowrap}
+td{padding:11px 14px 11px 0;border-bottom:1px solid var(--rule);vertical-align:top;
+  color:var(--ink2)}
+td:first-child{color:var(--ink);font-weight:600}
+tr:last-child td{border-bottom:0}
+td.n,th.n{text-align:right;padding-right:0;font-variant-numeric:tabular-nums;
+  font-family:"Roboto Mono",monospace;white-space:nowrap}
+td.n b{color:var(--ink);font-weight:700}
+.tag{font-family:"Roboto Mono",monospace;font-size:10px;font-weight:700;
+  letter-spacing:.07em;text-transform:uppercase;padding:3px 7px;border-radius:2px;
+  white-space:nowrap;display:inline-block}
+.tag.p{background:var(--pass-soft);color:var(--pass)}
+.tag.f{background:var(--fail-soft);color:var(--fail)}
+.tag.h{background:var(--hold-soft);color:var(--hold)}
+
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:0;
+  border-top:1px solid var(--rule2);margin:20px 0 26px}
+.cell{padding:16px 18px 16px 0;border-bottom:1px solid var(--rule)}
+.cell dt{font-family:"Roboto Mono",monospace;font-size:10px;letter-spacing:.11em;
+  text-transform:uppercase;color:var(--ink3);margin:0 0 5px}
+.cell dd{margin:0;font-family:"Roboto Mono",monospace;font-size:26px;font-weight:700;
+  color:var(--ink);font-variant-numeric:tabular-nums;line-height:1.1}
+.cell .u{font-size:13px;color:var(--ink3);font-weight:400;margin-top:3px;
+  font-family:"Public Sans",sans-serif}
+
+.foot{margin-top:66px;padding-top:20px;border-top:1px solid var(--rule2);
+  font-family:"Roboto Mono",monospace;font-size:11px;letter-spacing:.07em;
+  text-transform:uppercase;color:var(--ink3);display:flex;
+  justify-content:space-between;flex-wrap:wrap;gap:12px}
+
+@media (max-width:700px){
+  body{font-size:16px}
+  .wrap{padding:0 18px 66px}
+  .chart{padding:20px 18px 14px}
+  .barrow .lbl{flex-direction:column;gap:2px}
+}
+:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:2px}
+</style>
+
+<div class="wrap">
+
+<header class="mast">
+  <p class="kicker">Build report · <span class="mono">nila/</span></p>
+  <h1>Nila</h1>
+  <p class="dek">An on-device infant monitor: three inference pipelines, two trained models, a Kotlin app that builds and runs. <strong>72 tests pass — 54 on the JVM and 18 on a device — the detector holds 0.992 AUC on infants it has never heard, and the whole thing runs as a foreground service at roughly 0.3% CPU.</strong> The reason classifier does not work, and that turned out to be the most useful result in the project.</p>
+  <div class="pills">
+    <span class="pill ok">APK builds · 37 MB release</span>
+    <span class="pill ok">72/72 tests</span>
+    <span class="pill ok">All 3 pipelines verified live</span>
+    <span class="pill">Zero network calls</span>
+    <span class="pill hold">4 datasets on hold</span>
+  </div>
+</header>
+
+<!-- ══════════════════════════════════════ -->
+<section>
+  <p class="eyebrow">The finding</p>
+  <h2>The same model, twice, differing only in how the data was split</h2>
+
+  <p>Identical audio, identical features, identical architecture, identical training schedule. The only change was whether augmented copies of one recording could land on both sides of the train/test boundary.</p>
+
+  <div class="chart">
+    <h3>Macro AUC on held-out data</h3>
+    <p class="sub">Higher is better. 0.50 is chance — a coin flip.</p>
+
+    <div class="plot">
+      <div class="chance" style="left:50%"><span>chance · 0.50</span></div>
+
+      <div class="barrow">
+        <div class="lbl">
+          <span class="name">Cry detection — split by infant</span>
+          <span class="note">is this a baby crying?</span>
+        </div>
+        <div class="track">
+          <div class="fill" style="width:99.2%"></div>
+          <div class="val" style="left:0">0.992</div>
+        </div>
+        <div class="tip" style="left:0;top:-6px">2,946 held-out patches · 96% accuracy</div>
+      </div>
+
+      <div class="barrow">
+        <div class="lbl">
+          <span class="name">Cry reason — random split, augment first</span>
+          <span class="note">the protocol most published work uses</span>
+        </div>
+        <div class="track">
+          <div class="fill" style="width:95.3%"></div>
+          <div class="val" style="left:0">0.953</div>
+        </div>
+        <div class="tip" style="left:0;top:-6px">looks like state of the art · it is not</div>
+      </div>
+
+      <div class="barrow">
+        <div class="lbl">
+          <span class="name">Cry reason — split by infant</span>
+          <span class="note">why is this baby crying?</span>
+        </div>
+        <div class="track">
+          <div class="fill" style="width:44.4%"></div>
+          <div class="val outside" style="left:44.4%">0.444</div>
+        </div>
+        <div class="tip" style="left:0;top:-6px">762 held-out patches · below chance</div>
+      </div>
+
+      <div class="axis"><span>0.00</span><span>0.25</span><span>0.50</span><span>0.75</span><span>1.00</span></div>
+    </div>
+  </div>
+  <p class="caption">Every number here came out of <code>ml/reports/</code> on this machine. Nothing is cited from a paper.</p>
+
+  <div class="lede">
+    <p>Leakage alone is worth <strong>+0.51 macro AUC</strong>. The model was not learning what a hungry cry sounds like. It was learning to recognise the babies.</p>
+  </div>
+
+  <h3>Before concluding the signal isn't there, we looked for a coarser one</h3>
+  <p>A five-way task on 457 clips is hard. Maybe a simpler question survives an honest split — so we asked four of them, each with a stated hypothesis rather than a fishing expedition.</p>
+
+  <div class="tscroll">
+    <table>
+      <thead><tr><th>Grouping</th><th>Hypothesis</th><th class="n">Macro AUC</th><th class="n">Bal. acc</th><th>Verdict</th></tr></thead>
+      <tbody>
+        <tr><td>five-way</td><td>the original task</td><td class="n">0.431</td><td class="n">0.176</td><td><span class="tag f">at chance</span></td></tr>
+        <tr><td>hungry vs rest</td><td>hunger is the majority class and the one parents act on first</td><td class="n">0.497</td><td class="n">0.503</td><td><span class="tag f">at chance</span></td></tr>
+        <tr><td>pain vs rest</td><td>pain cries are the one claim with independent support in the literature</td><td class="n">0.467</td><td class="n">0.492</td><td><span class="tag f">at chance</span></td></tr>
+        <tr><td>three-way</td><td>merge the gut-related classes, keep tired separate</td><td class="n">0.437</td><td class="n">0.327</td><td><span class="tag f">at chance</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>None of them. So the app tells you your baby is crying, for how long, and whether it is building or settling — all measured — and shows the cause estimate labelled as an unvalidated guess with its own AUC printed beside it. <code>ModelCard.kt</code> is <em>generated</em> from these reports, so the reliability the app claims cannot drift from the reliability it was measured to have.</p>
+</section>
+
+<!-- ══════════════════════════════════════ -->
+<section>
+  <p class="eyebrow">Hard negatives</p>
+  <h2>Validation caught cats setting off the alarm</h2>
+
+  <p>The first detector scored 0.991 AUC and looked finished. Running it against real room sounds said otherwise: <strong>cat vocalisations fired it five times out of eight.</strong> That is not surprising — a meow shares an infant cry's F0 range, harmonic structure and rise-fall envelope — but it would have ended a live demo, and worse, it would wake a parent for nothing.</p>
+
+  <p>Uniform augmentation cannot fix that; the model already classifies most negatives easily and spends its capacity there. So: score every training negative with the current model, take the hardest 18%, and rebuild with those oversampled. One round.</p>
+
+  <div class="tscroll">
+    <table>
+      <thead><tr><th>Measure</th><th class="n">Round 1</th><th class="n">After mining</th><th class="n">Δ</th></tr></thead>
+      <tbody>
+        <tr><td>Cat clips that false-alarmed</td><td class="n">5 / 8</td><td class="n"><b>0 / 8</b></td><td class="n">−5</td></tr>
+        <tr><td>Cry clips correctly detected</td><td class="n">8 / 8</td><td class="n"><b>8 / 8</b></td><td class="n">0</td></tr>
+        <tr><td>Macro F1 (held out)</td><td class="n">0.922</td><td class="n"><b>0.942</b></td><td class="n">+0.020</td></tr>
+        <tr><td>Recall, not-cry</td><td class="n">0.936</td><td class="n"><b>0.958</b></td><td class="n">+0.022</td></tr>
+        <tr><td>Recall, cry</td><td class="n">0.978</td><td class="n">0.973</td><td class="n">−0.005</td></tr>
+        <tr><td>Macro AUC</td><td class="n">0.991</td><td class="n"><b>0.992</b></td><td class="n">+0.001</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>The mined set was dominated by <strong>cats, laughter, sheep, roosters, crows and toilet flushes</strong> — animal and human non-speech vocalisation, which is exactly the confusion space a nursery microphone lives in. The held-out test set was never touched, so the comparison above is honest.</p>
+</section>
+
+<!-- ══════════════════════════════════════ -->
+<section>
+  <p class="eyebrow">What ships</p>
+  <h2>Two models, 97 KB together</h2>
+
+  <div class="tscroll">
+    <table>
+      <thead><tr><th>Artefact</th><th class="n">Size</th><th class="n">Keras → TFLite drift</th><th class="n">Quantisation cost</th><th>State</th></tr></thead>
+      <tbody>
+        <tr><td>detect_mel.tflite</td><td class="n">37.5 KB</td><td class="n">1.9e−03</td><td class="n">+0.0001 AUC</td><td><span class="tag p">shipped</span></td></tr>
+        <tr><td>reason_mel.tflite</td><td class="n">59.1 KB</td><td class="n">1.5e−02</td><td class="n">+0.0009 AUC</td><td><span class="tag p">shipped</span></td></tr>
+        <tr><td>detect_wave.tflite</td><td class="n">63.5 KB</td><td class="n">2.4e−03</td><td class="n">—</td><td><span class="tag p">frontend baked in</span></td></tr>
+        <tr><td>blaze_face_short_range</td><td class="n">224 KB</td><td class="n">—</td><td class="n">—</td><td><span class="tag p">vision lane</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>Dynamic-range quantisation cost effectively nothing — <code>validate.py</code> re-measures the exported graphs on the same held-out set and fails the build if they diverge from Keras by more than 0.02 AUC. The <code>_wave</code> variants have the log-mel frontend inside the graph, which removes any chance of the phone's mel implementation drifting from the training one.</p>
+
+  <h3>Verified on a device, not just in a notebook</h3>
+  <div class="grid">
+    <div class="cell"><dt>Self-test confidence</dt><dd>99%</dd><div class="u">bundled cry, real pipeline</div></div>
+    <div class="cell"><dt>End-to-end</dt><dd>134 ms</dd><div class="u">decode → resample → mel → infer</div></div>
+    <div class="cell"><dt>Per window</dt><dd>1.4 ms</dd><div class="u">per 0.96 s of audio</div></div>
+    <div class="cell"><dt>Sustained CPU</dt><dd>0.3%</dd><div class="u">monitoring a quiet room</div></div>
+  </div>
+  <p class="caption">Measured on an arm64 emulator where NNAPI and the GPU delegate are both unavailable, so this is the <em>CPU floor</em> — the delegate chain tries NNAPI, then GPU, then CPU, and reports which one it landed on. 1.4 ms to classify 0.96 s of audio means the inference budget is about 0.15% of real time; the 0.3% sustained figure is what the silence gate leaves behind when the room is quiet, which is most of a night.</p>
+</section>
+
+<!-- ══════════════════════════════════════ -->
+<section>
+  <p class="eyebrow">The app</p>
+  <h2>Three pipelines, one log</h2>
+
+  <div class="tscroll">
+    <table>
+      <thead><tr><th>Pipeline</th><th>What runs</th><th>Status</th></tr></thead>
+      <tbody>
+        <tr><td>A · Listen</td><td>16 kHz capture → log-mel → detector → hysteresis → episode envelope → reason head</td><td><span class="tag p">verified live on device</span></td></tr>
+        <tr><td>A · Act</td><td>graduated ladder: play a sound → re-read the envelope → learn what worked → only then wake someone</td><td><span class="tag p">built + 9 tests</span></td></tr>
+        <tr><td>B · Watch</td><td>CameraX at 5 fps → BlazeFace presence + frame-difference motion energy → "I can't see the face"</td><td><span class="tag p">verified live on device</span></td></tr>
+        <tr><td>C · Ask</td><td>BM25 over 39 sourced entries + the baby's own log → answer with its source and its caution</td><td><span class="tag p">verified live on device</span></td></tr>
+        <tr><td>C · Scan</td><td>photo → ML Kit OCR (Latin + Devanagari) → medicine match → breastfeeding-safety answer</td><td><span class="tag p">OCR verified on device</span></td></tr>
+        <tr><td>Watch alerts</td><td>plain high-importance notification; Wear OS bridges it, band vendors mirror it</td><td><span class="tag p">built, zero Bluetooth code</span></td></tr>
+        <tr><td>Local LLM</td><td>prompt assembly, language selection and fallback all in place; generation not wired</td><td><span class="tag h">seam only — see below</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Tests</h3>
+  <div class="tscroll">
+    <table>
+      <thead><tr><th>Suite</th><th class="n">Tests</th><th>What it pins down</th></tr></thead>
+      <tbody>
+        <tr><td>LogMelFrontendTest</td><td class="n">4</td><td>the Kotlin frontend against golden vectors from the Python reference</td></tr>
+        <tr><td>CryStateMachineTest</td><td class="n">5</td><td>hysteresis — one loud window must not fire, a breath must not clear</td></tr>
+        <tr><td>CryEpisodeTest</td><td class="n">4</td><td>rising / settling / steady from a least-squares fit over the envelope</td></tr>
+        <tr><td>EscalationTest</td><td class="n">9</td><td>when a parent gets woken, and when they deliberately do not</td></tr>
+        <tr><td>ModelCardTest</td><td class="n">5</td><td>the app's claims about itself match the measurements, and no format specifier leaks to screen</td></tr>
+        <tr><td>FaceRulesTest</td><td class="n">12</td><td>a head turn must not alert, a covered face must; hidden-and-moving vs hidden-and-still</td></tr>
+        <tr><td>MotionEnergyTest</td><td class="n">3</td><td>the arithmetic behind the movement baseline</td></tr>
+        <tr><td><em>AudioPipelineTest</em></td><td class="n">6</td><td><em>on device</em> — real TFLite: the bundled cry detects, silence and white noise do not</td></tr>
+        <tr><td><em>ScanPipelineTest</em></td><td class="n">5</td><td><em>on device</em> — real ML Kit OCR on rendered strips; a cereal box must not resolve to a drug</td></tr>
+        <tr><td><em>VisionPipelineTest</em></td><td class="n">7</td><td><em>on device</em> — motion energy on rendered frames, and that a working delegate is actually selected</td></tr>
+        <tr><td>KnowledgeIndexTest</td><td class="n">12</td><td>brand names resolve, noisy OCR resolves, nonsense does <em>not</em>, no entry states a dose</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>Three real bugs turned up this way. The golden-vector test found single-precision twiddle accumulation across nine FFT butterfly stages, then found that the fixture itself was rounding its inputs to 7 decimals when the quiet frames of a real recording contain samples around 1e−6. Neither would have thrown; both would have quietly degraded accuracy.</p>
+
+  <p>A fourth only appeared under an instrumented test, and it is the same trap in a different library. MediaPipe's GPU delegate <em>constructs</em> happily and then throws <code>GL_INVALID_ENUM</code> on its first frame. Because <code>FaceWatcher</code> only guarded construction, every frame returned "unavailable" and the camera lane silently did nothing — no crash, no error on screen. It now pushes a probe bitmap through before trusting a delegate, exactly as the TFLite runner already did, and falls back to CPU if that fails. Two libraries, one lesson: constructing successfully proves nothing.</p>
+
+  <p>The third only appeared on screen. Kotlin binds <code>.format()</code> to the <em>last</em> literal in a <code>+</code> chain, so a multi-line sentence rendered its earlier <code>%.2f</code> placeholders as literal text — in the one paragraph explaining the leakage finding. It compiled, it did not throw, and no test covered it. <code>ModelCardTest</code> now greps for unresolved specifiers, which is the kind of guard you only think to write after being caught.</p>
+</section>
+
+<!-- ══════════════════════════════════════ -->
+<section>
+  <p class="eyebrow">Honest gaps</p>
+  <h2>What is not done</h2>
+
+  <div class="tscroll">
+    <table>
+      <thead><tr><th>Item</th><th>Why</th><th>What it needs</th></tr></thead>
+      <tbody>
+        <tr><td>Real infant audio</td><td>the foreground service, capture loop and silence gate are verified running; the emulator's virtual microphone only ever produces silence</td><td>ten minutes on a real phone</td></tr>
+        <tr><td>BlazeFace on a real infant</td><td>the emulator's back camera renders a 3D room and its front camera a test pattern — neither contains a face, so the detector, the camera binding and the alert logic are verified but the actual face match is not</td><td>a real phone and a doll</td></tr>
+        <tr><td>Gemma 3n generation</td><td>~3 GB, not redistributable inside an APK</td><td>add <code>tasks-genai</code> + drop the checkpoint in external files</td></tr>
+        <tr><td>Full LactMed</td><td>NLM's bulk FTP is closed; 20 curated entries ship instead</td><td>an extract, dropped into <code>make_corpus.py</code></td></tr>
+        <tr><td>ICSD, AudioSet, FSD50K</td><td>YouTube fetching / 24 GB / access forms</td><td>would broaden the detector's negatives further</td></tr>
+        <tr><td>IR blaster actuation</td><td>coded with capability detection; <code>ConsumerIrManager</code> is deprecated on Android 12+ and vivo may not expose it</td><td>one minute on the loaner phone to find out</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Deliberately not built</h3>
+  <ul>
+    <li><strong>Breathing, vitals, apnoea, SIDS.</strong> The FDA sent Owlet a warning letter in 2021 over exactly this — the device carried a disclaimer and the FDA held that alerting on a physiological state made it an unapproved medical device anyway.</li>
+    <li><strong>Cry reason as a stated fact.</strong> Measured at 0.444 AUC on unseen infants. <code>REASON_TRUSTWORTHY</code> is <code>false</code> and the UI is wired to respect it.</li>
+    <li><strong>Medicine dosing.</strong> Depends on weight and formulation. A unit test greps the corpus for anything that looks like a dose and fails if it finds one.</li>
+    <li><strong>Any network call.</strong> There is no HTTP client in the dependency graph, and backup is disabled in the manifest so the log cannot leave via a cloud transport either.</li>
+  </ul>
+</section>
+
+<footer class="foot">
+  <span>Nila · build report</span>
+  <span>Awareness aid, not a medical device</span>
+</footer>
+
+</div>
