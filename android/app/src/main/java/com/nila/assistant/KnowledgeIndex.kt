@@ -32,6 +32,13 @@ data class KnowledgeDoc(
     val contextNote: String = "",
     /** Medicine description with the risk label stripped, for composed prose. */
     val detail: String = "",
+    /**
+     * DrugBank node ids for this medicine's active ingredients, for the
+     * interaction addon in [com.nila.ddi.DrugInteractions]. Empty for anything
+     * DrugBank's DDI vocabulary does not contain, which is the signal to skip
+     * the addon rather than to guess an id.
+     */
+    val ddi: List<Int> = emptyList(),
 ) {
     /**
      * The searchable fields, with the weight each carries.
@@ -51,7 +58,7 @@ data class Retrieved(val doc: KnowledgeDoc, val score: Double)
 /**
  * BM25 retrieval over the bundled corpus.
  *
- * A neural embedder would be the fashionable choice, but for 39 curated
+ * A neural embedder would be the fashionable choice, but for 66 curated
  * documents with a heavily domain-specific vocabulary -- brand names, symptom
  * words -- lexical matching is both more accurate and more predictable, and it
  * ships without a 100 MB embedding model or a warm-up cost. "Is combiflam safe"
@@ -105,6 +112,27 @@ class KnowledgeIndex private constructor(
          * which is the case this rule exists to reject.
          */
         const val SINGLE_MATCH_MAX_DF = 3
+
+        /**
+         * Words that appear *inside* drug names but identify no drug.
+         *
+         * This was a live wrong-drug bug, not a tidiness rule. Aspirin carries
+         * the alias "acetylsalicylic acid", so the lone token "acid" was a
+         * four-character name match -- exactly the floor -- and a strip reading
+         * "Mefenamic acid + Dicyclomine" came back as **Aspirin**, an entry the
+         * corpus marks *avoid while breastfeeding*. The right answer and the
+         * one shown had nothing in common but a salt word.
+         *
+         * Stems, because [nameTokens] filters after [stem] has run.
+         */
+        private val NAME_NOISE = setOf(
+            "acid", "sodium", "potassium", "calcium", "magnesium",
+            "hydrochlorid", "hydrochloride", "dihydrat", "trihydrat",
+            "phosphat", "sulphat", "sulfat", "maleat", "tartrat", "citrat",
+            "succinat", "fumarat", "besylat", "mesylat", "carbonat",
+            "tablet", "capsul", "syrup", "suspension", "oral", "extend",
+            "releas", "combination", "hydrat", "anhydrous", "micronis",
+        ).map { stem(it) }.toSet()
 
         /** Common words that would otherwise dominate a short medical query. */
         private val STOPWORDS = setOf(
@@ -256,6 +284,9 @@ class KnowledgeIndex private constructor(
                     interactsWith = o.optJSONArray("interacts_with").toStringList(),
                     contextNote = o.optString("context_note"),
                     detail = o.optString("detail"),
+                    ddi = o.optJSONArray("ddi")?.let { a ->
+                        (0 until a.length()).map { a.getInt(it) }
+                    } ?: emptyList(),
                     audience = o.optString("audience", "baby"),
                     minAgeMonths = if (o.isNull("min_age")) null else o.optInt("min_age"),
                     maxAgeMonths = if (o.isNull("max_age")) null else o.optInt("max_age"),
@@ -465,13 +496,36 @@ class KnowledgeIndex private constructor(
      * long one -- because a single edit on a five-letter word can genuinely be a
      * different drug, while three edits on "amoxicillin" cannot.
      */
-    fun findMedicine(text: String): Retrieved? {
-        val tokens = tokenize(text).toSet()
-        if (tokens.isEmpty()) return null
+    fun findMedicine(text: String): Retrieved? = findMedicines(text).firstOrNull()
+
+    /**
+     * Every medicine the text names, strongest first.
+     *
+     * Returning one was wrong for the packets people actually photograph. A
+     * strip reading "Aceclofenac 100mg + Paracetamol 325mg" is two drugs, and
+     * answering about whichever scored higher meant the other one -- the one
+     * with the ulcer warning on it -- was never checked at all. The single-hit
+     * [findMedicine] is now the first element of this list, so callers that
+     * only want the headline drug are unaffected.
+     *
+     * Three passes, in descending order of confidence, and a pass only runs
+     * when the one above it found nothing:
+     *
+     *  1. **Exact tokens.** Every OCR token against every medicine name.
+     *  2. **Edit distance**, for typos and the character confusions a scanner
+     *     makes -- "amoxicilin", "ibupr0fen", rn read as m.
+     *  3. **Fragments**, for names OCR tore in half. A strip that comes back as
+     *     "paracet mol" has the drug on it in plain sight and used to resolve
+     *     to nothing at all.
+     */
+    fun findMedicines(text: String, limit: Int = 4): List<Retrieved> {
+        val ordered = tokenize(text)
+        val tokens = ordered.toSet()
+        if (tokens.isEmpty()) return emptyList()
 
         val medicines = docs.filter { it.collection == "medicines" }
 
-        var best: Retrieved? = null
+        val exact = mutableListOf<Candidate>()
         for (doc in medicines) {
             val names = nameTokens(doc)
             val overlap = names.intersect(tokens)
@@ -479,31 +533,134 @@ class KnowledgeIndex private constructor(
             // Longer matched names are stronger evidence than short ones --
             // "pan" is a common substring, "pantoprazole" is not.
             val score = overlap.sumOf { it.length.toDouble() }
-            if (best == null || score > best.score) best = Retrieved(doc, score)
+            if (score < 4.0) continue
+            val generic = tokenize(doc.generic).filterNot { it in NAME_NOISE }.toSet()
+            exact += Candidate(doc, score, overlap,
+                               generic.isNotEmpty() && tokens.containsAll(generic))
         }
-        best?.takeIf { it.score >= 4.0 }?.let { return it }
+        if (exact.isNotEmpty()) return rank(prune(exact).map { it.hit }, limit)
 
         // Nothing matched exactly. Try again against OCR-normalised tokens,
         // allowing for typos, character confusions and trailing junk.
         val normalised = tokens.map { normaliseOcr(it) }.filter { it.length >= 5 }
 
-        var fuzzy: Retrieved? = null
+        val fuzzy = mutableMapOf<String, Retrieved>()
         for (doc in medicines) {
             for (name in nameTokens(doc)) {
                 if (name.length < 5) continue          // too short to fuzz safely
                 val budget = allowedEdits(name)
                 for (token in normalised) {
                     val score = matchScore(token, name, budget) ?: continue
-                    if (fuzzy == null || score > fuzzy.score) {
-                        fuzzy = Retrieved(doc, score)
+                    // 4.0 admits a one-edit correction on a six-letter brand
+                    // like "crocin"; raising it locked those out. The
+                    // per-candidate scoring in matchScore is what keeps this
+                    // honest, not the floor.
+                    if (score < 4.0) continue
+                    val held = fuzzy[doc.id]
+                    if (held == null || score > held.score) {
+                        fuzzy[doc.id] = Retrieved(doc, score)
                     }
                 }
             }
         }
-        // 4.0 admits a one-edit correction on a six-letter brand like "crocin";
-        // raising it locked those out. The per-candidate scoring in matchScore
-        // is what keeps this honest, not the floor.
-        return fuzzy?.takeIf { it.score >= 4.0 }
+        if (fuzzy.isNotEmpty()) return rank(fuzzy.values, limit)
+
+        return rank(fragmentMatches(ordered, medicines), limit)
+    }
+
+    private fun rank(hits: Collection<Retrieved>, limit: Int): List<Retrieved> =
+        hits.sortedByDescending { it.score }.take(limit)
+
+    private class Candidate(
+        val doc: KnowledgeDoc,
+        val score: Double,
+        /** The name tokens this entry and the text have in common. */
+        val matched: Set<String>,
+        /** True when the text contains every word of this entry's generic name. */
+        val genericNamed: Boolean,
+    ) {
+        val hit: Retrieved get() = Retrieved(doc, score)
+    }
+
+    /**
+     * Drop an entry that another entry explains better.
+     *
+     * A strip reading "AMOXICILLIN 500" matches two entries on the identical
+     * evidence: Amoxicillin, whose whole generic name is on the packet, and
+     * Amoxicillin-clavulanate, which shares that one word and whose other
+     * ingredient is nowhere in the text. Reporting both turns a single
+     * antibiotic into a combination product on the strength of a word the two
+     * entries happen to share.
+     *
+     * So a candidate is removed when another candidate matched everything it
+     * matched *and* has its full generic name present while this one does not.
+     * A genuine combination -- "Aceclofenac 100mg Paracetamol 325mg" -- is
+     * untouched: neither ingredient's evidence is contained in the other's.
+     */
+    private fun prune(candidates: List<Candidate>): List<Candidate> =
+        candidates.filterNot { weaker ->
+            candidates.any { stronger ->
+                stronger !== weaker &&
+                    stronger.genericNamed && !weaker.genericNamed &&
+                    stronger.matched.containsAll(weaker.matched)
+            }
+        }
+
+    /**
+     * Names OCR broke, rejoined or completed.
+     *
+     * Two failures, both common enough on a foil strip to be worth their own
+     * pass, and both of which produced *no answer at all* before it existed:
+     *
+     *  - **Split.** "PARACETAMOL" set across a crease comes back as two tokens.
+     *    Adjacent tokens are glued and the pair re-tested.
+     *  - **Truncated.** The tail is lost to a tear or a thumb, leaving
+     *    "paracet". A token that is a strict prefix of a long drug name is
+     *    strong evidence -- no other medicine in the corpus starts that way.
+     *
+     * Both are deliberately conservative: six characters minimum, against
+     * names of eight or more, so no ordinary English word on a packet can
+     * reach a drug through this path. The score is discounted, and the
+     * identify stage reports the result as a low-confidence read.
+     */
+    private fun fragmentMatches(
+        ordered: List<String>,
+        medicines: List<KnowledgeDoc>,
+    ): List<Retrieved> {
+        val glued = ordered.zipWithNext { a, b -> normaliseOcr(a + b) }
+            .filter { it.length in 6..24 }
+        val fragments = ordered.map { normaliseOcr(it) }.filter { it.length >= 6 }
+
+        val found = mutableMapOf<String, Retrieved>()
+        for (doc in medicines) {
+            for (name in nameTokens(doc)) {
+                if (name.length < 8) continue
+                for (token in glued) {
+                    val distance = editDistance(token, name, 2)
+                    if (distance <= 2) {
+                        val score = name.length - distance * 1.5 - 1.0
+                        val held = found[doc.id]
+                        if (score >= 4.0 && (held == null || score > held.score)) {
+                            found[doc.id] = Retrieved(doc, score)
+                        }
+                    }
+                }
+                for (token in fragments) {
+                    if (token.length >= name.length) continue
+                    if (!name.startsWith(token)) continue
+                    val score = token.length - 1.5
+                    val held = found[doc.id]
+                    if (score >= 4.0 && (held == null || score > held.score)) {
+                        found[doc.id] = Retrieved(doc, score)
+                    }
+                }
+            }
+        }
+        // A fragment that fits two different drugs is not evidence for either.
+        // "cefix" reaching one entry is a read; reaching two is a coincidence,
+        // and picking the higher-scoring one would be inventing a certainty
+        // the text does not contain.
+        return if (found.size == 1) found.values.toList() else emptyList()
     }
 
     /**
@@ -557,7 +714,9 @@ class KnowledgeIndex private constructor(
         .joinToString("")
 
     private fun nameTokens(doc: KnowledgeDoc): Set<String> =
-        tokenize(doc.generic + " " + doc.aliases.joinToString(" ")).toSet()
+        tokenize(doc.generic + " " + doc.aliases.joinToString(" "))
+            .filterNot { it in NAME_NOISE }
+            .toSet()
 
     private fun allowedEdits(name: String) = when {
         name.length >= 10 -> 3
