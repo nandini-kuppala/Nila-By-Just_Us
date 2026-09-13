@@ -1,0 +1,820 @@
+package com.nila.assistant
+
+import android.content.Context
+import org.json.JSONArray
+import org.json.JSONObject
+import kotlin.math.ln
+
+private fun JSONArray?.toStringList(): List<String> =
+    if (this == null) emptyList() else (0 until length()).map { getString(it) }
+
+/** One retrievable document, with the caution that must travel with it. */
+data class KnowledgeDoc(
+    val id: String,
+    val collection: String,
+    val topic: String,
+    val title: String,
+    val text: String,
+    val source: String,
+    val caution: String,
+    val keywords: String,
+    val risk: String? = null,
+    /** "baby", "mother" or "both" -- who this guidance is for. */
+    val audience: String = "baby",
+    /** Age window in months this applies to; null means unbounded. */
+    val minAgeMonths: Int? = null,
+    val maxAgeMonths: Int? = null,
+    /** Populated for medicines: the fields the interaction agent reasons over. */
+    val generic: String = "",
+    val aliases: List<String> = emptyList(),
+    val avoidIf: List<String> = emptyList(),
+    val interactsWith: List<String> = emptyList(),
+    val contextNote: String = "",
+    /** Medicine description with the risk label stripped, for composed prose. */
+    val detail: String = "",
+    /**
+     * DrugBank node ids for this medicine's active ingredients, for the
+     * interaction addon in [com.nila.ddi.DrugInteractions]. Empty for anything
+     * DrugBank's DDI vocabulary does not contain, which is the signal to skip
+     * the addon rather than to guess an id.
+     */
+    val ddi: List<Int> = emptyList(),
+) {
+    /**
+     * The searchable fields, with the weight each carries.
+     *
+     * A term in the title is far stronger evidence than the same term buried in
+     * a paragraph. Flattening all three into one string made "why does my baby
+     * cry so much" rank the red-flags document above the one actually titled
+     * "How much crying is normal", because red-flags mentions crying in passing
+     * and happens to be shorter.
+     */
+    val fields: List<Pair<String, Int>>
+        get() = listOf(title to 4, keywords to 3, text to 1)
+}
+
+data class Retrieved(val doc: KnowledgeDoc, val score: Double)
+
+/**
+ * BM25 retrieval over the bundled corpus.
+ *
+ * A neural embedder would be the fashionable choice, but for 66 curated
+ * documents with a heavily domain-specific vocabulary -- brand names, symptom
+ * words -- lexical matching is both more accurate and more predictable, and it
+ * ships without a 100 MB embedding model or a warm-up cost. "Is combiflam safe"
+ * needs to match the Combiflam entry exactly, every time, which is a job BM25
+ * does better than cosine similarity over a general-purpose vector space.
+ *
+ * Everything is loaded once at startup and stays in memory: 24 KB.
+ */
+class KnowledgeIndex private constructor(
+    private val docs: List<KnowledgeDoc>,
+    private val postings: Map<String, List<Pair<Int, Int>>>,   // term -> (docIdx, tf)
+    private val docLengths: IntArray,
+    private val averageLength: Double,
+    /** Every two-letter sequence that occurs in the corpus's own prose. */
+    private val bigrams: Set<String>,
+) {
+    companion object {
+        private const val K1 = 1.4
+        private const val B = 0.72
+
+        /**
+         * Collections that answer a lookup, never a question.
+         *
+         * `causes` holds one entry per class the cry classifier can emit, and
+         * the monitor fetches them by id. They are written as answers to "the
+         * model said belly_pain" rather than to anything a person would type,
+         * so they are strong keyword matches for questions they are the wrong
+         * answer to -- which is exactly what happened when they were first
+         * added as ordinary guidance.
+         */
+        private val LOOKUP_ONLY = setOf("causes")
+
+        const val GUIDANCE = "guidance"
+
+        /**
+         * Below this BM25 score the best hit is a coincidence.
+         *
+         * BM25 returns something whenever any term matched anything, so
+         * "what's the score in the india match" came back with a confident page
+         * about postnatal recovery on the strength of one shared word.
+         * Set low, because the coverage test in [retrieveGuidance] is what
+         * actually separates a real answer from a coincidence. An absolute
+         * floor high enough to reject "India" at 7.3 would have thrown away
+         * every correct answer in the corpus.
+         */
+        const val MIN_RELEVANCE = 2.8
+
+        /**
+         * How rare a lone matching term has to be to carry a long question.
+         *
+         * Three documents out of fifty. Above that the term is not what the
+         * question is about, and a single overlap really is a coincidence --
+         * which is the case this rule exists to reject.
+         */
+        const val SINGLE_MATCH_MAX_DF = 3
+
+        /**
+         * Words that appear *inside* drug names but identify no drug.
+         *
+         * This was a live wrong-drug bug, not a tidiness rule. Aspirin carries
+         * the alias "acetylsalicylic acid", so the lone token "acid" was a
+         * four-character name match -- exactly the floor -- and a strip reading
+         * "Mefenamic acid + Dicyclomine" came back as **Aspirin**, an entry the
+         * corpus marks *avoid while breastfeeding*. The right answer and the
+         * one shown had nothing in common but a salt word.
+         *
+         * Stems, because [nameTokens] filters after [stem] has run.
+         */
+        private val NAME_NOISE = setOf(
+            "acid", "sodium", "potassium", "calcium", "magnesium",
+            "hydrochlorid", "hydrochloride", "dihydrat", "trihydrat",
+            "phosphat", "sulphat", "sulfat", "maleat", "tartrat", "citrat",
+            "succinat", "fumarat", "besylat", "mesylat", "carbonat",
+            "tablet", "capsul", "syrup", "suspension", "oral", "extend",
+            "releas", "combination", "hydrat", "anhydrous", "micronis",
+        ).map { stem(it) }.toSet()
+
+        /** Common words that would otherwise dominate a short medical query. */
+        private val STOPWORDS = setOf(
+            "a", "an", "and", "are", "as", "at", "be", "but", "by", "can", "do",
+            "does", "for", "from", "has", "have", "how", "i", "if", "in", "is",
+            "it", "my", "of", "on", "or", "should", "that", "the", "this", "to",
+            "was", "what", "when", "which", "while", "who", "why", "with", "you",
+            "your", "baby", "babies",
+            // Pronouns carry no topic. They were counted as query content and
+            // inflated the coverage threshold below, so "she hates being on her
+            // front" looked like a four-word question when it is a two-word one.
+            "she", "he", "her", "him", "his", "hers", "they", "them", "their",
+            "we", "us", "our", "me", "mine", "there", "here",
+            // Contractions typed without the apostrophe, which is how they
+            // arrive at 3am.
+            "dont", "doesnt", "didnt", "havent", "hasnt", "cant", "wont",
+            "isnt", "arent", "wasnt", "im", "ive", "id", "ill", "its", "thats",
+            "whats", "hes", "shes", "theyre", "youre", "wouldnt", "couldnt",
+            "shouldnt", "ok", "okay", "get", "got", "make", "makes", "want",
+            // "It takes very little" in the caregiver document was matching
+            // "how long should a feed take".
+            "take", "takes", "taking", "taken",
+        )
+
+        /**
+         * Words that mean the same thing to a parent but not to a lexical index.
+         *
+         * Deliberately short and one-directional: each entry maps a word people
+         * type to the word the corpus uses. A large automatic thesaurus would
+         * blur documents into each other -- with 46 entries the whole point is
+         * that "mastitis" retrieves exactly one of them.
+         */
+        private val SYNONYMS = mapOf(
+            "mom" to "mother", "mum" to "mother", "mummy" to "mother",
+            "mama" to "mother", "amma" to "mother",
+            "diaper" to "nappy", "diapers" to "nappy",
+            "pacifier" to "dummy",
+            "immunization" to "vaccine", "immunisation" to "vaccine",
+            "vaccination" to "vaccine", "vaccinations" to "vaccine",
+            "jab" to "vaccine", "jabs" to "vaccine", "shots" to "vaccine",
+            "hungry" to "hunger", "starving" to "hunger",
+            // Drinks people ask about by name, mapped to the word the corpus
+            // actually uses. Cheaper and more precise than adding them as
+            // keywords: a synonym costs no document length, so it cannot
+            // devalue the terms already in the entry it is meant to help.
+            "chai" to "caffeine", "tea" to "caffeine", "coffee" to "caffeine",
+            "kaapi" to "caffeine", "espresso" to "caffeine",
+            "cola" to "caffeine",
+            "poop" to "stool", "poo" to "stool", "poops" to "stool",
+            "puke" to "vomit", "sick" to "vomit",
+            "pediatrician" to "doctor", "paediatrician" to "doctor",
+            "gp" to "doctor", "hospital" to "emergency", "casualty" to "emergency",
+            "stroller" to "pram", "buggy" to "pram",
+            "weaning" to "solids", "wean" to "solids",
+            "nursing" to "breastfeeding", "nurse" to "breastfeeding",
+            "colicky" to "colic",
+            "calm" to "settle", "soothe" to "settle", "soothing" to "settle",
+            "comfort" to "settle", "quieten" to "settle",
+            "cope" to "overwhelmed", "coping" to "overwhelmed",
+            "exhausted" to "overwhelmed", "shattered" to "overwhelmed",
+            "belly" to "tummy", "stomach" to "tummy",
+            "milk" to "breastmilk",
+            "injection" to "vaccine", "injections" to "vaccine",
+            // Irregular verbs the suffix stripper cannot reach. "I haven't
+            // slept in weeks" shares no term with a document about sleep
+            // without this.
+            "slept" to "sleep", "sleeping" to "sleep",
+            "fed" to "feed", "ate" to "eat", "eaten" to "eat",
+            "woke" to "wake", "woken" to "wake", "awake" to "wake",
+            "gave" to "give", "given" to "give",
+            "felt" to "feel", "fell" to "fall",
+        )
+
+        fun tokenize(text: String): List<String> = text
+            .lowercase()
+            .split(Regex("[^\\p{L}\\p{N}]+"))
+            .filter { it.length > 1 && it !in STOPWORDS }
+            .map { stem(SYNONYMS[it] ?: it) }
+
+        /**
+         * A deliberately small suffix stripper.
+         *
+         * Without it, "dehydrated" and "dehydration" are unrelated terms and a
+         * parent asking the first gets nothing from a document titled the
+         * second. That was not a ranking problem in the evaluation -- it
+         * returned *no documents at all*, which the app then honestly reported
+         * as knowing nothing.
+         *
+         * Full Porter stemming is more than this corpus needs and mangles the
+         * clinical vocabulary it exists to match ("mastitis" must not become
+         * "mastiti" and collide with something else). These five rules cover
+         * the endings that actually appear in typed questions.
+         */
+        internal fun stem(word: String): String {
+            if (word.length <= 2) return word
+            var w = word
+
+            // Plurals and third person. "ss" is left alone so "illness" and
+            // "less" survive intact.
+            w = when {
+                w.endsWith("sses") -> w.dropLast(2)
+                w.endsWith("ies") && w.length > 4 -> w.dropLast(3) + "i"
+                w.endsWith("ss") -> w
+                w.endsWith("s") && w.length > 3 -> w.dropLast(1)
+                else -> w
+            }
+
+            // Gerund and past tense.
+            if (w.endsWith("ing") && w.length > 5) w = w.dropLast(3)
+            else if (w.endsWith("ed") && w.length > 4) w = w.dropLast(2)
+
+            // "stopping" -> "stopp" -> "stop". Doubled l/s/z are real endings
+            // ("still", "fuss"), so they stay.
+            if (w.length > 3 && w[w.length - 1] == w[w.length - 2] &&
+                w.last() !in "lsz"
+            ) w = w.dropLast(1)
+
+            // "dehydration" -> "dehydrat", which is what "dehydrated" becomes.
+            if (w.endsWith("ation") && w.length > 6) w = w.dropLast(3)
+
+            // "smile" and "smiling" both reduce to "smil".
+            if (w.endsWith("e") && w.length > 3) w = w.dropLast(1)
+
+            // "cry", "cries" and "crying" all reduce to "cri".
+            if (w.endsWith("y") && w.length > 2) w = w.dropLast(1) + "i"
+
+            return w
+        }
+
+        fun load(context: Context, asset: String = "knowledge.json"): KnowledgeIndex {
+            val json = context.assets.open(asset).bufferedReader().use { it.readText() }
+            val array = JSONObject(json).getJSONArray("documents")
+
+            val docs = (0 until array.length()).map { i ->
+                val o = array.getJSONObject(i)
+                KnowledgeDoc(
+                    id = o.getString("id"),
+                    collection = o.getString("collection"),
+                    topic = o.getString("topic"),
+                    title = o.getString("title"),
+                    text = o.getString("text"),
+                    source = o.getString("source"),
+                    caution = o.optString("caution", ""),
+                    keywords = o.optString("keywords", ""),
+                    risk = o.optString("risk").takeIf { it.isNotEmpty() },
+                    generic = o.optString("generic"),
+                    aliases = o.optJSONArray("aliases").toStringList(),
+                    avoidIf = o.optJSONArray("avoid_if").toStringList(),
+                    interactsWith = o.optJSONArray("interacts_with").toStringList(),
+                    contextNote = o.optString("context_note"),
+                    detail = o.optString("detail"),
+                    ddi = o.optJSONArray("ddi")?.let { a ->
+                        (0 until a.length()).map { a.getInt(it) }
+                    } ?: emptyList(),
+                    audience = o.optString("audience", "baby"),
+                    minAgeMonths = if (o.isNull("min_age")) null else o.optInt("min_age"),
+                    maxAgeMonths = if (o.isNull("max_age")) null else o.optInt("max_age"),
+                )
+            }
+            return build(docs)
+        }
+
+        fun build(docs: List<KnowledgeDoc>): KnowledgeIndex {
+            val postings = mutableMapOf<String, MutableList<Pair<Int, Int>>>()
+            val lengths = IntArray(docs.size)
+
+            docs.forEachIndexed { idx, doc ->
+                val weighted = mutableMapOf<String, Int>()
+                var length = 0
+                for ((field, weight) in doc.fields) {
+                    for (term in tokenize(field)) {
+                        weighted[term] = (weighted[term] ?: 0) + weight
+                        length += weight
+                    }
+                }
+                lengths[idx] = length
+                weighted.forEach { (term, tf) ->
+                    postings.getOrPut(term) { mutableListOf() }.add(idx to tf)
+                }
+            }
+
+            // Built from the raw prose rather than the tokenised terms, so it
+            // holds the spelling of real words rather than their stems.
+            val bigrams = HashSet<String>()
+            docs.forEach { doc ->
+                val prose = "${doc.title} ${doc.text} ${doc.keywords} ${doc.source}".lowercase()
+                Regex("[a-z]{2,}").findAll(prose).forEach { match ->
+                    val word = match.value
+                    for (i in 0 until word.length - 1) bigrams += word.substring(i, i + 2)
+                }
+            }
+
+            return KnowledgeIndex(
+                docs = docs,
+                postings = postings,
+                docLengths = lengths,
+                averageLength = lengths.average().takeIf { it > 0 } ?: 1.0,
+                bigrams = bigrams,
+            )
+        }
+    }
+
+    val size: Int get() = docs.size
+
+    /**
+     * How many documents contain [term].
+     *
+     * BM25 already uses this internally to weight a term; exposing it lets a
+     * caller ask the question retrieval cannot answer about its own result --
+     * whether the winning document matched something *distinctive* about the
+     * query or only the words every entry in this corpus shares. "Is my asthma
+     * a problem for breastfeeding" matched on "breastfeeding", which is in
+     * most of the corpus and says nothing.
+     */
+    fun documentFrequency(term: String): Int = postings[term]?.size ?: 0
+
+    /**
+     * Is this letters rather than words?
+     *
+     * A slipped keyboard used to travel the whole pipeline -- retrieval, then
+     * three and a half seconds of a 2B model, which declined -- and come back
+     * as advice to raise it with a doctor.
+     *
+     * Told apart by spelling, against the corpus's own prose. Roughly 1,300
+     * words of clinical English contain 371 distinct letter pairs, and that
+     * turns out to be enough: every real word tried against it -- including
+     * ones the corpus has never heard of, like *hiccups*, *swimming*,
+     * *fingernails*, *eczema* and misspellings like *paracetmol* -- is built
+     * entirely from pairs it has seen, while *tuhgj*, *zxcvbn* and *xkcdz*
+     * each contain several it has not.
+     *
+     * Two unseen pairs are required rather than one, because a real word the
+     * corpus does not contain can have one: *growth* has "wt".
+     *
+     * Deliberately conservative, and bounded to short inputs. A long question
+     * with one mistyped word is a question with a typo, and retrieval already
+     * tolerates those. Anything this misses is answered normally and, if the
+     * model declines it, gets the same reply by another route.
+     */
+    fun isUnintelligible(question: String): Boolean {
+        val words = question.lowercase()
+            .split(Regex("[^a-z]+"))
+            .filter { it.length >= 4 }
+        if (words.isEmpty() || words.size > 3) return false
+        return words.all { looksLikeLetters(it) }
+    }
+
+    private fun looksLikeLetters(word: String): Boolean {
+        if (word.none { it in "aeiouy" }) return true
+        val unseen = (0 until word.length - 1)
+            .count { word.substring(it, it + 2) !in bigrams }
+        return unseen >= 2
+    }
+    val allDocs: List<KnowledgeDoc> get() = docs
+    val medicineCount: Int get() = docs.count { it.collection == "medicines" }
+
+    fun medicineByGeneric(generic: String): KnowledgeDoc? = docs.firstOrNull {
+        it.collection == "medicines" && it.generic.equals(generic, ignoreCase = true)
+    }
+
+    /**
+     * One entry by id, for the paths that know exactly which one they want.
+     *
+     * BM25 is the right tool for a question typed by a person and the wrong one
+     * for "the entry that answers a `belly_pain` classification": that mapping
+     * is fixed, and resolving it by search would let a corpus edit silently
+     * change which advice a cause produces.
+     */
+    fun byId(id: String): KnowledgeDoc? = docs.firstOrNull { it.id == id }
+
+    /**
+     * Retrieval filtered to who is asking and how old the baby is.
+     *
+     * Age gating is not a nicety. Asking "what should she eat" about a
+     * four-month-old and getting a list of choking hazards is advice for a baby
+     * on solids, and acting on it would be actively harmful to one who should
+     * still be exclusively breastfed.
+     */
+    fun search(
+        query: String,
+        limit: Int = 4,
+        collection: String? = null,
+        audience: String? = null,
+        babyAgeMonths: Int? = null,
+    ): List<Retrieved> {
+        val terms = tokenize(query)
+        if (terms.isEmpty()) return emptyList()
+
+        val scores = HashMap<Int, Double>()
+        val n = docs.size.toDouble()
+
+        for (term in terms) {
+            val posting = postings[term] ?: continue
+            val df = posting.size.toDouble()
+            // BM25 IDF, floored at zero so a term appearing in most documents
+            // cannot push a score negative.
+            val idf = maxOf(0.0, ln(1.0 + (n - df + 0.5) / (df + 0.5)))
+
+            for ((idx, tf) in posting) {
+                val doc = docs[idx]
+                if (collection != null && doc.collection != collection) continue
+                // Lookup-only entries never win a typed question. They are
+                // reached by id, from a classifier label, and letting them
+                // compete here measurably made retrieval worse: "baby is very
+                // sleepy and not feeding" started returning the tiredness entry
+                // instead of the red-flags one, which is the wrong answer to a
+                // question that needed the right one.
+                if (collection == null && doc.collection in LOOKUP_ONLY) continue
+                if (audience != null && doc.collection == "guidance" &&
+                    doc.audience != audience && doc.audience != "both"
+                ) continue
+                if (babyAgeMonths != null && doc.collection == "guidance" &&
+                    doc.audience == "baby"
+                ) {
+                    if (doc.minAgeMonths != null && babyAgeMonths < doc.minAgeMonths) continue
+                    if (doc.maxAgeMonths != null && babyAgeMonths > doc.maxAgeMonths) continue
+                }
+                val len = docLengths[idx].toDouble()
+                val norm = tf * (K1 + 1) / (tf + K1 * (1 - B + B * len / averageLength))
+                scores[idx] = (scores[idx] ?: 0.0) + idf * norm
+            }
+        }
+
+        return scores.entries
+            .sortedByDescending { it.value }
+            .take(limit)
+            .map { Retrieved(docs[it.key], it.value) }
+    }
+
+    /**
+     * The guidance-retrieval policy, in one place.
+     *
+     * Extracted from [com.nila.assistant.Assistant] so the evaluation harness
+     * measures what the app does rather than an approximation of it. The first
+     * version of that harness called [search] directly and scored medicine
+     * documents the app would never have shown -- it was reporting on a
+     * pipeline that did not exist.
+     *
+     * Three attempts, narrowing conditions, then a relevance floor:
+     *  - the right audience and the right age window
+     *  - any audience, in case the subject was misread
+     *  - any age, because a partly applicable answer beats silence
+     *  - and nothing at all if the best hit is a coincidence
+     */
+    fun retrieveGuidance(
+        query: String,
+        audience: String?,
+        babyAgeMonths: Int?,
+        limit: Int = 3,
+        minRelevance: Double = MIN_RELEVANCE,
+    ): List<Retrieved> {
+        var hits = search(query, limit, collection = GUIDANCE,
+                          audience = audience, babyAgeMonths = babyAgeMonths)
+        if (hits.isEmpty() && audience != null) {
+            hits = search(query, limit, collection = GUIDANCE,
+                          babyAgeMonths = babyAgeMonths)
+        }
+        if (hits.isEmpty()) hits = search(query, limit, collection = GUIDANCE)
+
+        val top = hits.firstOrNull() ?: return emptyList()
+        if (top.score < minRelevance) return emptyList()
+        if (!coversEnoughOf(query, top.doc)) return emptyList()
+        return hits
+    }
+
+    /**
+     * Did the winning document match more than one thing the question was about?
+     *
+     * The score alone cannot tell. "What's the score in the India match"
+     * retrieved the immunisation page at 7.3 -- a confident-looking number
+     * produced entirely by the word "India" appearing in its title. A rare term
+     * in a weighted field outranks several common ones, which is usually what
+     * you want and is exactly wrong when the rare term is incidental.
+     *
+     * So a multi-word question has to overlap the document in at least two
+     * distinct terms. A one- or two-word question is exempt, because "colic"
+     * genuinely is the whole query.
+     */
+    private fun coversEnoughOf(query: String, doc: KnowledgeDoc): Boolean {
+        val queryTerms = tokenize(query).toSet()
+        // Three content words or fewer is a specific question -- "are wooden
+        // toys better", "what is colic" -- and one strong match is the whole
+        // of it. The rule only bites on longer questions, where a single
+        // incidental overlap really is a coincidence.
+        if (queryTerms.size < 4) return true
+        val docTerms = doc.fields.flatMapTo(HashSet()) { tokenize(it.first) }
+        val overlap = queryTerms.filter { it in docTerms }
+        if (overlap.size >= 2) return true
+
+        // One overlap is usually a coincidence and occasionally the entire
+        // point. "Does chai affect breast milk" tokenises to
+        // [caffeine, affect, breast, breastmilk], and the entry that answers
+        // it -- the one saying caffeine is fine in moderation -- contains only
+        // "caffeine". It won on score by a wide margin and was then thrown
+        // away, and the app said it did not know.
+        //
+        // So a single overlap survives when it is a *rare* term found in the
+        // document's own prose rather than in its keyword list. Rarity is what
+        // separates the subject of a question from a word that happened to
+        // appear: a term in two documents out of fifty is what the question is
+        // about, and one in twenty is scenery. Requiring it in the text rather
+        // than the keywords stops the exemption being reachable by stuffing a
+        // keyword field.
+        val only = overlap.singleOrNull() ?: return false
+        val df = postings[only]?.size ?: return false
+        if (df > SINGLE_MATCH_MAX_DF) return false
+        return only in tokenize(doc.text).toSet()
+    }
+
+    /**
+     * Find a medicine by name or brand alias, tolerating misspelling.
+     *
+     * Two passes, in order of confidence.
+     *
+     * **Exact tokens first.** OCR of a strip yields a dozen tokens of dosage and
+     * manufacturer text around the one word that matters, so every token is
+     * checked against every medicine name rather than scoring the query whole.
+     *
+     * **Then edit distance.** People type "amoxicilin", "paracetmol",
+     * "ibuprofin"; OCR turns rn into m and l into 1. Refusing those is the app
+     * being pedantic at the exact moment someone wants an answer. The allowance
+     * scales with word length -- one edit for a short name, up to three for a
+     * long one -- because a single edit on a five-letter word can genuinely be a
+     * different drug, while three edits on "amoxicillin" cannot.
+     */
+    fun findMedicine(text: String): Retrieved? = findMedicines(text).firstOrNull()
+
+    /**
+     * Every medicine the text names, strongest first.
+     *
+     * Returning one was wrong for the packets people actually photograph. A
+     * strip reading "Aceclofenac 100mg + Paracetamol 325mg" is two drugs, and
+     * answering about whichever scored higher meant the other one -- the one
+     * with the ulcer warning on it -- was never checked at all. The single-hit
+     * [findMedicine] is now the first element of this list, so callers that
+     * only want the headline drug are unaffected.
+     *
+     * Three passes, in descending order of confidence, and a pass only runs
+     * when the one above it found nothing:
+     *
+     *  1. **Exact tokens.** Every OCR token against every medicine name.
+     *  2. **Edit distance**, for typos and the character confusions a scanner
+     *     makes -- "amoxicilin", "ibupr0fen", rn read as m.
+     *  3. **Fragments**, for names OCR tore in half. A strip that comes back as
+     *     "paracet mol" has the drug on it in plain sight and used to resolve
+     *     to nothing at all.
+     */
+    fun findMedicines(text: String, limit: Int = 4): List<Retrieved> {
+        val ordered = tokenize(text)
+        val tokens = ordered.toSet()
+        if (tokens.isEmpty()) return emptyList()
+
+        val medicines = docs.filter { it.collection == "medicines" }
+
+        val exact = mutableListOf<Candidate>()
+        for (doc in medicines) {
+            val names = nameTokens(doc)
+            val overlap = names.intersect(tokens)
+            if (overlap.isEmpty()) continue
+            // Longer matched names are stronger evidence than short ones --
+            // "pan" is a common substring, "pantoprazole" is not.
+            val score = overlap.sumOf { it.length.toDouble() }
+            if (score < 4.0) continue
+            val generic = tokenize(doc.generic).filterNot { it in NAME_NOISE }.toSet()
+            exact += Candidate(doc, score, overlap,
+                               generic.isNotEmpty() && tokens.containsAll(generic))
+        }
+        if (exact.isNotEmpty()) return rank(prune(exact).map { it.hit }, limit)
+
+        // Nothing matched exactly. Try again against OCR-normalised tokens,
+        // allowing for typos, character confusions and trailing junk.
+        val normalised = tokens.map { normaliseOcr(it) }.filter { it.length >= 5 }
+
+        val fuzzy = mutableMapOf<String, Retrieved>()
+        for (doc in medicines) {
+            for (name in nameTokens(doc)) {
+                if (name.length < 5) continue          // too short to fuzz safely
+                val budget = allowedEdits(name)
+                for (token in normalised) {
+                    val score = matchScore(token, name, budget) ?: continue
+                    // 4.0 admits a one-edit correction on a six-letter brand
+                    // like "crocin"; raising it locked those out. The
+                    // per-candidate scoring in matchScore is what keeps this
+                    // honest, not the floor.
+                    if (score < 4.0) continue
+                    val held = fuzzy[doc.id]
+                    if (held == null || score > held.score) {
+                        fuzzy[doc.id] = Retrieved(doc, score)
+                    }
+                }
+            }
+        }
+        if (fuzzy.isNotEmpty()) return rank(fuzzy.values, limit)
+
+        return rank(fragmentMatches(ordered, medicines), limit)
+    }
+
+    private fun rank(hits: Collection<Retrieved>, limit: Int): List<Retrieved> =
+        hits.sortedByDescending { it.score }.take(limit)
+
+    private class Candidate(
+        val doc: KnowledgeDoc,
+        val score: Double,
+        /** The name tokens this entry and the text have in common. */
+        val matched: Set<String>,
+        /** True when the text contains every word of this entry's generic name. */
+        val genericNamed: Boolean,
+    ) {
+        val hit: Retrieved get() = Retrieved(doc, score)
+    }
+
+    /**
+     * Drop an entry that another entry explains better.
+     *
+     * A strip reading "AMOXICILLIN 500" matches two entries on the identical
+     * evidence: Amoxicillin, whose whole generic name is on the packet, and
+     * Amoxicillin-clavulanate, which shares that one word and whose other
+     * ingredient is nowhere in the text. Reporting both turns a single
+     * antibiotic into a combination product on the strength of a word the two
+     * entries happen to share.
+     *
+     * So a candidate is removed when another candidate matched everything it
+     * matched *and* has its full generic name present while this one does not.
+     * A genuine combination -- "Aceclofenac 100mg Paracetamol 325mg" -- is
+     * untouched: neither ingredient's evidence is contained in the other's.
+     */
+    private fun prune(candidates: List<Candidate>): List<Candidate> =
+        candidates.filterNot { weaker ->
+            candidates.any { stronger ->
+                stronger !== weaker &&
+                    stronger.genericNamed && !weaker.genericNamed &&
+                    stronger.matched.containsAll(weaker.matched)
+            }
+        }
+
+    /**
+     * Names OCR broke, rejoined or completed.
+     *
+     * Two failures, both common enough on a foil strip to be worth their own
+     * pass, and both of which produced *no answer at all* before it existed:
+     *
+     *  - **Split.** "PARACETAMOL" set across a crease comes back as two tokens.
+     *    Adjacent tokens are glued and the pair re-tested.
+     *  - **Truncated.** The tail is lost to a tear or a thumb, leaving
+     *    "paracet". A token that is a strict prefix of a long drug name is
+     *    strong evidence -- no other medicine in the corpus starts that way.
+     *
+     * Both are deliberately conservative: six characters minimum, against
+     * names of eight or more, so no ordinary English word on a packet can
+     * reach a drug through this path. The score is discounted, and the
+     * identify stage reports the result as a low-confidence read.
+     */
+    private fun fragmentMatches(
+        ordered: List<String>,
+        medicines: List<KnowledgeDoc>,
+    ): List<Retrieved> {
+        val glued = ordered.zipWithNext { a, b -> normaliseOcr(a + b) }
+            .filter { it.length in 6..24 }
+        val fragments = ordered.map { normaliseOcr(it) }.filter { it.length >= 6 }
+
+        val found = mutableMapOf<String, Retrieved>()
+        for (doc in medicines) {
+            for (name in nameTokens(doc)) {
+                if (name.length < 8) continue
+                for (token in glued) {
+                    val distance = editDistance(token, name, 2)
+                    if (distance <= 2) {
+                        val score = name.length - distance * 1.5 - 1.0
+                        val held = found[doc.id]
+                        if (score >= 4.0 && (held == null || score > held.score)) {
+                            found[doc.id] = Retrieved(doc, score)
+                        }
+                    }
+                }
+                for (token in fragments) {
+                    if (token.length >= name.length) continue
+                    if (!name.startsWith(token)) continue
+                    val score = token.length - 1.5
+                    val held = found[doc.id]
+                    if (score >= 4.0 && (held == null || score > held.score)) {
+                        found[doc.id] = Retrieved(doc, score)
+                    }
+                }
+            }
+        }
+        // A fragment that fits two different drugs is not evidence for either.
+        // "cefix" reaching one entry is a read; reaching two is a coincidence,
+        // and picking the higher-scoring one would be inventing a certainty
+        // the text does not contain.
+        return if (found.size == 1) found.values.toList() else emptyList()
+    }
+
+    /**
+     * How well one OCR token matches one medicine name, or null for no match.
+     *
+     * Two ways to match, because OCR fails in two different ways. Whole-token
+     * edit distance handles substitutions -- a misread character, a typo. Prefix
+     * matching handles the other case: strips print the name flush against a
+     * strength, and the recogniser runs them together, so "IBUPROFEN 400" comes
+     * back as one token "ibuprofen400". Requiring the whole token to match would
+     * throw that away for the sake of three digits.
+     */
+    private fun matchScore(token: String, name: String, budget: Int): Double? {
+        if (kotlin.math.abs(token.length - name.length) <= budget) {
+            val distance = editDistance(token, name, budget)
+            if (distance <= budget) return name.length.toDouble() - distance * 1.5
+        }
+
+        // A long name at the start of a longer token: the strength or dosage got
+        // glued on. Only for names long enough that a shared prefix is real
+        // evidence rather than coincidence.
+        if (name.length >= 6 && token.length > name.length) {
+            val head = token.take(name.length)
+            val distance = editDistance(head, name, 1)
+            if (distance <= 1) return name.length.toDouble() - distance * 1.5 - 0.5
+        }
+        return null
+    }
+
+    /**
+     * Undo the character substitutions OCR reliably makes.
+     *
+     * Digits standing in for letters are the common ones on foil and small
+     * print: a capital I read as 1, O as 0, S as 5. Applied only in the fuzzy
+     * pass -- the exact pass must keep real digits intact, because a strength is
+     * sometimes the only thing distinguishing two products.
+     */
+    internal fun normaliseOcr(token: String): String = token
+        .lowercase()
+        .map { c ->
+            when (c) {
+                '1' -> 'i'
+                '0' -> 'o'
+                '5' -> 's'
+                '8' -> 'b'
+                '9' -> 'g'
+                '2' -> 'z'
+                else -> c
+            }
+        }
+        .joinToString("")
+
+    private fun nameTokens(doc: KnowledgeDoc): Set<String> =
+        tokenize(doc.generic + " " + doc.aliases.joinToString(" "))
+            .filterNot { it in NAME_NOISE }
+            .toSet()
+
+    private fun allowedEdits(name: String) = when {
+        name.length >= 10 -> 3
+        name.length >= 7 -> 2
+        else -> 1
+    }
+
+    /**
+     * Levenshtein distance, abandoned early once it exceeds [limit].
+     *
+     * Bounded because this runs across every alias of every medicine for every
+     * token of an OCR blob, and the answer past the limit is never used.
+     */
+    internal fun editDistance(a: String, b: String, limit: Int): Int {
+        if (a == b) return 0
+        var previous = IntArray(b.length + 1) { it }
+        var current = IntArray(b.length + 1)
+        for (i in 1..a.length) {
+            current[0] = i
+            var rowMin = current[0]
+            for (j in 1..b.length) {
+                val cost = if (a[i - 1] == b[j - 1]) 0 else 1
+                current[j] = minOf(
+                    current[j - 1] + 1,
+                    previous[j] + 1,
+                    previous[j - 1] + cost,
+                )
+                if (current[j] < rowMin) rowMin = current[j]
+            }
+            if (rowMin > limit) return limit + 1
+            val swap = previous; previous = current; current = swap
+        }
+        return previous[b.length]
+    }
+
+    fun byTopic(topic: String): List<KnowledgeDoc> = docs.filter { it.topic == topic }
+}
