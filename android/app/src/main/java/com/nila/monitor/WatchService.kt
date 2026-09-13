@@ -128,6 +128,21 @@ class WatchService : LifecycleService() {
      */
     private var phoneLink: com.nila.phonelink.GuardianLink? = null
 
+    /**
+     * The link to the other phone, taken the first time it can be had.
+     *
+     * Lazy for the reason given on [com.nila.monitor.MonitorService.link]: the
+     * second phone is usually paired after this one has already been set
+     * watching.
+     */
+    private fun link(): com.nila.phonelink.GuardianLink? {
+        phoneLink?.let { if (it.isRunning) return it }
+        phoneLink = runCatching {
+            com.nila.phonelink.GuardianLink.acquire(this)
+        }.getOrNull()
+        return phoneLink
+    }
+
     /** Last time each event alerted, so the same one does not repeat all night. */
     private val alertedAt = mutableMapOf<ActivityRules.Event, Long>()
 
@@ -138,9 +153,7 @@ class WatchService : LifecycleService() {
         zones = SafeZoneStore(this)
         sensors = RoomSensors(this)
         notifier.ensureChannels()
-        phoneLink = runCatching {
-            com.nila.phonelink.GuardianLink.acquire(this)
-        }.getOrNull()
+        link()
 
         // The audio lane, folded in as it changes. Collected for the life of
         // the service so a cry that starts after a posture event still promotes
@@ -288,7 +301,7 @@ class WatchService : LifecycleService() {
         notifier.alert(decision.title, decision.body, decision.severity,
                        id = Notifier.ID_SAFETY)
         runCatching {
-            phoneLink?.sendAlert(
+            link()?.sendAlert(
                 decision.title, decision.body, decision.severity, seconds = 0
             )
         }

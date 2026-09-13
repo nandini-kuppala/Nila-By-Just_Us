@@ -30,6 +30,7 @@ import com.nila.monitor.MonitorService
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.SharingStarted
@@ -375,6 +376,42 @@ class AppState(app: Application) : AndroidViewModel(app) {
 
         // Re-arm whatever was scheduled before the process was last killed.
         viewModelScope.launch { runCatching { reminders.rescheduleAll() } }
+
+        // Whichever half of the link this phone is, put it back the way the
+        // user left it. Neither half survived the process being killed before
+        // this: a paired receiving phone stopped receiving after a reboot and
+        // said "Not paired" about it, and a sending phone opened nothing until
+        // somebody started monitoring -- so pairing, which is done with both
+        // phones in Settings and neither of them monitoring, could not
+        // complete. See [com.nila.phonelink.GuardianPresence].
+        viewModelScope.launch {
+            linkStore.role.combine(linkStore.paired) { role, paired -> role to paired }
+                .distinctUntilChanged()
+                .collect { (role, paired) -> applyLinkRole(role, paired) }
+        }
+    }
+
+    /**
+     * What this phone should be doing about the link, right now.
+     *
+     * Called for the state as it is rather than only when it changes, so it is
+     * as true after a cold start as after a tap in Settings. One place decides
+     * it, so a role restored at launch and a role tapped here cannot disagree.
+     */
+    private fun applyLinkRole(
+        role: com.nila.phonelink.LinkStore.Role,
+        paired: Boolean,
+    ) {
+        if (paired && role == com.nila.phonelink.LinkStore.Role.PARENT) {
+            com.nila.phonelink.ParentService.start(getApplication())
+        } else {
+            com.nila.phonelink.ParentService.stop(getApplication())
+        }
+        // And the sending half, which is held for as long as this app is in
+        // front of somebody -- including right now, which no lifecycle
+        // callback is about to say, because the app was already open when the
+        // code was typed.
+        runCatching { com.nila.phonelink.GuardianPresence.refresh(getApplication()) }
     }
 
     /**
@@ -677,18 +714,15 @@ class AppState(app: Application) : AndroidViewModel(app) {
      */
     fun setLinkRole(role: com.nila.phonelink.LinkStore.Role) {
         viewModelScope.launch {
-            linkStore.setRole(role)
-            when (role) {
-                com.nila.phonelink.LinkStore.Role.GUARDIAN -> {
-                    com.nila.phonelink.ParentService.stop(getApplication())
-                }
-                com.nila.phonelink.LinkStore.Role.PARENT -> {
-                    MonitorService.stop(getApplication())
-                    if (linkStore.key != null) {
-                        com.nila.phonelink.ParentService.start(getApplication())
-                    }
-                }
+            // A phone that receives alerts must not also be one making them:
+            // left holding the microphone it would sound its own alarm at its
+            // own cry.
+            if (role == com.nila.phonelink.LinkStore.Role.PARENT) {
+                MonitorService.stop(getApplication())
             }
+            // Which link starts and which stops follows from the stored role,
+            // in applyLinkRole.
+            linkStore.setRole(role)
         }
     }
 
@@ -715,18 +749,39 @@ class AppState(app: Application) : AndroidViewModel(app) {
     fun pairWithCode(code: String): Boolean {
         val trimmed = code.trim()
         if (trimmed.length != 6 || !trimmed.all(Char::isDigit)) return false
+        // Being paired is what starts the receiving service; see applyLinkRole.
+        viewModelScope.launch { linkStore.pair(trimmed) }
+        return true
+    }
+
+    /**
+     * Point this phone at an address typed off the other one's screen.
+     *
+     * The fallback for a network that does not carry mDNS -- plenty of routers
+     * filter multicast between clients, and several OEM builds drop it to an
+     * app whose screen is off. It was described in this file's comments from
+     * the start and never built, which left discovery with no way out on the
+     * networks where it does not work.
+     *
+     * Discovery is still tried first, and a remembered address is forgotten as
+     * soon as it stops answering, so a phone that moves to a network where
+     * discovery works is not stuck with a stale one.
+     */
+    fun useLinkAddress(address: String): Boolean {
+        val trimmed = address.trim()
+        if (!trimmed.matches(Regex("""\d{1,3}(\.\d{1,3}){3}"""))) return false
+        if (trimmed.split(".").any { (it.toIntOrNull() ?: 256) > 255 }) return false
         viewModelScope.launch {
-            linkStore.pair(trimmed)
-            if (linkStore.currentRole == com.nila.phonelink.LinkStore.Role.PARENT) {
-                com.nila.phonelink.ParentService.start(getApplication())
-            }
+            linkStore.rememberHost(trimmed)
+            // Reconnect against it now, rather than when the current backoff
+            // runs out fifteen seconds from here.
+            com.nila.phonelink.ParentService.restart(getApplication())
         }
         return true
     }
 
     fun unpairPhones() {
         viewModelScope.launch {
-            com.nila.phonelink.ParentService.stop(getApplication())
             linkStore.unpair()
             _pairingCode.value = null
         }
@@ -735,11 +790,17 @@ class AppState(app: Application) : AndroidViewModel(app) {
     /** What the sending phone can say about the link, read straight off it. */
     val linkSummary: String
         get() = com.nila.phonelink.GuardianLink.peek()?.describe()
-            ?: "Alerts will be shared once monitoring starts"
+            ?: "Paired. Alerts will be shared once this phone is listening"
 
-    /** The address to type on the other phone if discovery does not find us. */
+    /**
+     * The address to type on the other phone if discovery does not find us.
+     *
+     * Read from the phone rather than from the link, so it is on screen beside
+     * the pairing code -- which is when it is wanted, and a moment at which the
+     * link may not be up yet.
+     */
     val linkAddress: String?
-        get() = com.nila.phonelink.GuardianLink.peek()?.localAddress()
+        get() = com.nila.net.LocalAddress.of(getApplication())
 
     /**
      * Whether a level-4 alert can actually take this phone's screen.

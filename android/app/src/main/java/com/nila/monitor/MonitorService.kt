@@ -251,9 +251,7 @@ class MonitorService : LifecycleService() {
 
         // Returns null unless this phone is a paired guardian, so an install
         // that never paired behaves exactly as it did before this existed.
-        phoneLink = runCatching {
-            com.nila.phonelink.GuardianLink.acquire(this)
-        }.getOrNull()
+        link()
     }
 
     override fun onBind(intent: Intent): IBinder? {
@@ -595,12 +593,34 @@ class MonitorService : LifecycleService() {
         _state.value = current.copy(actions = current.actions + text)
     }
 
+    /**
+     * The link to the other phone, taken the first time it can be had.
+     *
+     * Asked for lazily rather than once in [onCreate], because pairing usually
+     * happens *after* somebody has started monitoring -- they tap start, then
+     * go into Settings with the second phone in their other hand. Acquiring
+     * once at service start meant that pairing raised no link until monitoring
+     * was stopped and started again, with nothing on either screen to suggest
+     * that was what it wanted.
+     *
+     * [com.nila.phonelink.GuardianLink.acquire] is reference counted and
+     * returns the running link if there is one, so calling this repeatedly
+     * takes at most one hold.
+     */
+    private fun link(): com.nila.phonelink.GuardianLink? {
+        phoneLink?.let { if (it.isRunning) return it }
+        phoneLink = runCatching {
+            com.nila.phonelink.GuardianLink.acquire(this)
+        }.getOrNull()
+        return phoneLink
+    }
+
     /** Mirror state to a paired watch. Rate-limited inside the sender. */
     private fun pushToWatch() {
         runCatching { wear.sendState(_state.value) }
         // The other phone gets the same state, coalesced by its own heartbeat
         // rather than sent on every hop.
-        runCatching { phoneLink?.sendState(_state.value) }
+        runCatching { link()?.sendState(_state.value) }
     }
 
     private fun updateIdle(probability: Float, engine: CryEngine, dbfs: Float) {
@@ -625,6 +645,13 @@ class MonitorService : LifecycleService() {
                 current.silentWindows + 1
             } else 0,
         )
+        // A quiet night is still news on the other phone. Without this the
+        // heartbeat only ever carried a state set by a cry, so a guardian that
+        // had been listening peacefully for hours described itself to the
+        // receiving phone as "Nila is not monitoring" -- the one sentence that
+        // would make somebody get up and check. Costs nothing: sendState only
+        // stores the frame, and the heartbeat decides when it goes out.
+        runCatching { link()?.sendState(_state.value) }
     }
 
     private suspend fun step(evidence: CryEvidence) {
@@ -892,7 +919,7 @@ class MonitorService : LifecycleService() {
                 // And the same alert to the other phone, which decides what to
                 // do with it from the severity -- see LinkProtocol.tierFor.
                 runCatching {
-                    phoneLink?.sendAlert(
+                    link()?.sendAlert(
                         title = "Your baby needs you",
                         body = buildString {
                             append(guess)
@@ -1121,7 +1148,7 @@ class MonitorService : LifecycleService() {
         // Sent as an alert, not a goodbye: this is a failure, and the other
         // phone should sound rather than quietly show "stopped".
         runCatching {
-            phoneLink?.sendAlert(
+            link()?.sendAlert(
                 "The monitoring phone has stopped", message, Severity.URGENT, 0
             )
         }

@@ -625,6 +625,16 @@ private fun GuardianPairing(
                 else "Not paired with another phone yet",
                 style = MaterialTheme.typography.bodyMedium,
             )
+            // The address stays on screen after the code has gone, because the
+            // other phone is usually typed at second and this is the thing it
+            // needs when the network will not carry discovery.
+            if (paired) {
+                state.linkAddress?.let {
+                    Text("This phone is at $it on the Wi-Fi",
+                         style = MaterialTheme.typography.bodySmall,
+                         color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
             OutlinedButton(
                 onClick = state::generatePairingCode,
                 modifier = Modifier.fillMaxWidth(),
@@ -683,13 +693,23 @@ private fun ParentPairing(
                         status.detail
                     is com.nila.phonelink.ParentLink.Status.Lost ->
                         "Lost contact with the monitoring phone"
+                    // The reason rather than a fixed sentence: the other phone
+                    // says whether monitoring was stopped or its app was
+                    // closed, and those want different things done about them.
                     is com.nila.phonelink.ParentLink.Status.Stopped ->
-                        "The other phone stopped monitoring"
+                        status.reason.ifBlank { "The other phone stopped monitoring" }
+                    // Paired, so this is the link coming up rather than a
+                    // phone with nothing to connect to. Saying "Not paired"
+                    // here was a plain lie, told every time the app had been
+                    // restarted, about the one thing this screen exists to
+                    // report.
                     com.nila.phonelink.ParentLink.Status.Unpaired ->
-                        "Not paired"
+                        "Starting up"
                 },
                 style = MaterialTheme.typography.titleSmall,
             )
+
+            ManualAddress(state)
             Text(
                 "Urgent alerts sound on the alarm volume, so this phone can " +
                     "stay on silent.",
@@ -711,6 +731,60 @@ private fun ParentPairing(
                     modifier = Modifier.fillMaxWidth(),
                 ) { Text("Allow full-screen alerts") }
             }
+        }
+    }
+}
+
+/**
+ * The address of the other phone, typed in when discovery cannot find it.
+ *
+ * Folded away by default, because on a network that carries mDNS -- most homes
+ * -- nobody should ever need it. It is here because plenty of routers filter
+ * multicast between clients and several OEM builds drop it to an app whose
+ * screen is off, and on those networks discovery searches forever with no way
+ * out. The address to type is on the other phone's Settings screen.
+ */
+@Composable
+private fun ManualAddress(state: AppState) {
+    var open by remember { mutableStateOf(false) }
+    var typed by remember { mutableStateOf("") }
+    var rejected by remember { mutableStateOf(false) }
+
+    if (!open) {
+        TextButton(onClick = { open = true }) {
+            Text("It cannot find the other phone")
+        }
+        return
+    }
+
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(
+            "Type the address shown under the pairing code on the other " +
+                "phone. Discovery is still tried first.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        OutlinedTextField(
+            value = typed,
+            onValueChange = { typed = it.filter { c -> c.isDigit() || c == '.' }.take(15)
+                              rejected = false },
+            label = { Text("e.g. 192.168.1.42") },
+            singleLine = true,
+            isError = rejected,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            modifier = Modifier.fillMaxWidth(),
+        )
+        if (rejected) {
+            Text("That is not an address on the Wi-Fi.",
+                 style = MaterialTheme.typography.bodySmall,
+                 color = MaterialTheme.colorScheme.error)
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Button(onClick = {
+                if (state.useLinkAddress(typed)) { open = false; typed = "" }
+                else rejected = true
+            }) { Text("Use it") }
+            TextButton(onClick = { open = false; rejected = false }) { Text("Cancel") }
         }
     }
 }

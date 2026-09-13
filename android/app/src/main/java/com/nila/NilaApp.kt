@@ -16,5 +16,8 @@ class NilaApp : Application() {
         // hydrated here, once, where every entry point has already run.
         com.nila.ui.theme.Appearance.load(this)
         com.nila.data.ClipPolicy.load(this)
+        // A paired sending phone listens while its app is open, so that the
+        // other phone can be paired to it before anybody starts monitoring.
+        com.nila.phonelink.GuardianPresence.watch(this)
     }
 }
