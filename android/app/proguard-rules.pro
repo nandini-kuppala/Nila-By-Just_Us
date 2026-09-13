@@ -41,6 +41,17 @@
 # -- in release only, which is the worst place to find it.
 -keep class ai.onnxruntime.** { *; }
 -keepclassmembers class ai.onnxruntime.** { native <methods>; }
+
+# Qualcomm GenieX, which runs the assistant's model on the Hexagon NPU.
+#
+# Its JNI layer looks up classes, fields and constructors by name from native
+# code, so anything R8 renames is a lookup that fails at runtime with no
+# compile-time warning -- and only in a release build, which is the kind of
+# difference this project has shipped twice before. The bean classes are the
+# ones crossing the boundary; keeping the package whole is cheap next to
+# 90 MB of native libraries.
+-keep class com.geniex.sdk.** { *; }
+-keepclassmembers class com.geniex.sdk.** { native <methods>; }
 -dontwarn ai.onnxruntime.**
 
 # LlmBridge loads MediaPipe GenAI reflectively so the app builds without it.

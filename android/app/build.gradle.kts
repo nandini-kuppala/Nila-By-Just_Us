@@ -11,7 +11,11 @@ android {
 
     defaultConfig {
         applicationId = "com.nila"
-        minSdk = 26
+        // 26 until the assistant gained an on-device language model. The
+        // GenieX AAR, which is the only route this app has to the Hexagon NPU,
+        // declares minSdkVersion 27 in its own manifest. 27 is Android 8.1,
+        // which is what the README has always claimed anyway.
+        minSdk = 27
         targetSdk = 35
         versionCode = 9
         versionName = "2.3.0"
@@ -83,6 +87,10 @@ android {
     androidResources { noCompress += listOf("tflite", "task", "bin", "litertlm", "onnx") }
 
     packaging {
+        // FastRPC opens the Hexagon kernel library from the APK's lib
+        // directory, which needs it unpacked on disk rather than page-mapped
+        // out of the archive.
+        jniLibs.useLegacyPackaging = true
         resources.excludes += setOf(
             "/META-INF/{AL2.0,LGPL2.1}",
             "META-INF/DEPENDENCY_INFO",
@@ -146,6 +154,9 @@ dependencies {
     implementation(libs.mlkit.text.devanagari)
     implementation(libs.onnxruntime.android)
     implementation(libs.litertlm)
+    // Qualcomm's runtime, and the only one in this app whose Backend enum has
+    // an NPU in it. Ships llama.cpp's Hexagon backend inside the AAR.
+    implementation(libs.geniex.android)
 
     testImplementation(libs.junit)
     testImplementation(libs.org.json)
