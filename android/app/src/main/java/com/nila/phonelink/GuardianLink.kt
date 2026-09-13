@@ -3,6 +3,7 @@ package com.nila.phonelink
 import android.content.Context
 import android.net.nsd.NsdManager
 import android.net.nsd.NsdServiceInfo
+import android.net.wifi.WifiManager
 import android.util.Log
 import com.nila.data.Severity
 import com.nila.monitor.MonitorState
@@ -11,7 +12,6 @@ import java.io.Closeable
 import java.io.OutputStreamWriter
 import java.net.InetAddress
 import java.net.InetSocketAddress
-import java.net.NetworkInterface
 import java.net.ServerSocket
 import java.net.Socket
 import java.util.concurrent.CopyOnWriteArrayList
@@ -117,15 +117,36 @@ class GuardianLink(
         private const val HELLO_TIMEOUT_MS = 5_000
 
         /**
-         * A write that blocks this long has a reader that is gone or asleep.
-         * Dropped rather than waited on: one unresponsive socket must not delay
-         * the alert going to the other phone.
+         * Frames allowed to pile up for one phone before it is given up on.
+         *
+         * A phone whose reader is gone or asleep leaves writes unfinished, and
+         * the frames queue behind them. A handful is a phone that is briefly
+         * busy; this many is a phone that is not coming back, and holding a
+         * queue for it costs the memory of every frame in it.
+         *
+         * This replaces a write timeout that could not work. The old code set
+         * `soTimeout` before each write, which is the timeout on *reads* -- and
+         * the thread watching this socket for a disconnect is blocked in
+         * exactly such a read. Four seconds after the first frame went out,
+         * that read gave up, and the guardian dropped the connected phone as
+         * though it had disappeared. Every four seconds, all night: the
+         * receiving phone reconnected, was sent one frame, and was hung up on
+         * again.
          */
-        private const val WRITE_TIMEOUT_MS = 4_000
+        private const val MAX_QUEUED_FRAMES = 8
     }
 
+    /**
+     * One connected phone, with a thread of its own to write to it.
+     *
+     * Its own, so that a phone that has stopped reading delays only itself. The
+     * alert going to the other phone must not wait behind it.
+     */
     private class Client(val socket: Socket, val out: OutputStreamWriter) {
         val label: String = socket.inetAddress?.hostAddress ?: "?"
+        val queued = java.util.concurrent.atomic.AtomicInteger(0)
+        val writer: java.util.concurrent.ExecutorService =
+            Executors.newSingleThreadExecutor { r -> Thread(r, "nila-link-write") }
     }
 
     private var server: ServerSocket? = null
@@ -138,6 +159,8 @@ class GuardianLink(
     @Volatile private var running = false
     @Volatile private var nsdManager: NsdManager? = null
     @Volatile private var registration: NsdManager.RegistrationListener? = null
+    private var wifiLock: WifiManager.WifiLock? = null
+    private var multicastLock: WifiManager.MulticastLock? = null
 
     /** Last state pushed, so the heartbeat has something to repeat. */
     @Volatile private var lastState: LinkProtocol.Frame? = null
@@ -146,17 +169,7 @@ class GuardianLink(
     val connectedParents: Int get() = clients.size
 
     /** The address to type on the other phone if discovery does not find us. */
-    fun localAddress(): String? = try {
-        NetworkInterface.getNetworkInterfaces().toList()
-            .asSequence()
-            .filter { it.isUp && !it.isLoopback }
-            .flatMap { it.inetAddresses.toList().asSequence() }
-            .firstOrNull { it.hostAddress?.contains('.') == true && it.isSiteLocalAddress }
-            ?.hostAddress
-    } catch (t: Throwable) {
-        Log.w(TAG, "could not determine local address", t)
-        null
-    }
+    fun localAddress(): String? = com.nila.net.LocalAddress.of(context)
 
     fun start(): Boolean {
         if (running) return true
@@ -170,6 +183,7 @@ class GuardianLink(
                 bind(InetSocketAddress(LinkProtocol.PORT))
             }
             running = true
+            acquireLocks()
             acceptThread = thread(name = "nila-link-accept") { acceptLoop() }
             heartbeatThread = thread(name = "nila-link-beat") { heartbeatLoop() }
             advertise()
@@ -191,6 +205,38 @@ class GuardianLink(
      * an address by hand, which is why [localAddress] is shown in Settings
      * rather than hidden behind discovery working.
      */
+    /**
+     * Keep the radio up for as long as this socket is open.
+     *
+     * The same two locks the receiving half takes, for the same reasons: with
+     * the screen off, Wi-Fi power save parks the radio and this phone stops
+     * answering, and several OEM builds -- vivo's among them -- drop inbound
+     * multicast to a sleeping app, which is how mDNS arrives.
+     *
+     * It matters more here than it looks. While monitoring, the service's own
+     * wake lock covers this. While merely paired and open -- which is the state
+     * both phones are in during pairing, one of them with the screen about to
+     * time out -- nothing else does.
+     */
+    private fun acquireLocks() {
+        runCatching {
+            val wifi = context.applicationContext
+                .getSystemService(Context.WIFI_SERVICE) as WifiManager
+            wifiLock = wifi.createWifiLock(
+                WifiManager.WIFI_MODE_FULL_HIGH_PERF, "nila:guardian-link"
+            ).apply { setReferenceCounted(false); acquire() }
+            multicastLock = wifi.createMulticastLock("nila:advertise")
+                .apply { setReferenceCounted(false); acquire() }
+        }.onFailure { Log.w(TAG, "could not hold Wi-Fi awake", it) }
+    }
+
+    private fun releaseLocks() {
+        runCatching { wifiLock?.release() }
+        runCatching { multicastLock?.release() }
+        wifiLock = null
+        multicastLock = null
+    }
+
     private fun advertise() {
         runCatching {
             val manager = context.getSystemService(Context.NSD_SERVICE) as NsdManager
@@ -290,7 +336,10 @@ class GuardianLink(
     }
 
     private fun drop(client: Client) {
-        clients.remove(client)
+        if (!clients.remove(client)) return
+        // Shut the writer down first, then close: closing is what unblocks a
+        // write that is stuck against a phone that stopped reading.
+        runCatching { client.writer.shutdownNow() }
         runCatching { client.socket.close() }
         Log.i(TAG, "parent ${client.label} gone; ${clients.size} left")
     }
@@ -401,7 +450,7 @@ class GuardianLink(
         val key = store.key ?: return
         if (clients.isEmpty()) return
         val encoded = LinkProtocol.encode(frame, key)
-        clients.forEach { client -> pool.execute { send(client, encoded) } }
+        clients.forEach { client -> send(client, encoded) }
     }
 
     private fun send(client: Client, frame: LinkProtocol.Frame) {
@@ -409,23 +458,45 @@ class GuardianLink(
         send(client, LinkProtocol.encode(frame, key))
     }
 
+    /**
+     * Hand one frame to one phone's writer, and return.
+     *
+     * Never blocks the caller, which is either the heartbeat or the thread that
+     * has just decided a baby needs somebody. What a stalled phone costs is its
+     * own queue, and when that grows past [MAX_QUEUED_FRAMES] it costs it the
+     * connection.
+     */
     private fun send(client: Client, encoded: String) {
-        try {
-            client.socket.soTimeout = WRITE_TIMEOUT_MS
-            client.out.write(encoded)
-            client.out.write("\n")
-            client.out.flush()
-        } catch (t: Throwable) {
-            Log.w(TAG, "send to ${client.label} failed: ${t.message}")
+        if (client.queued.get() >= MAX_QUEUED_FRAMES) {
+            Log.w(TAG, "${client.label} is not reading; dropping it")
             drop(client)
+            return
         }
+        client.queued.incrementAndGet()
+        val accepted = runCatching {
+            client.writer.execute {
+                try {
+                    client.out.write(encoded)
+                    client.out.write("\n")
+                    client.out.flush()
+                } catch (t: Throwable) {
+                    Log.w(TAG, "send to ${client.label} failed: ${t.message}")
+                    drop(client)
+                } finally {
+                    client.queued.decrementAndGet()
+                }
+            }
+        }.isSuccess
+        // The writer is already shut down, which means this client has been
+        // dropped. Nothing to do but not leave the count wrong.
+        if (!accepted) client.queued.decrementAndGet()
     }
 
     fun describe(): String = when {
         !running -> "Not sharing alerts with another phone"
-        clients.isEmpty() ->
-            "Waiting for the other phone" +
-                (localAddress()?.let { " — it can also be pointed at $it" } ?: "")
+        // The address is printed beside this on the settings screen, so it is
+        // not repeated here.
+        clients.isEmpty() -> "Listening for the other phone"
         clients.size == 1 -> "One phone connected and receiving alerts"
         else -> "${clients.size} phones connected"
     }
@@ -435,7 +506,10 @@ class GuardianLink(
         running = false
         runCatching { registration?.let { nsdManager?.unregisterService(it) } }
         registration = null
-        clients.forEach { runCatching { it.socket.close() } }
+        clients.forEach {
+            runCatching { it.writer.shutdownNow() }
+            runCatching { it.socket.close() }
+        }
         clients.clear()
         runCatching { server?.close() }
         acceptThread?.join(1_000)
@@ -446,6 +520,7 @@ class GuardianLink(
         server = null
         pool.shutdownNow()
         runCatching { pool.awaitTermination(1, TimeUnit.SECONDS) }
+        releaseLocks()
         Log.i(TAG, "link stopped")
     }
 }
