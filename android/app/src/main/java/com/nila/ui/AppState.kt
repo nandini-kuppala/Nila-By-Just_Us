@@ -67,6 +67,26 @@ class AppState(app: Application) : AndroidViewModel(app) {
         app, com.nila.assistant.ModelInstaller.Model.VISION)
     val sceneDescriber = com.nila.vision.SceneDescriber(app)
     private val assistant by lazy { Assistant(app, db, index, llm) }
+
+    /**
+     * The Ask pipeline, and the model it runs on.
+     *
+     * [NpuLlm] is Qwen3.5-2B on the Hexagon NPU. It is optional in exactly the
+     * way the old phrasing model was -- every branch of [AskPipeline] has a
+     * complete, sourced answer before the model is asked for anything, so an
+     * install without the weights behaves as the app did before.
+     */
+    private val npu by lazy { com.nila.assistant.NpuLlm(app) }
+    private val askMemory by lazy { com.nila.assistant.RoomAskMemory(db) }
+    private val pipeline by lazy {
+        com.nila.assistant.AskPipeline(index, askMemory, npu)
+    }
+
+    private val _npuState =
+        MutableStateFlow<com.nila.assistant.NpuLlm.State>(com.nila.assistant.NpuLlm.State.Absent)
+
+    /** What the on-device model is doing, for Settings to be able to say. */
+    val npuState: StateFlow<com.nila.assistant.NpuLlm.State> = _npuState.asStateFlow()
     private val scanner by lazy { TextScanner(app) }
     val recordStore = RecordStore(app)
     private val drugBank by lazy {
@@ -322,6 +342,18 @@ class AppState(app: Application) : AndroidViewModel(app) {
             Thread(r, "nila-llm").apply { priority = Thread.MIN_PRIORITY }
         }.asCoroutineDispatcher()
 
+    /**
+     * The assistant's own thread, for the same reason and a second one.
+     *
+     * Separate from [llmDispatcher] because these are different runtimes on
+     * different silicon: an answer on the NPU must not queue behind the vision
+     * model describing a cot on the GPU.
+     */
+    private val askDispatcher =
+        java.util.concurrent.Executors.newSingleThreadExecutor { r ->
+            Thread(r, "nila-ask").apply { priority = Thread.NORM_PRIORITY - 1 }
+        }.asCoroutineDispatcher()
+
     private val _bridgeAddress = MutableStateFlow<String?>(null)
     val bridgeAddress: StateFlow<String?> = _bridgeAddress.asStateFlow()
 
@@ -363,6 +395,13 @@ class AppState(app: Application) : AndroidViewModel(app) {
         // building an XNNPack cache takes long enough that doing it lazily
         // makes the first question the slow one.
         viewModelScope.launch(llmDispatcher) { runCatching { llm.load() } }
+
+        // The assistant's model, if its weights are installed. Loading is a
+        // second or two and touches the NPU, so it is never on the main thread
+        // and never blocks a screen.
+        viewModelScope.launch(llmDispatcher) {
+            runCatching { npu.start { _npuState.value = it } }
+        }
 
         // A tapped sticker logs immediately, from whatever screen is open.
         viewModelScope.launch {
@@ -584,6 +623,13 @@ class AppState(app: Application) : AndroidViewModel(app) {
             // Newly arrived: build it now rather than on the first question.
             if (_modelState.value is com.nila.assistant.ModelInstaller.State.Installed) {
                 viewModelScope.launch(llmDispatcher) { runCatching { llm.load() } }
+
+        // The assistant's model, if its weights are installed. Loading is a
+        // second or two and touches the NPU, so it is never on the main thread
+        // and never blocks a screen.
+        viewModelScope.launch(llmDispatcher) {
+            runCatching { npu.start { _npuState.value = it } }
+        }
             }
         }
     }
@@ -887,13 +933,6 @@ class AppState(app: Application) : AndroidViewModel(app) {
             _answer.value = null
             val language = baby.value?.language ?: "en"
 
-            // Retrieval, routing and the decision about whether a model step is
-            // needed. Cheap, and it always produces a complete answer -- what
-            // follows can only replace it with a better one.
-            val draft = withContext(Dispatchers.Default) {
-                assistant.ask(question, language)
-            }
-
             // One publish, not two.
             //
             // The screen used to show the retrieved passages the moment they
@@ -901,19 +940,16 @@ class AppState(app: Application) : AndroidViewModel(app) {
             // "Shortening..." line. Two answers to one question, the second
             // replacing the first while it was being read. If a model step is
             // going to change the words, the reader should see the words once.
-            val final = if (draft.modelTask != null && llm.isReady) {
-                _asking.value = if (draft.modelTask!!.passages.isEmpty()) {
-                    AskStage.WRITING_GENERAL
-                } else {
-                    AskStage.WRITING_PERSONAL
-                }
-                withTimeoutOrNull(PHRASING_TIMEOUT_MS) {
-                    withContext(llmDispatcher) { assistant.compose(draft, language) }
-                } ?: draft
-            } else {
-                draft
+            val reply = withContext(askDispatcher) {
+                // Named, because the trailing lambda on this function is the
+                // token stream and this screen deliberately does not stream.
+                pipeline.ask(question, onGenerating = { personal ->
+                    _asking.value =
+                        if (personal) AskStage.WRITING_PERSONAL else AskStage.WRITING_GENERAL
+                })
             }
 
+            val final = reply.toAnswer(question)
             _answer.value = final
             _thinking.value = false
             _asking.value = AskStage.IDLE
@@ -929,6 +965,49 @@ class AppState(app: Application) : AndroidViewModel(app) {
             )
         }
     }
+
+    /**
+     * Put a pipeline reply into the shape the Ask card already renders.
+     *
+     * The card's job has not changed: show the words, show where they came
+     * from, and say in small print whether a model wrote them. Only the
+     * machinery behind [Assistant.Answer.Origin] is new, so the mapping is
+     * where the new pipeline meets the old screen.
+     */
+    private fun com.nila.assistant.AskPipeline.Reply.toAnswer(
+        question: String,
+    ): Assistant.Answer = Assistant.Answer(
+        text = text,
+        sources = sources,
+        cautions = cautions,
+        context = emptyList(),
+        kind = when (tier) {
+            com.nila.assistant.AskPipeline.Tier.REFUSED ->
+                if (trace.route == "emergency" || trace.route == "distress") {
+                    Assistant.Answer.Kind.EMERGENCY
+                } else {
+                    Assistant.Answer.Kind.NO_MATCH
+                }
+            com.nila.assistant.AskPipeline.Tier.LOG -> Assistant.Answer.Kind.LOG
+            com.nila.assistant.AskPipeline.Tier.MEDICINE -> Assistant.Answer.Kind.MEDICINE
+            com.nila.assistant.AskPipeline.Tier.NO_ANSWER -> Assistant.Answer.Kind.NO_MATCH
+            else -> Assistant.Answer.Kind.GUIDANCE
+        },
+        refinedByLlm = generated,
+        origin = when (tier) {
+            com.nila.assistant.AskPipeline.Tier.GROUNDED ->
+                Assistant.Answer.Origin.CORPUS_PERSONALISED
+            com.nila.assistant.AskPipeline.Tier.MEMORY_ONLY,
+            com.nila.assistant.AskPipeline.Tier.GENERAL ->
+                Assistant.Answer.Origin.MODEL_ONLY
+            com.nila.assistant.AskPipeline.Tier.LOG -> Assistant.Answer.Origin.LOG
+            com.nila.assistant.AskPipeline.Tier.REFUSED,
+            com.nila.assistant.AskPipeline.Tier.NO_ANSWER ->
+                Assistant.Answer.Origin.CANNED
+            else -> Assistant.Answer.Origin.CORPUS
+        },
+        question = question,
+    )
 
     fun identifyMedicine(ocrText: String) {
         viewModelScope.launch {

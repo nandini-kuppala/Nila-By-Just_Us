@@ -60,6 +60,23 @@ class ModelInstaller(
             approxBytes = 1156L * 1024 * 1024,
             title = "Describe the cot",
         ),
+
+        /**
+         * The assistant's own model: Qwen3.5-2B, Q4_0, for the Hexagon NPU.
+         *
+         * Q4_0 and not a finer quantisation because the quantisation is what
+         * decides whether the NPU is used at all -- the Hexagon backend can
+         * repack Q4_0, Q4_1, Q8_0, IQ4_NL and MXFP4 and nothing else, and a
+         * Q4_K_M file of the same model measured 7.3x slower at reading a
+         * prompt because it had quietly landed on the CPU.
+         */
+        ASSISTANT(
+            fileName = "Qwen3.5-2B-Q4_0.gguf",
+            url = "https://huggingface.co/unsloth/Qwen3.5-2B-GGUF/" +
+                "resolve/main/Qwen3.5-2B-Q4_0.gguf",
+            approxBytes = 1_214_873_856L,
+            title = "Answers in your own words",
+        ),
     }
 
     companion object {

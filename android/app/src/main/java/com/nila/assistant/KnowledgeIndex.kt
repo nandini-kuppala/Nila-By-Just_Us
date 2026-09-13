@@ -72,6 +72,8 @@ class KnowledgeIndex private constructor(
     private val postings: Map<String, List<Pair<Int, Int>>>,   // term -> (docIdx, tf)
     private val docLengths: IntArray,
     private val averageLength: Double,
+    /** Every two-letter sequence that occurs in the corpus's own prose. */
+    private val bigrams: Set<String>,
 ) {
     companion object {
         private const val K1 = 1.4
@@ -314,11 +316,23 @@ class KnowledgeIndex private constructor(
                 }
             }
 
+            // Built from the raw prose rather than the tokenised terms, so it
+            // holds the spelling of real words rather than their stems.
+            val bigrams = HashSet<String>()
+            docs.forEach { doc ->
+                val prose = "${doc.title} ${doc.text} ${doc.keywords} ${doc.source}".lowercase()
+                Regex("[a-z]{2,}").findAll(prose).forEach { match ->
+                    val word = match.value
+                    for (i in 0 until word.length - 1) bigrams += word.substring(i, i + 2)
+                }
+            }
+
             return KnowledgeIndex(
                 docs = docs,
                 postings = postings,
                 docLengths = lengths,
                 averageLength = lengths.average().takeIf { it > 0 } ?: 1.0,
+                bigrams = bigrams,
             )
         }
     }
@@ -326,6 +340,56 @@ class KnowledgeIndex private constructor(
     val size: Int get() = docs.size
     val allDocs: List<KnowledgeDoc> get() = docs
     val medicineCount: Int get() = docs.count { it.collection == "medicines" }
+
+    /**
+     * How many documents contain [term].
+     *
+     * BM25 already uses this internally to weight a term; exposing it lets a
+     * caller ask the question retrieval cannot answer about its own result --
+     * whether the winning document matched something *distinctive* about the
+     * query or only the words every entry in this corpus shares. "Is my asthma
+     * a problem for breastfeeding" matched on "breastfeeding", which is in
+     * most of the corpus and says nothing.
+     */
+    fun documentFrequency(term: String): Int = postings[term]?.size ?: 0
+
+    /**
+     * Is this letters rather than words?
+     *
+     * A slipped keyboard used to travel the whole pipeline -- retrieval, then
+     * three and a half seconds of a 2B model, which declined -- and come back
+     * as advice to raise it with a doctor.
+     *
+     * Told apart by spelling, against the corpus's own prose. Roughly 1,300
+     * words of clinical English contain 371 distinct letter pairs, and that
+     * turns out to be enough: every real word tried against it -- including
+     * ones the corpus has never heard of, like *hiccups*, *swimming*,
+     * *fingernails*, *eczema* and misspellings like *paracetmol* -- is built
+     * entirely from pairs it has seen, while *tuhgj*, *zxcvbn* and *xkcdz*
+     * each contain several it has not.
+     *
+     * Two unseen pairs are required rather than one, because a real word the
+     * corpus does not contain can have one: *growth* has "wt".
+     *
+     * Deliberately conservative, and bounded to short inputs. A long question
+     * with one mistyped word is a question with a typo, and retrieval already
+     * tolerates those. Anything this misses is answered normally and, if the
+     * model declines it, gets the same reply by another route.
+     */
+    fun isUnintelligible(question: String): Boolean {
+        val words = question.lowercase()
+            .split(Regex("[^a-z]+"))
+            .filter { it.length >= 4 }
+        if (words.isEmpty() || words.size > 3) return false
+        return words.all { looksLikeLetters(it) }
+    }
+
+    private fun looksLikeLetters(word: String): Boolean {
+        if (word.none { it in "aeiouy" }) return true
+        val unseen = (0 until word.length - 1)
+            .count { word.substring(it, it + 2) !in bigrams }
+        return unseen >= 2
+    }
 
     fun medicineByGeneric(generic: String): KnowledgeDoc? = docs.firstOrNull {
         it.collection == "medicines" && it.generic.equals(generic, ignoreCase = true)

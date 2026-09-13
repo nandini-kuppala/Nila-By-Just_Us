@@ -38,6 +38,24 @@ object QueryRouter {
     data object CaregiverDistress : Route
         data object Greeting : Route
         data object TooVague : Route
+
+        /**
+         * Letters that are not words. A slipped keyboard, a pocket, a test.
+         *
+         * Separate from [TooVague] because the two need different replies and
+         * a different cost. "ok" is a real word and asking for more is the
+         * right response to it. "tuhgj" is not, and it used to travel the whole
+         * pipeline -- retrieval, then three and a half seconds of a 2B model,
+         * which declined -- and arrive as a suggestion to raise it with a
+         * doctor. There is nothing here to raise with anyone.
+         *
+         * Recognising it needs a vocabulary, which this object deliberately
+         * does not have: everything else here is a rule about wording and is
+         * testable without loading a corpus. So the test lives in
+         * [KnowledgeIndex.isUnintelligible] and the wording lives here, with
+         * the other refusals.
+         */
+        data object Unintelligible : Route
         data object DoseRequest : Route
         data object DiagnosisRequest : Route
         data object OutOfScope : Route
@@ -556,6 +574,23 @@ object QueryRouter {
         Route.TooVague ->
             "Could you say a bit more? A few words about what you want to know " +
                 "will get you a better answer than a single one."
+        Route.DoseRequest ->
+            "I will not give a dose. Doses depend on weight and on the exact " +
+                "product, and getting one wrong in an infant is dangerous. Ask your " +
+                "pharmacist or doctor, or read the label on the bottle you have.\n\n" +
+                "I can tell you whether a medicine is generally compatible with " +
+                "breastfeeding - try the Scan tab."
+        Route.DiagnosisRequest ->
+            "I cannot diagnose anything, and an app that tried would be doing you " +
+                "a disservice. I can tell you what is usually normal, and which " +
+                "signs are worth a doctor's attention today."
+        Route.OutOfScope ->
+            "That is outside what I know. I only cover infant care and the health " +
+                "of a breastfeeding parent, using information stored on this phone."
+        Route.Unintelligible ->
+            "I could not read that as a question. Try a few plain words - " +
+                "\"how much crying is normal\", \"is paracetamol safe while " +
+                "breastfeeding\", \"when did she last feed\"."
         Route.DoseRequest ->
             "I will not give a dose. Doses depend on weight and on the exact " +
                 "product, and getting one wrong in an infant is dangerous. Ask your " +

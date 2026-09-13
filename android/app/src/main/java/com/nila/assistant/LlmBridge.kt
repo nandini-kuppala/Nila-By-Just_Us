@@ -842,15 +842,44 @@ object Grounding {
         return false
     }
 
-    fun isGrounded(generated: String, source: String): Boolean {
+    /**
+     * What fraction of the answer's content words come from the source.
+     *
+     * Exposed so a caller can record it. The floor that rejects an answer is a
+     * number about a particular model writing for a particular purpose, and a
+     * number like that has to be set from a measured distribution rather than
+     * inherited from the model it was set for.
+     */
+    fun overlap(generated: String, source: String): Double {
+        val out = contentWords(generated)
+        if (out.isEmpty()) return 0.0
+        return out.count { it in contentWords(source) }.toDouble() / out.size
+    }
+
+    /**
+     * @param source everything the answer was allowed to draw on, used for the
+     *   quantity and vocabulary checks.
+     * @param claims the *prose* among that -- retrieved passages and the text of
+     *   filed records. Only prose is compared for polarity, because polarity is
+     *   a property of a proposition and a one-line fact is not one. Matching a
+     *   sentence against "Meera is 4 months old" found an overlap on the name
+     *   and a "not" somewhere else in the sentence, and rejected two correct
+     *   answers for inverting a fact that has nothing to invert.
+     */
+    fun isGrounded(
+        generated: String,
+        source: String,
+        floor: Double = 0.5,
+        claims: String = source,
+    ): Boolean {
         // 1. Invented quantities.
         if (!inventsNoQuantities(generated, source)) return false
 
         // 2. Vocabulary drift.
         val out = contentWords(generated)
         if (out.isEmpty()) return false
-        val overlap = out.count { it in contentWords(source) }.toDouble() / out.size
-        if (overlap < 0.5) {
+        val overlap = overlap(generated, source)
+        if (overlap < floor) {
             Log.w(TAG, "rejected: ${(overlap * 100).toInt()}% of content words " +
                 "come from the source")
             return false
@@ -859,16 +888,33 @@ object Grounding {
         // 3. Polarity. The failure that took this feature out of the app was a
         //    sentence built entirely from source words that said the opposite
         //    of the source. Vocabulary overlap is blind to it by construction,
-        //    so each output sentence is matched to the source sentence it most
-        //    resembles and the two are required to agree about negation.
-        for (sentence in sentences(generated)) {
-            val words = contentWords(sentence)
+        //    so each piece of the output is matched to the piece of the source
+        //    it most resembles and the two are required to agree about negation.
+        //
+        //    Matched by *clause*, not by sentence. A bigger model merges two
+        //    source sentences into one, and a sentence-level match then reads
+        //    the negation from the wrong half of it:
+        //
+        //      "While there is no specific list of foods you must avoid, it is
+        //       important to drink plenty of fluids and consume roughly 300 to
+        //       500 extra calories a day"
+        //
+        //    matched "You need roughly 300-500 extra calories a day", found a
+        //    "no" in the other clause, and called it an inversion. Split at the
+        //    comma and each half matches the source sentence it is actually a
+        //    rewrite of, and both agree. The inversion this check exists for --
+        //    "the baby has not passed the newborn hearing screening" against
+        //    "newborn hearing screening was passed" -- is still caught, because
+        //    that one is a whole clause saying the opposite.
+        if (claims.isBlank()) return true
+        for (clause in clauses(generated)) {
+            val words = contentWords(clause)
             if (words.size < 4) continue
-            val best = sentences(source).maxByOrNull { overlapOf(words, it) } ?: continue
+            val best = clauses(claims).maxByOrNull { overlapOf(words, it) } ?: continue
             if (overlapOf(words, best) >= 0.6 &&
-                isNegated(sentence) != isNegated(best)
+                isNegated(clause) != isNegated(best)
             ) {
-                Log.w(TAG, "rejected: polarity flip on '${sentence.take(60)}'")
+                Log.w(TAG, "rejected: polarity flip on '${clause.take(60)}'")
                 return false
             }
         }
@@ -907,6 +953,25 @@ object Grounding {
 
     private fun sentences(text: String): List<String> =
         text.split(Regex("(?<=[.!?])\\s+")).filter { it.isNotBlank() }
+
+    /** Where one claim ends and the next begins inside a sentence. */
+    private val CLAUSE_BREAK = Regex(
+        """[,;:]\s+|\s+(?:but|while|although|whereas|however|though)\s+""",
+        RegexOption.IGNORE_CASE,
+    )
+
+    /**
+     * The sentences, split again at clause boundaries.
+     *
+     * A clause too short to carry a claim is dropped rather than matched, and
+     * if nothing survives the split the sentences are used as they were.
+     */
+    private fun clauses(text: String): List<String> {
+        val out = sentences(text)
+            .flatMap { it.split(CLAUSE_BREAK) }
+            .filter { contentWords(it).size >= 3 }
+        return out.ifEmpty { sentences(text) }
+    }
 
     private val negations = setOf(
         "not", "no", "never", "cannot", "cant", "dont", "doesnt", "didnt",
