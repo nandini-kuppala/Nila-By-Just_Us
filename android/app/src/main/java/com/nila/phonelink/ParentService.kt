@@ -43,6 +43,9 @@ class ParentService : Service() {
         /** Sent by the notification action and by [AlertActivity] on the way out. */
         const val ACTION_SILENCE = "com.nila.parent.SILENCE"
 
+        /** Reconnect now, rather than when the current backoff runs out. */
+        const val ACTION_RESTART = "com.nila.parent.RESTART"
+
         private val _status =
             MutableStateFlow<ParentLink.Status>(ParentLink.Status.Unpaired)
 
@@ -52,20 +55,63 @@ class ParentService : Service() {
         private val _lastAlert = MutableStateFlow<String?>(null)
         val lastAlert: StateFlow<String?> = _lastAlert.asStateFlow()
 
+        /**
+         * True between going foreground and stopping.
+         *
+         * So a caller that only wants to be sure the service is *not* running
+         * does not have to start one to tell it to stop -- which is both
+         * wasteful and, from the background on Android 12 and later, refused
+         * with an exception.
+         */
+        @Volatile private var receiving = false
+
         fun start(context: Context) {
+            if (receiving) return
             val intent = Intent(context, ParentService::class.java).setAction(ACTION_START)
-            ContextCompat.startForegroundService(context, intent)
+            // Refused if this is reached from the background -- from a boot
+            // broadcast, say, on a build that does not exempt one. There is
+            // nothing useful to do about it here beyond not crashing the caller:
+            // the link comes up next time the app is opened.
+            runCatching { ContextCompat.startForegroundService(context, intent) }
+                .onFailure { Log.w(TAG, "could not start receiving", it) }
         }
 
         fun stop(context: Context) {
-            context.startService(
-                Intent(context, ParentService::class.java).setAction(ACTION_STOP)
-            )
+            if (!receiving) return
+            runCatching {
+                context.startService(
+                    Intent(context, ParentService::class.java).setAction(ACTION_STOP)
+                )
+            }.onFailure { Log.w(TAG, "could not stop receiving", it) }
+        }
+
+        /**
+         * Drop the connection and look again, immediately.
+         *
+         * For the one case where waiting is wrong: somebody has just typed the
+         * address of the other phone, and the reconnect loop is fifteen seconds
+         * into a backoff against an address that was never going to answer.
+         */
+        fun restart(context: Context) {
+            val intent = Intent(context, ParentService::class.java)
+                .setAction(ACTION_RESTART)
+            runCatching { ContextCompat.startForegroundService(context, intent) }
+                .onFailure { Log.w(TAG, "could not reconnect", it) }
         }
     }
 
     private lateinit var notifier: Notifier
     private lateinit var store: LinkStore
+
+    /**
+     * What this phone is allowed to sound for, and how often.
+     *
+     * Two of them, kept apart on purpose. A night of alerts about the baby must
+     * not be what silences the one alert that says nobody is watching the baby
+     * at all.
+     */
+    private val cryBudget = AlertBudget()
+    private val linkBudget = AlertBudget()
     @Volatile private var link: ParentLink? = null
     private var player: AlertPlayer? = null
     private var wakeLock: PowerManager.WakeLock? = null
@@ -84,6 +130,10 @@ class ParentService : Service() {
         when (intent?.action) {
             ACTION_STOP -> { stopReceiving(); return START_NOT_STICKY }
             ACTION_SILENCE -> { player?.stop(); return START_STICKY }
+            ACTION_RESTART -> {
+                runCatching { link?.close() }
+                link = null
+            }
         }
         startReceiving()
         // Restarted by the system if it is ever killed. The whole value of this
@@ -96,6 +146,7 @@ class ParentService : Service() {
         if (link != null) return
 
         goForeground("Listening for the monitoring phone", "Connecting…")
+        receiving = true
 
         // The link's own Wi-Fi lock keeps the radio up; this keeps the watchdog
         // thread running on time. In Doze a sleeping thread can be parked for
@@ -111,8 +162,10 @@ class ParentService : Service() {
             kotlin.concurrent.thread(name = "nila-parent-status") {
                 // Mirror the link's status out to the UI. A plain thread rather
                 // than a scope: this Service is not a LifecycleService and the
-                // loop ends when the link is closed.
-                while (link != null) {
+                // loop ends when the link is closed. Compared by identity, so a
+                // reconnect started by ACTION_RESTART leaves one thread
+                // reporting rather than two, the older of them stale.
+                while (link === l) {
                     _status.value = l.status.value
                     updateForeground(l.status.value)
                     runCatching { Thread.sleep(1_000) }
@@ -130,10 +183,34 @@ class ParentService : Service() {
      * three seconds for the length of an episode.
      */
     private fun onFrame(frame: LinkProtocol.Frame) {
+        // A heartbeat with nothing wrong in it is the end of whatever was:
+        // the next alert is about something new and starts with a full budget.
+        // The same for a guardian that says it has stopped on purpose.
+        if (frame.kind == LinkProtocol.Kind.STATE && frame.severity == 0) {
+            cryBudget.settled()
+        }
+        if (frame.kind == LinkProtocol.Kind.BYE) {
+            cryBudget.settled()
+            linkBudget.settled()
+        }
         if (frame.kind != LinkProtocol.Kind.ALERT) return
 
         val severity = Severity.of(frame.severity)
         _lastAlert.value = frame.title
+
+        // Heard a few times and then not again, unless it gets worse. The
+        // guardian alerts at every rung of its ladder, and relaying all of them
+        // is how the person carrying this phone learns to ignore it.
+        if (frame.tier != LinkProtocol.Tier.IGNORE && !cryBudget.allow(frame.severity)) {
+            Log.i(TAG, "quiet on ${frame.severity}: already said ${frame.title}")
+            // Still shown, still current -- the phone says what is happening,
+            // it just stops asking for attention it has already had.
+            notifier.update(
+                Notifier.ID_PARENT_SERVICE,
+                notifier.monitoringNotification(frame.title, frame.body),
+            )
+            return
+        }
 
         when (frame.tier) {
             LinkProtocol.Tier.IGNORE -> {
@@ -185,6 +262,14 @@ class ParentService : Service() {
      * indistinguishable and only one of them is safe to ignore.
      */
     private fun onLinkLost() {
+        // Budgeted like any other alert, because a link that is flapping --
+        // a phone at the edge of the Wi-Fi, a router rebooting -- raises this
+        // every few seconds otherwise, and an alarm nobody can stop is an alarm
+        // somebody turns the phone off to escape.
+        if (!linkBudget.allow(Severity.URGENT.level)) {
+            Log.i(TAG, "quiet on the link being lost again")
+            return
+        }
         notifier.alert(
             title = "Lost contact with the monitoring phone",
             body = "Nothing has been heard for " +
@@ -198,8 +283,12 @@ class ParentService : Service() {
 
     private fun updateForeground(status: ParentLink.Status) {
         val (title, detail) = when (status) {
-            is ParentLink.Status.Connected ->
+            is ParentLink.Status.Connected -> {
+                // Back in touch, so the next time contact is lost it is worth
+                // sounding for again.
+                linkBudget.settled()
                 "Receiving alerts" to (_lastAlert.value ?: "Connected to the monitoring phone")
+            }
             is ParentLink.Status.Searching -> "Looking for the monitoring phone" to status.detail
             is ParentLink.Status.Lost -> "Lost contact" to "The monitoring phone went quiet"
             is ParentLink.Status.Stopped -> "Monitoring stopped" to status.reason
@@ -230,11 +319,13 @@ class ParentService : Service() {
         runCatching { wakeLock?.release() }
         wakeLock = null
         _status.value = ParentLink.Status.Unpaired
+        receiving = false
         ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
         stopSelf()
     }
 
     override fun onDestroy() {
+        receiving = false
         runCatching { link?.close() }
         link = null
         runCatching { player?.close() }
