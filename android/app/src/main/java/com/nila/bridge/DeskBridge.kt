@@ -7,7 +7,6 @@ import com.nila.data.NilaDatabase
 import com.nila.monitor.MonitorService
 import java.io.Closeable
 import java.net.InetAddress
-import java.net.NetworkInterface
 import java.net.ServerSocket
 import java.net.Socket
 import java.util.concurrent.Executors
@@ -51,23 +50,12 @@ class DeskBridge(
     val isRunning: Boolean get() = running
 
     /** The address to type into a laptop browser, or null if not on Wi-Fi. */
-    fun localAddress(): String? {
-        // NetworkInterface rather than WifiManager.connectionInfo: the latter is
-        // deprecated, needs location permission on modern Android, and returns
-        // nothing useful on a tethered or emulated connection.
-        return try {
-            NetworkInterface.getNetworkInterfaces().toList()
-                .asSequence()
-                .filter { it.isUp && !it.isLoopback }
-                .flatMap { it.inetAddresses.toList().asSequence() }
-                .firstOrNull { it.hostAddress?.contains('.') == true && it.isSiteLocalAddress }
-                ?.hostAddress
-                ?.let { "http://$it:$PORT" }
-        } catch (t: Throwable) {
-            Log.w(TAG, "could not determine local address", t)
-            null
-        }
-    }
+    fun localAddress(): String? =
+        // Asked of the active network rather than taken from the first
+        // interface that has one: this used to print the Wi-Fi Direct address,
+        // which no laptop on the house Wi-Fi can open. See
+        // [com.nila.net.LocalAddress].
+        com.nila.net.LocalAddress.of(context)?.let { "http://$it:$PORT" }
 
     fun start(): Boolean {
         if (running) return true
