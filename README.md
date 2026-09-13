@@ -31,7 +31,7 @@ the breastfeeding mother — without a single network request.
   <img alt="Android" src="https://img.shields.io/badge/Android-8.1%2B-3DDC84?logo=android&logoColor=white">
   <img alt="Kotlin" src="https://img.shields.io/badge/Kotlin-2.0-7F52FF?logo=kotlin&logoColor=white">
   <a href="https://github.com/nandini-kuppala/Nila/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/nandini-kuppala/Nila/actions/workflows/ci.yml/badge.svg"></a>
-  <img alt="Tests" src="https://img.shields.io/badge/tests-342%20passing-2ea44f">
+  <img alt="Tests" src="https://img.shields.io/badge/tests-352%20passing-2ea44f">
   <img alt="Network" src="https://img.shields.io/badge/network%20calls-0-0F6B60">
   <img alt="Licence" src="https://img.shields.io/badge/licence-MIT-blue">
 </p>
@@ -136,9 +136,16 @@ scheme is on, and the severity and chart palettes both read it — so a medicine
 verdict cannot end up on a pale amber card in an app the reader just put into
 dark mode.
 
-**Answers questions.** Retrieval over curated, sourced entries, for the baby *and*
-the mother. Answers are the retrieved text shown with where it came from; an
-optional local model shortens them and is never allowed to supply a fact.
+**Answers questions, and remembers who it is answering.** Retrieval over curated,
+sourced entries, for the baby *and* the mother — and, when the question reaches
+for this family's own history, **Qwen3.5-2B running on the phone's Hexagon NPU**
+joining the two. "How much crying is normal" is the sourced entry, verbatim, in
+twenty milliseconds. "Is that normal *for her*" is that entry plus how long she
+actually cried today, written into an answer in about four seconds at 30 tokens
+a second. Nothing is retrieved that the question is not about, nothing is shown
+to the model that the question does not reach, and every generated answer is
+checked against its own sources before it is displayed — see
+[how the Ask pipeline works](ask-lab/README.md).
 
 **Checks medicines.** PP-OCRv4 on device reads a strip — rotated, upside down or
 on foil — then staged agents check it against your own health records. It reads
@@ -214,7 +221,9 @@ flowchart TB
 
         ROUTE{{"Router<br/><i>emergency · dose<br/>diagnosis · distress</i>"}}
         BM25["BM25 retrieval<br/><i>47 sourced entries</i>"]
-        LLM["Qwen 0.5B<br/><i>shortens only</i>"]
+        MEM["Fact selection<br/><i>only what the question reaches</i>"]
+        LLM["Qwen3.5-2B Q4_0<br/><i>Hexagon NPU · 30 tok/s</i>"]
+        GRD{{"Grounding checks<br/><i>no invented quantity<br/>no flipped claim<br/>no unfounded all-clear</i>"}}
 
         DB[("Room database<br/>log · records · outcomes")]
     end
@@ -232,22 +241,25 @@ flowchart TB
     DB --> AGENTS
     DB --> ROUTE
     ROUTE --> BM25 --> LLM
+    DB --> MEM --> LLM
+    LLM --> GRD
 
     LADDER --> CLIP[("90 s clip<br/><i>app-private, 7 days</i>")]
     LADDER --> ALERT["🔔 Notification<br/>phone · watch · band"]
     ACT --> ALERT
     LADDER -.->|"crying now"| ACT
     AGENTS --> VERDICT["Safe / caution / avoid<br/><i>with its reasoning</i>"]
-    LLM --> ANSWER["Answer + its source"]
+    GRD --> ANSWER["Answer + its source"]
+    BM25 --> ANSWER
 
-    NET[["Optional, one tap:<br/>Qwen 547 MB · FastVLM 1.1 GB"]]
+    NET[["Optional, one tap:<br/>Qwen3.5-2B 1.16 GB · FastVLM 1.1 GB"]]
     NET -.-> LLM
 
     classDef box fill:#E2F1ED,stroke:#0F6B60,stroke-width:1px,color:#101D1A
     classDef out fill:#FFF4E5,stroke:#8F5C0E,color:#101D1A
     classDef net fill:#FBEAE8,stroke:#A6231C,stroke-dasharray:4 3,color:#101D1A
     classDef store fill:#EDF1EE,stroke:#68746F,color:#101D1A
-    class FE,DET,HYS,RF,LADDER,SOOTHE,FACE,MOT,POSE,ACT,SENS,OCR,AGENTS,ROUTE,BM25,LLM box
+    class FE,DET,HYS,RF,LADDER,SOOTHE,FACE,MOT,POSE,ACT,SENS,OCR,AGENTS,ROUTE,BM25,MEM,LLM,GRD box
     class ALERT,VERDICT,ANSWER out
     class NET net
     class DB,MEM,CLIP store
@@ -288,7 +300,7 @@ discarded if it drifts.
   cloud transport.
 - **No account, no analytics.**
 
-The only outbound requests the app can make are two optional model downloads,
+The only outbound requests the app can make are three optional model downloads,
 each behind an explicit tap, each with a URL that is a constant in the source.
 
 > **Nila is an awareness aid, not a medical device.** It does not monitor
@@ -460,11 +472,18 @@ the file directly gives you.
 | `blaze_face_short_range` | Face presence | 230 KB | In the APK |
 | `pose_landmarker_full` | Coarse posture and movement | 9.0 MB | In the APK |
 | `knowledge.json` | 46 sourced entries + 5 cause entries | 47 KB | In the APK |
+| **Qwen3.5-2B Q4_0** | **Answering in your own words, on the NPU** | **1.16 GB** | **Optional, one tap** |
 | Qwen2.5-0.5B | Shortening answers | 547 MB | Optional, one tap |
 | FastVLM-0.5B | Describing the cot | 1.1 GB | Optional, one tap |
 
-The two optional models change nothing about correctness. Answers are retrieved
-and sourced either way.
+The optional models change nothing about correctness. Every branch of the
+assistant has a complete, sourced answer before a model is asked for anything,
+so an install without the weights behaves exactly as this app did before them.
+
+Q4_0 and not a finer quantisation because the quantisation is what decides
+whether the NPU is used at all: the Hexagon backend repacks Q4_0, Q4_1, Q8_0,
+IQ4_NL and MXFP4 and nothing else, and the same model at Q4_K_M measured **7.3x
+slower** at reading a prompt because it had quietly landed on the CPU.
 
 ---
 
@@ -497,6 +516,16 @@ docs/               Technical record and build spec
   needs data collected properly, not a better architecture.
 - **English only.** The language plumbing exists; the corpus does not. Translating
   47 clinical entries needs a human, not a model.
+- **The generated answers are a 2B model's, and still get things wrong.** Where
+  a sourced entry exists the answer is that entry, exactly, and the model is not
+  involved. Where one does not, Qwen3.5-2B at Q4_0 writes from this family's
+  records, and it still misreads them: asked whether a four-month-old's
+  vaccinations were up to date it reasoned from a dose due at nine months and
+  said they were not. The guards catch invented numbers, flipped claims and
+  all-clears the model has no standing to give; they do not catch faulty
+  arithmetic phrased in words. Those answers are labelled on the card as written
+  on the phone rather than retrieved, which is the honest thing the app can do
+  about it. The fix is more sourced entries, not a better prompt.
 - **The vision model does not run yet.** It is fully wired, and blocked on a
   LiteRT-LM runtime that is not published. A MediaPipe backend is in place for
   whenever a suitable bundle is available.
