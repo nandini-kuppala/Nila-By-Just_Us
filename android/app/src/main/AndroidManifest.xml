@@ -44,6 +44,12 @@
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
     <uses-permission android:name="android.permission.CHANGE_WIFI_MULTICAST_STATE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
+    <!--
+      So the phone in the parent's room starts listening again after a reboot.
+      Used by LinkBootReceiver and by nothing else: it restores the receiving
+      half of the link only, never the microphone.
+    -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
     <!--
       Level 4 only, and it is not granted at install on Android 14 and later:
@@ -115,6 +121,22 @@
             android:name=".phonelink.ParentService"
             android:exported="false"
             android:foregroundServiceType="connectedDevice" />
+
+        <!--
+          Puts the receiving phone back to listening after a reboot or an
+          update. Exported, because the system is the sender; it does nothing
+          unless this phone is a paired receiver, and it never starts the
+          microphone. See LinkBootReceiver.
+        -->
+        <receiver
+            android:name=".phonelink.LinkBootReceiver"
+            android:exported="true"
+            android:directBootAware="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
 
         <!--
           The full-screen level-4 alert.

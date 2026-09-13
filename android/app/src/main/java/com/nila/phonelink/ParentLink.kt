@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.nsd.NsdManager
 import android.net.nsd.NsdServiceInfo
 import android.net.wifi.WifiManager
+import android.os.Build
 import android.util.Log
 import java.io.Closeable
 import java.net.InetSocketAddress
@@ -140,7 +141,15 @@ class ParentLink(
             // The remembered address first. When it is right -- which is most
             // nights, on a home network handing out the same lease -- this
             // reconnects in milliseconds instead of waiting on discovery.
-            val host = store.host?.takeIf { it.isNotBlank() } ?: discover()
+            val remembered = store.host?.takeIf { it.isNotBlank() }
+            if (remembered != null && isThisPhone(remembered)) {
+                // Written by a connection this phone made to itself, back when
+                // it could. Kept, it would be read on every pass and thrown
+                // away on every pass, and discovery would never be reached.
+                forgetHost()
+            }
+            val host = remembered?.takeUnless { isThisPhone(it) }
+                ?: discover()?.takeUnless { isThisPhone(it) }
 
             if (host == null) {
                 _status.value = Status.Searching("Looking for the monitoring phone")
@@ -155,9 +164,7 @@ class ParentLink(
                 // A remembered address that no longer answers is worse than no
                 // address: it makes every retry fail the same way. Forget it and
                 // let discovery have the next attempt.
-                if (host == store.host) runCatching {
-                    kotlinx.coroutines.runBlocking { store.rememberHost("") }
-                }
+                if (host == store.host) forgetHost()
                 attempt++
                 sleep(BACKOFF[attempt.coerceAtMost(BACKOFF.lastIndex)])
             }
@@ -283,7 +290,7 @@ class ParentLink(
         @Suppress("DEPRECATION")
         val resolver = object : NsdManager.ResolveListener {
             override fun onServiceResolved(info: NsdServiceInfo) {
-                found.set(info.host?.hostAddress)
+                found.set(addressOf(info))
                 latch.countDown()
             }
             override fun onResolveFailed(info: NsdServiceInfo, code: Int) {
@@ -320,6 +327,54 @@ class ParentLink(
         } finally {
             runCatching { manager.stopServiceDiscovery(discovery) }
         }
+    }
+
+    private fun forgetHost() = runCatching {
+        kotlinx.coroutines.runBlocking { store.rememberHost("") }
+    }
+
+    /**
+     * Refuse to dial this phone.
+     *
+     * A phone that has just been switched from watching to receiving is, for a
+     * moment, still advertising itself as a guardian -- and discovery is
+     * perfectly happy to find it. It then connects to itself, is disconnected
+     * when its own guardian link shuts down a second later, and ten seconds
+     * after that raises the alarm that means "the phone watching the baby has
+     * died". Which it had, in a sense, but nobody needs waking for it.
+     */
+    private fun isThisPhone(host: String): Boolean {
+        if (host.startsWith("127.") || host == "::1") return true
+        return host == com.nila.net.LocalAddress.of(context)
+    }
+
+    /**
+     * The address to dial, out of everything the guardian answered with.
+     *
+     * A resolved service can carry several addresses, and the one Android
+     * hands back from the older single-address accessor is whichever it
+     * happened to keep. That is usually the IPv4 one and sometimes an IPv6
+     * link-local -- which needs a scope id to be connectable at all, does not
+     * survive being turned into a string and back, and so fails every attempt
+     * with "network is unreachable" while discovery keeps cheerfully finding
+     * it. IPv4 is what both phones certainly have on a home network, so it is
+     * what is asked for, with the old accessor left as the fallback.
+     */
+    private fun addressOf(info: NsdServiceInfo): String? {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            runCatching {
+                info.hostAddresses
+                    .filterIsInstance<java.net.Inet4Address>()
+                    .firstOrNull()?.hostAddress
+            }.getOrNull()?.let { return it }
+        }
+        @Suppress("DEPRECATION")
+        val single = runCatching { info.host }.getOrNull() ?: return null
+        // A link-local address without its scope is not dialable; better to
+        // report nothing and let discovery run again than to spend every
+        // reconnect on an address that cannot work.
+        if (single.isLinkLocalAddress && single !is java.net.Inet4Address) return null
+        return single.hostAddress
     }
 
     private fun sleep(ms: Long) = runCatching { Thread.sleep(ms) }
