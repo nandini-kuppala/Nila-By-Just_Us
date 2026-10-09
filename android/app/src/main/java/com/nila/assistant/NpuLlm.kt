@@ -20,6 +20,9 @@ import kotlinx.coroutines.ExecutorCoroutineDispatcher
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import java.io.Closeable
 import java.io.File
 import kotlin.coroutines.resume
@@ -151,6 +154,57 @@ class NpuLlm(private val context: Context) : Closeable {
     val isReady: Boolean get() = llm != null
 
     /**
+     * Held for every build, every generation and every eviction, so the three
+     * can never overlap: the camera taking the NPU must not close an engine that
+     * is halfway through a sentence, or halfway through being built.
+     */
+    private val engineLock = Mutex()
+
+    /**
+     * True when the engine was taken off the NPU for the camera and has not been
+     * rebuilt yet. The next question rebuilds it, on whichever processor the
+     * arbiter then allows -- so Ask keeps answering in its own words while the
+     * watch runs, just on the CPU.
+     */
+    @Volatile
+    var evicted: Boolean = false
+        private set
+
+    /** Whether a question can be answered by the model, now or after a rebuild. */
+    val canAnswer: Boolean get() = llm != null || evicted
+
+    private val evictor: suspend () -> Boolean = { evictFromNpu() }
+
+    init {
+        NpuArbiter.registerChatEvictor(evictor)
+    }
+
+    /**
+     * Get off the NPU for the camera.
+     *
+     * @return true when this engine is not on the NPU afterwards (or never was),
+     *   false when it is busy -- generating or being built -- and must be asked
+     *   again at the next look.
+     */
+    suspend fun evictFromNpu(): Boolean {
+        if (!engineLock.tryLock()) return false
+        try {
+            val current = llm ?: return true
+            if (computeUnitInUse != COMPUTE_UNIT) return true
+            // On the engine's own thread, after any JNI call already queued there.
+            withContext(worker) { runCatching { current.close() } }
+            llm = null
+            evicted = true
+            state = State.Absent
+            NpuArbiter.chatComputeUnit(onNpu = false)
+            Log.i(TAG, "moved off the NPU for the camera; the next question rebuilds on the CPU")
+            return true
+        } finally {
+            engineLock.unlock()
+        }
+    }
+
+    /**
      * Where the weights are, if they are anywhere.
      *
      * Two places, in the order they are likely. [ModelInstaller] downloads into
@@ -175,7 +229,10 @@ class NpuLlm(private val context: Context) : Closeable {
      * complete answer without a model and must not be interrupted by its
      * absence.
      */
-    suspend fun start(onStep: (State) -> Unit = {}): Boolean {
+    suspend fun start(onStep: (State) -> Unit = {}): Boolean =
+        engineLock.withLock { startLocked(onStep) }
+
+    private suspend fun startLocked(onStep: (State) -> Unit): Boolean {
         if (isReady) return true
         if (!modelPresent()) {
             update(State.Failed("no ${GGUF_FILE} in files/local"), onStep)
@@ -220,6 +277,7 @@ class NpuLlm(private val context: Context) : Closeable {
             }
         }
         llm = wrapper
+        evicted = false
         update(State.Ready(System.currentTimeMillis() - started, computeUnitInUse), onStep)
         return true
     }
@@ -324,8 +382,38 @@ class NpuLlm(private val context: Context) : Closeable {
         maxTokens: Int,
         seed: Int = -1,
         onToken: (String) -> Unit = {},
+    ): Generation? = engineLock.withLock { generateLocked(messages, maxTokens, seed, onToken) }
+
+    /**
+     * The engine to answer with, rebuilding it if the camera moved it.
+     *
+     * Two cases besides the ordinary one. Evicted: rebuild, and the arbiter will
+     * say CPU while the camera's model is on the NPU. Built on the CPU while the
+     * camera had the NPU, which it has since given back: rebuild on the NPU,
+     * because that is three times the speed for every question after this one.
+     */
+    private suspend fun activeEngine(): LlmWrapper? {
+        val current = llm
+        if (current == null) {
+            if (!evicted) return null
+            return if (startLocked {}) llm else null
+        }
+        if (computeUnitInUse != COMPUTE_UNIT && NpuArbiter.chatMayUseNpu()) {
+            Log.i(TAG, "the NPU is free again; moving back onto it")
+            withContext(worker) { runCatching { current.close() } }
+            llm = null
+            return if (startLocked {}) llm else null
+        }
+        return current
+    }
+
+    private suspend fun generateLocked(
+        messages: List<Pair<String, String>>,
+        maxTokens: Int,
+        seed: Int,
+        onToken: (String) -> Unit,
     ): Generation? {
-        val active = llm ?: return null
+        val active = activeEngine() ?: return null
         val started = System.currentTimeMillis()
 
         val prompt = active.applyChatTemplate(
@@ -395,6 +483,7 @@ class NpuLlm(private val context: Context) : Closeable {
     }
 
     override fun close() {
+        NpuArbiter.unregisterChatEvictor(evictor)
         runCatching { llm?.close() }
         llm = null
         worker.close()

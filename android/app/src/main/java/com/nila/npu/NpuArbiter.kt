@@ -62,6 +62,28 @@ object NpuArbiter {
 
     @Volatile private var visionReleasedAt = 0L
 
+    /**
+     * True from the moment the vision model starts loading until it is closed.
+     *
+     * Not the same as [holder], which is per look. This is about *residency*,
+     * and it exists because of a crash measured on the phone: with Qwen already
+     * built on the NPU, creating the vision model segfaulted inside Qualcomm's
+     * HTP stub (`QnnApi::createDevice`, null dereference). Two models resident
+     * on the NPU in one process is not a slow case, it is a dead process -- and
+     * a native crash cannot be caught from Kotlin, so the only defence is never
+     * to get there. One model on the NPU at a time, and the camera's goes first.
+     */
+    @Volatile private var visionClaim = false
+
+    /**
+     * How each chat engine gets itself off the NPU. Each returns true when it is
+     * off (or was never on) and false when a reply is in flight.
+     *
+     * A set rather than one slot, because a recreated screen can briefly hold a
+     * second engine, and the one that is not asked is the one that crashes.
+     */
+    private val chatEvictors = java.util.concurrent.CopyOnWriteArraySet<suspend () -> Boolean>()
+
     private val _chatOnCpu = MutableStateFlow(false)
 
     /**
@@ -94,6 +116,48 @@ object NpuArbiter {
         true
     }
 
+    /** A chat engine says how to move it off the NPU. */
+    fun registerChatEvictor(evictor: suspend () -> Boolean) {
+        chatEvictors.add(evictor)
+    }
+
+    fun unregisterChatEvictor(evictor: suspend () -> Boolean) {
+        chatEvictors.remove(evictor)
+    }
+
+    /**
+     * The vision model is about to put itself on the NPU: make sure nothing else
+     * is there first.
+     *
+     * The claim is taken *before* any chat engine is asked to leave, so a chat
+     * engine that starts building after this point builds on the CPU. One that
+     * started before is still holding its own lock, says so by returning false,
+     * and this look is skipped -- the next one evicts it.
+     *
+     * @return true when the NPU is clear and the vision model may load.
+     */
+    suspend fun claimForVisionLoad(): Boolean {
+        synchronized(lock) {
+            visionClaim = true
+            _chatOnCpu.value = true
+        }
+        for (evict in chatEvictors) {
+            val off = runCatching { evict() }.getOrDefault(false)
+            if (!off) {
+                Log.i(TAG, "chat engine is busy on the NPU; vision load deferred")
+                return false
+            }
+        }
+        return true
+    }
+
+    /** The vision model is off the NPU -- closed, or it never got on. */
+    fun visionUnloaded(now: Long = System.currentTimeMillis()) = synchronized(lock) {
+        visionClaim = false
+        if (holder == Tenant.VISION) holder = null
+        visionReleasedAt = now
+    }
+
     /** The camera is done. The clock on chat's return starts here. */
     fun releaseVision(now: Long = System.currentTimeMillis()) = synchronized(lock) {
         if (holder == Tenant.VISION) holder = null
@@ -109,7 +173,7 @@ object NpuArbiter {
      */
     fun chatMayUseNpu(now: Long = System.currentTimeMillis()): Boolean = synchronized(lock) {
         val quietFor = now - visionReleasedAt
-        val free = holder != Tenant.VISION && quietFor >= GRACE_MS
+        val free = !visionClaim && holder != Tenant.VISION && quietFor >= GRACE_MS
         _chatOnCpu.value = !free
         free
     }
@@ -135,6 +199,8 @@ object NpuArbiter {
         holder = null
         chatBusy = false
         visionReleasedAt = 0L
+        visionClaim = false
+        chatEvictors.clear()
         _chatOnCpu.value = false
     }
 }

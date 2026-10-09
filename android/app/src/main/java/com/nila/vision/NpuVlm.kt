@@ -181,6 +181,14 @@ class NpuVlm(private val context: Context) : Closeable {
             return@withLock false
         }
 
+        // Nothing else may be resident on the NPU when this loads -- see
+        // NpuArbiter.visionClaim for the crash that taught us. If a chat reply is
+        // being written right now, give up this time; the next look tries again.
+        if (!NpuArbiter.claimForVisionLoad()) {
+            update(State.Absent, onStep)
+            return@withLock false
+        }
+
         val started = System.currentTimeMillis()
         for ((index, wait) in RETRY_WAITS_MS.withIndex()) {
             if (wait > 0) delay(wait)
@@ -195,6 +203,7 @@ class NpuVlm(private val context: Context) : Closeable {
             }
         }
         update(State.Failed("the NPU would not take the model after ${RETRY_WAITS_MS.size} attempts"), onStep)
+        NpuArbiter.visionUnloaded()
         return@withLock false
     }
 
@@ -357,6 +366,10 @@ class NpuVlm(private val context: Context) : Closeable {
         runCatching { vlm?.destroy() }
         vlm = null
         state = State.Absent
+        // Always, not only when a model was loaded: a claim taken by a load that
+        // was then deferred would otherwise keep the chat model off the NPU for
+        // the rest of the process's life.
+        NpuArbiter.visionUnloaded()
         runCatching { worker.close() }
     }
 }

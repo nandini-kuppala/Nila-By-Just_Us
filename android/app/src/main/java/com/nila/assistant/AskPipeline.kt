@@ -342,7 +342,9 @@ class AskPipeline(
         val factLinesForGuard = facts.all + shownRecords.map { "${it.title}: ${it.extract}" }
         val turns = memory.recentTurns(MAX_TURNS)
 
-        val engine = llm?.takeIf { it.isReady }
+        // canAnswer, not isReady: an engine the camera moved off the NPU is
+        // rebuilt on the CPU by the generate call itself.
+        val engine = llm?.takeIf { it.canAnswer }
         if (engine == null) {
             // No model. Retrieval still answers when it found something, and
             // when it did not the floor is an honest sentence rather than a
