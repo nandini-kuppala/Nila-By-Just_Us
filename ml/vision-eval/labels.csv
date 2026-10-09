@@ -1,0 +1,19 @@
+image,expected,hazard_family,note
+safe/01_crawling.jpg,safe,,crawling on grass outdoors
+safe/02_sleeping.jpg,safe,,asleep on a patterned blanket
+safe/03_eating_food.jpg,safe,,being spoon-fed in a high chair
+safe/04_bath.jpg,safe,water,"in a bath, held by an adult - the supervised-water rule"
+safe/05_stacking_rings.jpg,safe,,holding a stacking toy
+safe/06_beach.jpg,safe,,sitting on sand with a toy
+safe/07_crying.jpg,safe,choking,holding a toy near the mouth - the food-or-toy rule
+safe/08_biscuit.jpg,safe,choking,eating a biscuit - the food-or-toy rule
+danger/d01_reaching_into_tv.jpg,danger,electrical,reaching into an opened appliance
+danger/d02_pulling_pc_cable.jpg,danger,electrical,crawling to a computer cable
+danger/d03_holding_electric_cord.jpg,danger,other,holding a mains cable - the model names it wrongly, the danger verdict is kept
+danger/d04_climbing_outdoor_stairs.jpg,danger,stairs,crawling up outdoor steps
+danger/d05_crawling_stone_steps.jpg,danger,stairs,climbing stone steps
+danger/d06_climbing_stairs_alone.jpg,danger,stairs,climbing stairs unattended
+danger/d07_climbing_carpet_stairs.jpg,danger,stairs,climbing down carpeted stairs
+danger/d08_touching_electronics_cables.jpg,danger,electrical,touching a computer and its cables
+danger/d09_reaching_behind_computer.jpg,danger,electrical,reaching for a keyboard and leads
+danger/d10_climbing_onto_sink.jpg,danger,fall,climbing onto a sink - the known miss

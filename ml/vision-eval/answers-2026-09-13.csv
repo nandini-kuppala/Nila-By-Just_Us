@@ -1,0 +1,91 @@
+image,reply
+safe/01_crawling.jpg,"BABY: Yes  
+ACTIVITY: The baby is crawling on the grass.  
+HAZARD: None  
+SAFETY: Safe
+CONCERN: none"
+safe/02_sleeping.jpg,"BABY: Yes  
+ACTIVITY: The baby is lying down and appears to be sleeping.  
+HAZARD: None  
+SAFETY: Safe
+CONCERN: none"
+safe/03_eating_food.jpg,"BABY: Yes  
+ACTIVITY: The baby is eating from a spoon with food on their face.  
+HAZARD: The baby is touching the spoon with food in their mouth.  
+SAFETY: Safe
+CONCERN: none"
+safe/04_bath.jpg,"BABY: Yes  
+ACTIVITY: The baby is in a bathtub being held by an adult.  
+HAZARD: Open water (bathtub)  
+SAFETY: DANGER
+CONCERN: out of cot"
+safe/05_stacking_rings.jpg,"BABY: Yes  
+ACTIVITY: The baby is holding a colorful toy with both hands.  
+HAZARD: None  
+SAFETY: Safe
+CONCERN: none"
+safe/06_beach.jpg,"BABY: Yes  
+ACTIVITY: The baby is playing with a toy in the sand.  
+HAZARD: None  
+SAFETY: Safe
+CONCERN: none"
+safe/07_crying.jpg,"BABY: Yes  
+ACTIVITY: The baby is lying on a blanket and holding a colorful toy.  
+HAZARD: The baby is holding a small object near the mouth.  
+SAFETY: DANGER
+CONCERN: out of cot"
+safe/08_biscuit.jpg,"BABY: Yes  
+ACTIVITY: The baby is eating something with their hands.  
+HAZARD: The baby is holding a small object near their mouth.  
+SAFETY: DANGER
+CONCERN: out of cot"
+danger/d01_reaching_into_tv.jpg,"BABY: Yes  
+ACTIVITY: The baby is touching and holding a small object, possibly a toy or tool, near an open appliance.  
+HAZARD: The baby is touching an open appliance.  
+SAFETY: DANGER
+CONCERN: out of cot"
+danger/d02_pulling_pc_cable.jpg,"BABY: Yes  
+ACTIVITY: The baby is crawling on the floor.  
+HAZARD: The baby is near an electrical cable and a computer.  
+SAFETY: DANGER
+CONCERN: out of cot"
+danger/d03_holding_electric_cord.jpg,"BABY: Yes  
+ACTIVITY: The baby is holding a white remote control.  
+HAZARD: The baby is touching the white remote control.  
+SAFETY: DANGER
+CONCERN: out of cot"
+danger/d04_climbing_outdoor_stairs.jpg,"BABY: Yes  
+ACTIVITY: The baby is crawling on the stairs.  
+HAZARD: The baby is touching the stairs.  
+SAFETY: DANGER
+CONCERN: out of cot"
+danger/d05_crawling_stone_steps.jpg,"BABY: Yes  
+ACTIVITY: The baby is climbing up the stairs.  
+HAZARD: The baby is climbing up the stairs.  
+SAFETY: DANGER
+CONCERN: out of cot"
+danger/d06_climbing_stairs_alone.jpg,"BABY: Yes  
+ACTIVITY: The baby is climbing stairs.  
+HAZARD: The baby is climbing stairs.  
+SAFETY: DANGER
+CONCERN: out of cot"
+danger/d07_climbing_carpet_stairs.jpg,"BABY: Yes  
+ACTIVITY: The baby is climbing the stairs.  
+HAZARD: Stairs  
+SAFETY: DANGER
+CONCERN: out of cot"
+danger/d08_touching_electronics_cables.jpg,"BABY: Yes  
+ACTIVITY: The baby is touching the computer case.  
+HAZARD: Yes  
+SAFETY: DANGER
+CONCERN: out of cot"
+danger/d09_reaching_behind_computer.jpg,"BABY: Yes  
+ACTIVITY: The baby is sitting on the floor and reaching towards a computer keyboard on top of a box.
+HAZARD: The baby is touching the computer keyboard.
+SAFETY: DANGER
+CONCERN: out of cot"
+danger/d10_climbing_onto_sink.jpg,"BABY: Yes  
+ACTIVITY: The baby is looking at their reflection in the mirror.  
+HAZARD: None  
+SAFETY: Safe
+CONCERN: none"

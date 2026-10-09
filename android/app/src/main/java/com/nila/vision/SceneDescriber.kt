@@ -77,6 +77,18 @@ class SceneDescriber(private val context: Context) : Closeable {
         const val APPROX_BYTES = 1156L * 1024 * 1024
 
         /**
+         * Who the model is, for the runtimes that take a system turn.
+         *
+         * The LiteRT path writes its own chat markers and ignores this; the NPU
+         * path has a real system role and uses it. Short on purpose: every token
+         * here is prefill on every look, and the form below is what does the
+         * actual work of keeping the model honest.
+         */
+        const val SYSTEM_PROMPT =
+            "You are looking at one photo from a baby monitor. Report only what is " +
+                "clearly visible. Do not guess, and do not add anything that is not asked for."
+
+        /**
          * The question.
          *
          * Fixed fields, closed vocabularies, one free sentence at the end for
@@ -90,6 +102,10 @@ class SceneDescriber(private val context: Context) : Closeable {
             POSITION: on back / on front / on side / sitting / standing / not visible
             FACE: clear / covered / turned away / not visible
             CONCERN: none / face covered / out of cot / tangled in bedding / cannot tell
+            HAZARD: the thing the baby is touching, holding, climbing or right
+            next to that could hurt them - stairs, a cable or socket, a TV or
+            computer, something hot, something sharp, medicine, open water, a
+            high edge - or none
             DOING: one short sentence about what the baby is doing
         """.trimIndent()
 
@@ -111,6 +127,7 @@ class SceneDescriber(private val context: Context) : Closeable {
         val position = field("POSITION") ?: return null
         val face = field("FACE") ?: ""
         val concern = field("CONCERN") ?: ""
+        val hazard = field("HAZARD")?.take(140) ?: ""
         val doing = field("DOING")
             ?.replaceFirstChar { it.uppercase() }
             ?.take(140)
@@ -122,6 +139,7 @@ class SceneDescriber(private val context: Context) : Closeable {
             concern = Concern.parse(concern),
             doing = doing,
             elapsedMs = elapsedMs,
+            hazard = hazard,
         )
     }
     }
@@ -137,10 +155,34 @@ class SceneDescriber(private val context: Context) : Closeable {
         /** One sentence, shown to the parent. Never parsed, never acted on. */
         val doing: String,
         val elapsedMs: Long,
+        /**
+         * The hazard line, verbatim.
+         *
+         * Kept raw rather than parsed into an enum, because the thing a parent
+         * needs to read is the model's own words -- "the baby is touching the
+         * computer keyboard" tells them where to look in a way a category never
+         * will. What the *app* acts on is [hazardVerdict], where the words have
+         * been through [HazardRules].
+         */
+        val hazard: String = "",
     ) {
         /** True when the frame is worth waking someone for. */
         val isConcerning: Boolean
             get() = concern != Concern.NONE && concern != Concern.CANNOT_TELL
+
+        /**
+         * What the guard rails make of the hazard line.
+         *
+         * Never the model's own conclusion on its own: see [HazardRules] for why
+         * a 2B model's unaided verdict is wrong often enough to switch a monitor
+         * off over.
+         */
+        val hazardVerdict: HazardRules.Verdict
+            get() = HazardRules.assess(
+                hazardLine = hazard,
+                context = "$doing ${position.label}",
+                modelSaidDanger = isConcerning,
+            )
 
         /** One line for a notification. */
         val headline: String get() = when (concern) {
@@ -206,6 +248,67 @@ class SceneDescriber(private val context: Context) : Closeable {
     @Volatile private var engine: Engine? = null
     @Volatile private var mediapipe: com.google.mediapipe.tasks.genai.llminference.LlmInference? = null
     @Volatile private var failure: String? = null
+
+    /**
+     * The same form, asked of a model on the NPU.
+     *
+     * Preferred when its bundle is installed, for the reasons in [NpuVlm]: a
+     * second instead of several, and the accelerator this phone has rather than
+     * the one it does not. Everything below it is unchanged and still the
+     * fallback -- a phone without the bundle, or an NPU that refuses the model
+     * after its retries, lands on LiteRT-LM exactly as before.
+     */
+    private val npu by lazy { NpuVlm(context) }
+
+    val npuInstalled: Boolean get() = runCatching { npu.isInstalled() }.getOrDefault(false)
+    val npuReady: Boolean get() = runCatching { npu.isReady }.getOrDefault(false)
+
+    /**
+     * Whether any scene model is present on this phone at all.
+     *
+     * None of the three are shipped inside the APK -- they are between 0.5 and
+     * 2.7 GB -- so a fresh install, and every emulator, has no scene lane. The
+     * screen asks this so "Look now" can say that rather than doing nothing
+     * visible, which is what a parent reads as a broken button.
+     */
+    val anyModelInstalled: Boolean
+        get() = npuInstalled ||
+            runCatching { mediapipeModel() != null || modelFile().exists() }.getOrDefault(false)
+
+    /** Which engine would answer right now, for the settings screen and the log. */
+    fun backendName(): String = when {
+        npuReady -> "Intern3.5-VL-2B (NPU)"
+        npuInstalled -> "Intern3.5-VL-2B (NPU), not loaded yet"
+        mediapipe != null -> mediapipeModel()?.name ?: "MediaPipe"
+        engine != null -> "FastVLM-0.5B (CPU/GPU)"
+        else -> "none"
+    }
+
+    /**
+     * Look, preferring the NPU.
+     *
+     * Suspending, unlike [look], because the NPU path is built on the SDK's
+     * coroutine API and because loading it is a retry loop that must not block
+     * a camera thread. Falls through to the LiteRT path on any failure, so a
+     * caller gets an answer if an answer is possible at all.
+     */
+    suspend fun lookNow(frame: Bitmap, onLoadStep: (NpuVlm.State) -> Unit = {}): Observation? {
+        if (npuInstalled) {
+            val started = System.currentTimeMillis()
+            if (npu.isReady || npu.start(onLoadStep)) {
+                val reply = npu.look(frame, SYSTEM_PROMPT, PROMPT)
+                if (reply != null) {
+                    val elapsed = System.currentTimeMillis() - started
+                    Log.i(TAG, "npu reply in ${elapsed}ms: ${reply.replace("\n", " | ").take(160)}")
+                    parse(reply, elapsed)?.let { return it }
+                }
+            }
+        }
+        return look(frame)
+    }
+
+    /** Release the NPU engine without touching the fallback one. */
+    fun closeNpu() = runCatching { npu.close() }
 
     private fun mediapipeModel(): File? = MEDIAPIPE_CANDIDATES
         .map { File(context.getExternalFilesDir("models"), it) }
@@ -406,6 +509,7 @@ class SceneDescriber(private val context: Context) : Closeable {
     override fun close() {
         runCatching { engine?.close() }
         runCatching { mediapipe?.close() }
+        closeNpu()
         engine = null
         mediapipe = null
     }
