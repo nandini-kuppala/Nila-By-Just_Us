@@ -156,6 +156,19 @@ fun WatchScreen(state: AppState) {
     // The lifted picture of a dark room. Null in daylight and null when the
     // service is not running, so the preview below is unaffected either way.
     val nightFrame by WatchService.nightFrame.collectAsState()
+    // The ultra-wide lens has no CameraX preview: the service hands its frames over instead.
+    val liveFrame by WatchService.liveFrame.collectAsState()
+    val visionSettings = remember { com.nila.vision.VisionSettings(context) }
+    val options by visionSettings.values.collectAsState(initial = com.nila.vision.VisionSettings.Values())
+    val guard = live.guard
+    val cctvSource = live.running && guard.source == com.nila.vision.VisionSettings.Source.CCTV
+    val cctvZones = remember { com.nila.vision.SafeZoneStore(context, com.nila.vision.SafeZoneStore.CCTV) }
+
+    // Pictures (night view, ultra-wide frames) are only made while this screen is showing.
+    DisposableEffect(Unit) {
+        WatchService.screenVisible = true
+        onDispose { WatchService.screenVisible = false }
+    }
 
     var previewView by remember { mutableStateOf<PreviewView?>(null) }
     var editingZone by remember { mutableStateOf<SafeZone?>(null) }
@@ -325,19 +338,34 @@ fun WatchScreen(state: AppState) {
                 onDemo = { demo = true },
             )
             live.fault?.let { WarningBox("Camera unavailable", it, Modifier.fillMaxWidth()) }
+            GuardModesCard(options, running = false)
         } else {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .aspectRatio(3f / 4f)
+                    .aspectRatio(if (cctvSource) guard.aspect else 3f / 4f)
                     .clip(RoundedCornerShape(24.dp))
                     .background(Color.Black),
             ) {
                 if (live.running) {
-                    AndroidView(
-                        factory = { ctx -> PreviewView(ctx).also { previewView = it } },
-                        modifier = Modifier.fillMaxSize(),
-                    )
+                    when {
+                        // CCTV: the RTSP player lives here and feeds the service.
+                        cctvSource -> CctvPreview(guard.cctvUrl, Modifier.fillMaxSize())
+                        // Ultra-wide: frames from the service's Camera2 session.
+                        guard.lens == com.nila.vision.VisionSettings.Lens.WIDE && guard.lensNote == null ->
+                            liveFrame?.let { frame ->
+                                Image(
+                                    bitmap = frame.asImageBitmap(),
+                                    contentDescription = "Ultra-wide view of the cot",
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentScale = ContentScale.Crop,
+                                )
+                            }
+                        else -> AndroidView(
+                            factory = { ctx -> PreviewView(ctx).also { previewView = it } },
+                            modifier = Modifier.fillMaxSize(),
+                        )
+                    }
                 }
                 // The clip, in the same place the camera preview would be.
                 // Showing the frames the detectors are reading is the whole
@@ -362,14 +390,18 @@ fun WatchScreen(state: AppState) {
                         contentScale = ContentScale.Crop,
                     )
                 }
-                ZoneOverlay(
-                    zone = editingZone ?: shownState.zone,
-                    pose = shownState.assessment,
-                    editing = editingZone != null,
-                    onChange = { editingZone = it },
-                    modifier = Modifier.fillMaxSize(),
-                    handles = true,
-                )
+                // The zone is the safe-zone mode's: drawn while that mode is on (or being edited).
+                if ((options.zoneOn && !demo) || editingZone != null) {
+                    ZoneOverlay(
+                        zone = editingZone ?: shownState.zone,
+                        pose = shownState.assessment,
+                        editing = editingZone != null,
+                        onChange = { editingZone = it },
+                        modifier = Modifier.fillMaxSize(),
+                        handles = true,
+                    )
+                    BabyBoxOverlay(guard.babyBox, guard.outFraction, Modifier.fillMaxSize())
+                }
                 // Stop, on the view itself: the controls below scroll off the
                 // first screen, and the way out of a camera must never need a
                 // scroll to find.
@@ -383,16 +415,21 @@ fun WatchScreen(state: AppState) {
                 OverlayPill(
                     text = when {
                         demo -> "Demo footage"
+                        cctvSource && guard.cctvFeedLost -> "CCTV · no picture"
+                        cctvSource && !guard.cctvConnected -> "CCTV · connecting"
+                        cctvSource -> if (live.lightMode == SceneLight.NIGHT) "CCTV · night view" else "CCTV"
                         live.lightMode == SceneLight.NIGHT -> "Live · night view"
+                        guard.lens == com.nila.vision.VisionSettings.Lens.WIDE && guard.lensNote == null -> "Live · ultra-wide"
                         else -> "Live"
                     },
                     dot = if (demo) calmColors().accent
                           else severityColors(Severity.URGENT).accent,
                     modifier = Modifier.align(Alignment.TopStart).padding(14.dp),
                 )
-                if (editingZone == null) {
+                if (editingZone == null && options.zoneOn && !demo) {
                     OverlayPill(
-                        text = zoneLabel(shownState.zone),
+                        text = if (guard.zoneStatus == com.nila.vision.guard.ZoneRule.Status.NONE) zoneLabel(shownState.zone)
+                               else guard.zoneStatus.label,
                         icon = Icons.Outlined.Edit,
                         onClick = { editingZone = shownState.zone },
                         modifier = Modifier.align(Alignment.BottomStart).padding(14.dp),
@@ -403,31 +440,45 @@ fun WatchScreen(state: AppState) {
             if (editingZone != null) {
                 ZoneEditor(
                     onSave = {
-                        editingZone?.let { z -> scope.launch { state.saveSafeZone(z) } }
+                        editingZone?.let { z ->
+                            scope.launch { if (cctvSource) cctvZones.save(z) else state.saveSafeZone(z) }
+                        }
                         editingZone = null
                     },
                     onCancel = { editingZone = null },
-                    onReset = { scope.launch { state.resetSafeZone() }; editingZone = null },
+                    onReset = {
+                        scope.launch { if (cctvSource) cctvZones.reset() else state.resetSafeZone() }
+                        editingZone = null
+                    },
                     configured = shownState.zone.configured,
                 )
             }
 
-            LiveStatusCard(shownState)
-            StatsCard(shownState)
+            if (!demo && guard.alert != null) {
+                AlertBanner(guard) { WatchService.stopAlert(context) }
+            }
+            guard.lensNote?.takeIf { !demo }?.let { InfoNote(it, icon = Icons.Outlined.WarningAmber, tone = Tone.PEACH) }
+            if (!demo) GuardModesCard(options, running = true)
             // The model looks at the real camera, not the demo clip.
             if (!demo) {
-                SceneCard(
-                    state = shownState,
+                DangerAiCard(
+                    guard = guard,
                     onLook = { WatchService.lookNow(context) },
                     onDistract = { WatchService.distractNow(context) },
+                    onStopDistract = { WatchService.stopAlert(context) },
                 )
+            }
+            if (!demo && options.zoneOn) ZoneStatusCard(guard)
+            if (demo || options.baseOn) {
+                LiveStatusCard(shownState)
+                StatsCard(shownState)
             }
             ChipsRow(shownState)
 
             // Only once a frame has been through the models. Before that the
             // pose landmarker is still loading, and saying it failed is both
             // wrong and the first thing a parent reads.
-            if (shownState.poseStatus == PoseStatus.UNAVAILABLE && shownState.running && !demo) {
+            if (options.baseOn && shownState.poseStatus == PoseStatus.UNAVAILABLE && shownState.running && !demo) {
                 WarningBox(
                     "Posture is unavailable on this phone",
                     "The pose model could not run, so the watch is reporting face " +
@@ -455,6 +506,11 @@ fun WatchScreen(state: AppState) {
         PlacementCard()
         TipsRow()
         LimitsCard()
+    }
+
+    // The alert over everything: the full-screen flash (Baby Guard CCTV's), while lights are switched on.
+    if (live.running && guard.alert != null && guard.alertsOn) {
+        AlertFlash(guard) { WatchService.stopAlert(context) }
     }
 }
 
@@ -731,7 +787,7 @@ private fun LiveStatusCard(state: WatchState) {
                         paused -> "Nila will not guess until there is more light."
                         calibrating -> "Learning what the scene looks like."
                         severe -> if (outside) "Outside the safe zone" else "Needs a look"
-                        else -> state.headline + if (!outside) " · inside the safe zone" else ""
+                        else -> "Base watch · " + state.headline
                     },
                     style = MaterialTheme.typography.bodyMedium,
                     color = if (calibrating) scheme.onSurfaceVariant else colors.onContainerMuted,

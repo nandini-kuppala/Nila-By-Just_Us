@@ -114,6 +114,15 @@
             android:foregroundServiceType="camera" />
 
         <!--
+            The safety watch's vision model in a process of its own: a native crash while it loads onto the
+            NPU ends this process only, and the watch starts a fresh one.
+        -->
+        <service
+            android:name=".vision.guard.VlmProcessService"
+            android:exported="false"
+            android:process=":vlm" />
+
+        <!--
           The receiving phone's half of the link.
 
           connectedDevice rather than dataSync: dataSync is capped at six hours

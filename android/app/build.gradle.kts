@@ -180,6 +180,9 @@ dependencies {
     // an NPU in it. Ships llama.cpp's Hexagon backend inside the AAR.
     implementation(libs.geniex.android)
     implementation(libs.hiddenapibypass)
+    // The safety watch's CCTV source: an IP camera's RTSP stream (H.264 / H.265) on the home network.
+    implementation(libs.media3.exoplayer)
+    implementation(libs.media3.exoplayer.rtsp)
 
     testImplementation(libs.junit)
     testImplementation(libs.org.json)

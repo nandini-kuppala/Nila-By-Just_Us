@@ -17,6 +17,7 @@ mlkitText = "16.0.1"
 onnxruntime = "1.27.0"
 qnnRuntime = "2.45.0"
 jtransforms = "3.1"
+media3 = "1.4.1"
 litertlm = "0.12.0"
 geniex = "0.4.0"
 hiddenapibypass = "6.1"
@@ -72,6 +73,8 @@ mlkit-text-devanagari = { module = "com.google.mlkit:text-recognition-devanagari
 onnxruntime-android-qnn = { module = "com.microsoft.onnxruntime:onnxruntime-android-qnn", version.ref = "onnxruntime" }
 qnn-runtime = { module = "com.qualcomm.qti:qnn-runtime", version.ref = "qnnRuntime" }
 jtransforms = { module = "com.github.wendykierp:JTransforms", version.ref = "jtransforms" }
+media3-exoplayer = { module = "androidx.media3:media3-exoplayer", version.ref = "media3" }
+media3-exoplayer-rtsp = { module = "androidx.media3:media3-exoplayer-rtsp", version.ref = "media3" }
 litertlm = { module = "com.google.ai.edge.litertlm:litertlm-android", version.ref = "litertlm" }
 
 kotlinx-coroutines-android = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-android", version.ref = "coroutines" }

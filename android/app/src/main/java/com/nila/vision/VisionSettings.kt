@@ -42,14 +42,52 @@ class VisionSettings(private val context: Context) {
         private val NIGHT = stringPreferencesKey("night_preference")
         private val DISTRACTION = booleanPreferencesKey("distraction_enabled")
         private val TORCH = booleanPreferencesKey("distraction_torch")
+
+        // The guard modes, ported from Baby Guard CCTV. Each runs on its own or with the others.
+        private val BASE_ON = booleanPreferencesKey("guard_base_on")
+        private val VLM_ON = booleanPreferencesKey("guard_vlm_on")
+        private val ZONE_ON = booleanPreferencesKey("guard_zone_on")
+        private val ALERTS_ON = booleanPreferencesKey("guard_alerts_on")
+        private val SOURCE = stringPreferencesKey("guard_source")
+        private val LENS = stringPreferencesKey("guard_lens")
+        private val CCTV_URL = stringPreferencesKey("guard_cctv_address") // default = the built-in demo video
+
+        const val DEMO_CCTV_URL = com.nila.vision.guard.CctvSource.DEMO_URL
+        const val LAPTOP_SIM_URL = com.nila.vision.guard.CctvSource.LAPTOP_SIM_URL
     }
 
+    /** Where the frames come from: this phone's camera, or a CCTV / IP camera over RTSP. */
+    enum class Source { PHONE, CCTV }
+
+    /** The phone's main lens, or its ultra-wide lens (which vivo hides from CameraX). */
+    enum class Lens { MAIN, WIDE }
+
     data class Values(
+        /**
+         * The master switch for the vision model ("Describe what it sees" in Settings). Off: the Danger AI
+         * mode and "Look now" do not run.
+         */
         val modelEnabled: Boolean = true,
         val nightPreference: DayNight.Preference = DayNight.Preference.AUTO,
-        val distractionEnabled: Boolean = false,
-        val torchEnabled: Boolean = false,
-    )
+        /** The lullaby with alerts and on "Distract" (Baby Guard's music switch). Plays at media volume. */
+        val distractionEnabled: Boolean = true,
+        /** The torch strobe during alerts and on "Distract". */
+        val torchEnabled: Boolean = true,
+        /** Base: face, pose and movement rules, no vision model. */
+        val baseOn: Boolean = true,
+        /** Danger AI: the vision model looks back to back and alerts on the first danger. */
+        val vlmOn: Boolean = false,
+        /** Safe zone: person detector + tracker, alert when the baby leaves the drawn zone. */
+        val zoneOn: Boolean = false,
+        /** Lights, flashing screen and music when a mode raises an alert. Notifications always go out. */
+        val alertsOn: Boolean = true,
+        val source: Source = Source.PHONE,
+        val lens: Lens = Lens.MAIN,
+        val cctvUrl: String = DEMO_CCTV_URL,
+    ) {
+        /** Nothing is switched on: the watch has nothing to do. */
+        val noMode: Boolean get() = !baseOn && !vlmOn && !zoneOn
+    }
 
     val values: Flow<Values> = context.visionStore.data.map { prefs ->
         Values(
@@ -57,9 +95,40 @@ class VisionSettings(private val context: Context) {
             nightPreference = prefs[NIGHT]?.let { name ->
                 runCatching { DayNight.Preference.valueOf(name) }.getOrDefault(DayNight.Preference.AUTO)
             } ?: DayNight.Preference.AUTO,
-            distractionEnabled = prefs[DISTRACTION] ?: false,
-            torchEnabled = prefs[TORCH] ?: false,
+            distractionEnabled = prefs[DISTRACTION] ?: true,
+            torchEnabled = prefs[TORCH] ?: true,
+            baseOn = prefs[BASE_ON] ?: true,
+            vlmOn = prefs[VLM_ON] ?: false,
+            zoneOn = prefs[ZONE_ON] ?: false,
+            alertsOn = prefs[ALERTS_ON] ?: true,
+            source = prefs[SOURCE]?.let { runCatching { Source.valueOf(it) }.getOrNull() } ?: Source.PHONE,
+            lens = prefs[LENS]?.let { runCatching { Lens.valueOf(it) }.getOrNull() } ?: Lens.MAIN,
+            cctvUrl = prefs[CCTV_URL]?.takeIf { it.isNotBlank() } ?: DEMO_CCTV_URL,
         )
+    }
+
+    suspend fun setModes(base: Boolean? = null, vlm: Boolean? = null, zone: Boolean? = null) {
+        context.visionStore.edit { p ->
+            base?.let { p[BASE_ON] = it }
+            vlm?.let { p[VLM_ON] = it }
+            zone?.let { p[ZONE_ON] = it }
+        }
+    }
+
+    suspend fun setAlertsOn(on: Boolean) {
+        context.visionStore.edit { it[ALERTS_ON] = on }
+    }
+
+    suspend fun setSource(source: Source) {
+        context.visionStore.edit { it[SOURCE] = source.name }
+    }
+
+    suspend fun setLens(lens: Lens) {
+        context.visionStore.edit { it[LENS] = lens.name }
+    }
+
+    suspend fun setCctvUrl(url: String) {
+        context.visionStore.edit { it[CCTV_URL] = url.trim() }
     }
 
     /**

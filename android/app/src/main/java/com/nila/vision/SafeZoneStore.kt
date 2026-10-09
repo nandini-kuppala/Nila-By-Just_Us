@@ -18,11 +18,14 @@ private val Context.safeZoneStore by preferencesDataStore("safe_zone")
  * configuration, read on every camera bind, with nothing to do with the care
  * log. It sits beside the other preference stores for the same reason.
  */
-class SafeZoneStore(private val context: Context) {
+class SafeZoneStore(private val context: Context, keyName: String = "zone") {
 
     companion object {
-        private val KEY = stringPreferencesKey("zone")
+        /** The CCTV camera sees a different room from the phone, so it keeps its own zone. */
+        const val CCTV = "zone_cctv"
     }
+
+    private val KEY = stringPreferencesKey(keyName)
 
     val zone: Flow<SafeZone> =
         context.safeZoneStore.data.map { SafeZone.decode(it[KEY]) }

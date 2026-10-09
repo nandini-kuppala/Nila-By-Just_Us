@@ -9,6 +9,9 @@ class NilaApp : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        // The safety watch's vision model runs in its own process (":vlm"); none of the app's setup
+        // below belongs there, and the phone link must not listen twice.
+        if (android.os.Build.VERSION.SDK_INT >= 28 && getProcessName() != packageName) return
         Notifier(this).ensureChannels()
         // Both are read by things that run above the view model -- the theme by
         // the Activity, the recording policy by a foreground service that a

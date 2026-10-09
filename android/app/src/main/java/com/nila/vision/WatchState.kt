@@ -71,6 +71,9 @@ data class WatchState(
     val lookFailed: Boolean = false,
     /** What the phone last played or lit to hold the baby's attention. */
     val distraction: String? = null,
+
+    /** The guard modes (base / Danger AI / safe zone), alerts, night and the video source. */
+    val guard: com.nila.vision.guard.GuardStatus = com.nila.vision.guard.GuardStatus(),
 ) {
 
     /**
