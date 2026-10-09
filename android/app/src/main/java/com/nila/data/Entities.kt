@@ -35,6 +35,11 @@ enum class EventKind {
     // are different things to show a doctor.
     ROLLED_TO_FRONT, ROLLED_TO_SIDE, CRAWLING, SITTING_UP, STANDING_UP,
     LEFT_SAFE_ZONE, MOVED_AWAY, OUT_OF_VIEW, CAMERA_MOVED,
+    // The scene model's lane. A hazard is what the model saw and the guard
+    // rails agreed with twice; the distraction is what the phone did about it.
+    // Separate kinds because "she reached for the socket" and "the phone played
+    // her mother's voice at her" are two different lines in a week's timeline.
+    HAZARD_SEEN, DISTRACTION_PLAYED,
 }
 
 @Entity(tableName = "events", indices = [Index("startedAtMs"), Index("kind")])
