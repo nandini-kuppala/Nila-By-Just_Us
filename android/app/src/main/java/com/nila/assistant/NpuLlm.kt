@@ -281,17 +281,16 @@ class NpuLlm(private val context: Context) : Closeable {
         tokenizer: String? = null,
     ): LlmWrapper = LlmWrapper.builder()
         .llmCreateInput(
+            // GenieX 0.4.0 moved the reply ceiling to GenerationConfig.maxTokens,
+            // which generate() sets on every call, and dropped enable_thinking
+            // from the model config -- reasoning is switched off where it always
+            // also was, in the chat template (applyChatTemplate's `false`).
             LlmCreateInput(
-                model_name = MODEL_NAME,
                 model_path = path,
                 tokenizer_path = tokenizer,
                 config = ModelConfig(
                     nCtx = N_CTX,
                     nGpuLayers = 999,
-                    // The SDK default is 2048 and it is a hard ceiling on the
-                    // reply, not a suggestion.
-                    max_tokens = N_CTX,
-                    enable_thinking = false,
                 ),
                 runtime_id = runtime,
                 compute_unit = computeUnitInUse,

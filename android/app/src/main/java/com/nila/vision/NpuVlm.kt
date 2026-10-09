@@ -336,7 +336,6 @@ class NpuVlm(private val context: Context) : Closeable {
         VlmWrapper.builder()
             .vlmCreateInput(
                 VlmCreateInput(
-                    model_name = MODEL_NAME,
                     model_path = modelPath,
                     mmproj_path = mmprojPath,
                     config = ModelConfig(nCtx = 0, nGpuLayers = 0),
