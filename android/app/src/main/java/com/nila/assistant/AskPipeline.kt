@@ -89,6 +89,23 @@ class AskPipeline(
          */
         private const val RARE_DF = 3
 
+        /**
+         * The prompt's own scaffolding, which an answer must never contain. A
+         * model whose context had filled with earlier prompts recited them
+         * back -- "Every fact you state must come from REFERENCE below" -- and
+         * that passed every other check, because it invents no quantity.
+         */
+        private val PROMPT_ECHO = Regex(
+            """REFERENCE\b|ABOUT THE MOTHER|\bABOUT \p{Lu}\p{L}*:|Every fact you state|""" +
+                """Never move a fact|reference text|<\|im_(start|end)\|>""",
+        )
+
+        /** Verbs that say what is being asked, never what it is about. See [isTopical]. */
+        private val GENERIC_VERBS: Set<String> = KnowledgeIndex.tokenize(
+            "give gave giving start starting take taking have having make making need " +
+                "get getting use using put try keep let want stop"
+        ).toSet()
+
         /** Turns of conversation carried into the prompt, and how much of each. */
         private const val MAX_TURNS = 2
         private const val TURN_ANSWER_CHARS = 220
@@ -286,7 +303,16 @@ class AskPipeline(
         // Asked whether a milk supply was enough, retrieval returned the page
         // on supply and, underneath it, the page on whether what a mother eats
         // makes her baby fussy -- which was shown as part of the answer.
-        val hits = retrieved.filter { isTopical(question, it) }
+        val hits = retrieved.filter { isTopical(question, it) }.ifEmpty {
+            // Nothing on topic within her age window, so look outside it. The
+            // window kept "foods to avoid under one year" from a four-month-old's
+            // "is it ok to give cow milk"; the nearest in-window pages were about
+            // the mother's diet, the topic gate rightly threw them out, and the
+            // question that the excluded page answers went unanswered.
+            if (babyAge == null) emptyList()
+            else index.retrieveGuidance(question, audience, null, limit = MAX_PASSAGES)
+                .filter { isTopical(question, it) }
+        }
         val records = memory.recordsFor(question, subject)
         val retrievalMs = System.currentTimeMillis() - retrievalStarted
 
@@ -395,7 +421,8 @@ class AskPipeline(
         }
 
         val cleaned = ModelText.tidy(generation.text)
-        val verdict = judge(
+        val verdict = if (repeatsAnEarlierAnswer(cleaned, turns)) "repeats-earlier-answer"
+        else judge(
             cleaned, passages, factLines,
             records = shownRecords.map { "${it.title}. ${it.extract}" },
         )
@@ -473,7 +500,11 @@ class AskPipeline(
     private fun isTopical(question: String, hit: Retrieved): Boolean {
         val topical = topicalTerms(question, hit)
         if (topical.size >= 2) return true
-        return topical.any { index.documentFrequency(it) <= RARE_DF }
+        // A verb is never the subject, however rare it is in the corpus.
+        // "give" is in three keyword lines, so "can I give banana" matched the
+        // page on foods to avoid on that word alone and answered about honey;
+        // "start" did the same for "when will she start crawling" and solids.
+        return topical.any { it !in GENERIC_VERBS && index.documentFrequency(it) <= RARE_DF }
     }
 
     /**
@@ -488,6 +519,22 @@ class AskPipeline(
      * range over its own vocabulary; what is never allowed is a number it
      * invented or an all-clear on a condition belonging to the person asking.
      */
+    /**
+     * The conversation so far is in the prompt so a follow-up can be read, and
+     * a 2B model given nothing new to say copies the last answer out of it:
+     * asked "she is vomiting" after a question about eggs, it returned the
+     * solids paragraph word for word. Most of an earlier answer's words, in
+     * this one, means it answered the earlier question again.
+     */
+    private fun repeatsAnEarlierAnswer(text: String, turns: List<AskMemory.Turn>): Boolean {
+        val words = KnowledgeIndex.tokenize(text).toSet()
+        if (words.size < 6) return false
+        return turns.any { turn ->
+            val earlier = KnowledgeIndex.tokenize(turn.answer).toSet()
+            earlier.size >= 6 && words.count { it in earlier } >= words.size * 0.7
+        }
+    }
+
     private fun judge(
         text: String,
         passages: List<String>,
@@ -496,6 +543,7 @@ class AskPipeline(
     ): String {
         if (text.isBlank()) return "empty"
         if (ModelText.isRefusal(text)) return "refused"
+        if (PROMPT_ECHO.containsMatchIn(text)) return "echoes-prompt"
 
         val source = (passages + facts).joinToString("\n")
         if (!Grounding.inventsNoQuantities(text, source)) return "invented-quantity"

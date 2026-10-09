@@ -419,6 +419,15 @@ class NpuLlm(private val context: Context) : Closeable {
         // Rendered here, not by applyChatTemplate -- see [Prompt.chatMl].
         val prompt = Prompt.chatMl(messages)
 
+        // Every prompt carries its own history, so the engine must start empty.
+        // GenieX 0.4.0 keeps the KV cache across generate calls, and nothing
+        // cleared it: each answer was written on top of every earlier prompt.
+        // On an iQOO 15 that drifted answers onto the previous question ("is
+        // her sleep okay" answered about crying), had the model recite old
+        // instructions, and after a handful of questions failed every reply
+        // with "Context length exceeded".
+        runCatching { active.reset() }.onFailure { Log.w(TAG, "reset failed", it) }
+
         val config = GenerationConfig(
             maxTokens = maxTokens,
             samplerConfig = SamplerConfig(
