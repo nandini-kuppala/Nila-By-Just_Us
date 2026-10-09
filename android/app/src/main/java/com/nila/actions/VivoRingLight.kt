@@ -3,6 +3,7 @@ package com.nila.actions
 import android.content.Context
 import android.os.Build
 import android.util.Log
+import org.lsposed.hiddenapibypass.HiddenApiBypass
 
 /**
  * The ring of light around the rear cameras on an iQOO, driven directly.
@@ -68,6 +69,16 @@ class VivoRingLight(private val context: Context) {
 
     init {
         manager = runCatching {
+            // The light is a non-SDK framework API, and reflection into one is
+            // refused for an app targeting a recent SDK: getInstance() then
+            // looks absent, as a NoSuchMethodException, though the phone has it.
+            // The exemption is scoped to the two vivo packages and nothing else.
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                HiddenApiBypass.addHiddenApiExemptions(
+                    "Lvivo/app/vivolight/",
+                    "Lcom/vivo/framework/vivolight/",
+                )
+            }
             Class.forName("com.vivo.framework.vivolight.VivoLightManager")
                 .getMethod("getInstance")
                 .invoke(null)

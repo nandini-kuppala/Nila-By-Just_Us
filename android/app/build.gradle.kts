@@ -157,6 +157,7 @@ dependencies {
     // Qualcomm's runtime, and the only one in this app whose Backend enum has
     // an NPU in it. Ships llama.cpp's Hexagon backend inside the AAR.
     implementation(libs.geniex.android)
+    implementation(libs.hiddenapibypass)
 
     testImplementation(libs.junit)
     testImplementation(libs.org.json)
