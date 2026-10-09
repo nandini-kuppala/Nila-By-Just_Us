@@ -64,6 +64,28 @@ class CameraWatch(
     private var pose: PoseWatcher? = null
     private var provider: ProcessCameraProvider? = null
 
+    /**
+     * The bound camera, kept for one reason: the torch.
+     *
+     * CameraX owns the camera while the watch is running, so the torch cannot be
+     * driven through `CameraManager` -- that call is refused while another
+     * client holds the device. The control that does work is the one belonging
+     * to the binding, which is this.
+     */
+    private var camera: androidx.camera.core.Camera? = null
+
+    /** Dark-room processing, shared so its frame average survives between frames. */
+    val nightVision = NightVision()
+
+    /**
+     * Mean brightness of the most recent analysed frame, 0..255.
+     *
+     * Measured here rather than in the service because this is where the bitmap
+     * already exists; [DayNight] reads it as the second opinion to the phone's
+     * light sensor, which faces the ceiling while the camera faces the cot.
+     */
+    @Volatile var lastLuma: Float = 0f; private set
+
     /** Which delegate the pose model landed on, for the settings screen. */
     val poseDelegate: String get() = pose?.delegateName ?: "-"
     val poseAvailable: Boolean get() = pose?.isAvailable == true
@@ -114,7 +136,7 @@ class CameraWatch(
 
                 cameraProvider.unbindAll()
                 val useCases = listOfNotNull(preview, analysis).toTypedArray()
-                cameraProvider.bindToLifecycle(
+                camera = cameraProvider.bindToLifecycle(
                     owner, CameraSelector.DEFAULT_BACK_CAMERA, *useCases
                 )
                 Log.i(TAG, "camera bound")
@@ -151,6 +173,51 @@ class CameraWatch(
 
     /** A copy of the last frame, or null if none has been analysed yet. */
     fun snapshot(): Bitmap? = latestFrame?.copy(Bitmap.Config.ARGB_8888, false)
+
+    /**
+     * The last frame, lifted for a dark room when the lane is in night mode.
+     *
+     * The caller owns the result either way. In [LightMode.DAY] this is exactly
+     * [snapshot]; in [LightMode.NIGHT] it is the enhanced copy, which is what
+     * the vision model is given -- a model handed the raw frame of an unlit
+     * nursery answers about a black rectangle.
+     */
+    fun snapshotFor(mode: LightMode): Bitmap? {
+        val raw = snapshot() ?: return null
+        if (mode == LightMode.DAY) return raw
+        return try {
+            nightVision.enhance(raw).also { raw.recycle() }
+        } catch (t: Throwable) {
+            Log.w(TAG, "night enhancement failed; using the raw frame", t)
+            raw
+        }
+    }
+
+    /** A night-vision rendering of the last frame, for the screen. Caller owns it. */
+    fun nightView(): Bitmap? {
+        val raw = snapshot() ?: return null
+        return try {
+            nightVision.nightView(raw).also { raw.recycle() }
+        } catch (t: Throwable) {
+            Log.w(TAG, "night view failed", t)
+            raw.recycle()
+            null
+        }
+    }
+
+    /**
+     * Pulse the torch, through the binding that owns the camera.
+     *
+     * Returns false when there is no camera bound or the device has no flash, so
+     * the caller can report what actually happened rather than assume.
+     */
+    fun torch(on: Boolean): Boolean {
+        val control = camera ?: return false
+        if (control.cameraInfo.hasFlashUnit().not()) return false
+        return runCatching { control.cameraControl.enableTorch(on) }.isSuccess
+    }
+
+    val hasTorch: Boolean get() = camera?.cameraInfo?.hasFlashUnit() == true
 
     /**
      * Put one bitmap through the pipeline as if the camera had produced it.
@@ -193,6 +260,12 @@ class CameraWatch(
             // and "flat torso" be combined into "rolled onto their front".
             val reading = pose?.analyse(bitmap) ?: PoseReading.ABSENT
             framesAnalysed++
+
+            // One sampled pass for brightness, while the bitmap is here. Every
+            // eighth pixel in both directions, so it costs a fraction of a
+            // millisecond and still answers the only question asked of it: is
+            // this a picture of a lit room or of a dark one.
+            lastLuma = nightVision.meanLuma(bitmap)
 
             // Buffered before the frame is released, so when a rule fires the
             // seconds leading up to it are already in hand.
@@ -237,12 +310,17 @@ class CameraWatch(
 
     fun stop() {
         preRoll.clear()
+        // The torch belongs to the binding that is about to go away; leaving it
+        // lit would strand it on until something else bound the camera.
+        runCatching { camera?.cameraControl?.enableTorch(false) }
         runCatching { provider?.unbindAll() }
         runCatching { watcher?.close() }
         runCatching { pose?.close() }
+        nightVision.reset()
         watcher = null
         pose = null
         provider = null
+        camera = null
     }
 
     fun shutdown() {
