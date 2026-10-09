@@ -41,7 +41,10 @@ import androidx.core.view.WindowCompat
 private val LightColors = lightColorScheme(
     primary = Teal40,
     onPrimary = Color.White,
-    primaryContainer = Teal90,
+    // A pale, quiet teal rather than the tonal palette's saturated mint: it is
+    // the ground of the selected tab and of every brand-coloured badge, and at
+    // that size a saturated mint reads as a highlighter rather than a surface.
+    primaryContainer = ToneTealBg,
     onPrimaryContainer = Teal10,
     secondary = Stone40,
     onSecondary = Color.White,
@@ -58,15 +61,18 @@ private val LightColors = lightColorScheme(
     background = Neutral99,
     onBackground = Neutral10,
     surface = Neutral99,
-    onSurface = Neutral10,
+    onSurface = Color(0xFF14201D),
     surfaceVariant = Neutral95,
-    onSurfaceVariant = Neutral40,
+    onSurfaceVariant = Color(0xFF5B6764),
+    // Cards are white on a barely-tinted page, separated by a hairline rather
+    // than a shadow. Elevation reads as clutter once a screen has ten cards.
     surfaceContainerLowest = Color.White,
-    surfaceContainerLow = Neutral98,
-    surfaceContainer = Neutral95,
-    surfaceContainerHigh = Neutral90,
+    surfaceContainerLow = Color(0xFFF4F7F6),
+    surfaceContainer = Color(0xFFEEF2F1),
+    surfaceContainerHigh = Color(0xFFE6EBEA),
+    surfaceContainerHighest = Color(0xFFE0E6E4),
     outline = Neutral60,
-    outlineVariant = Neutral90,
+    outlineVariant = Color(0xFFE3E9E7),
 )
 
 /**
@@ -96,12 +102,15 @@ private val DarkColors = darkColorScheme(
     onSurface = Neutral90,
     surfaceVariant = Color(0xFF202523),
     onSurfaceVariant = Color(0xFFBFC9C5),
-    surfaceContainerLowest = Color(0xFF0B0F0E),
-    surfaceContainerLow = Color(0xFF181C1B),
-    surfaceContainer = Color(0xFF1C2120),
-    surfaceContainerHigh = Color(0xFF262B29),
+    // The card colour, lifted off the page rather than sunk into it: in the
+    // dark theme a card darker than the screen behind it reads as a hole.
+    surfaceContainerLowest = Color(0xFF171C1B),
+    surfaceContainerLow = Color(0xFF1A1F1E),
+    surfaceContainer = Color(0xFF1F2523),
+    surfaceContainerHigh = Color(0xFF282E2C),
+    surfaceContainerHighest = Color(0xFF313836),
     outline = Color(0xFF89938F),
-    outlineVariant = Color(0xFF3F4946),
+    outlineVariant = Color(0xFF2C3432),
 )
 
 /**
@@ -114,16 +123,24 @@ private val DarkColors = darkColorScheme(
  */
 private val NilaTypography = Typography(
     displaySmall = TextStyle(
-        fontFamily = FontFamily.SansSerif, fontWeight = FontWeight.SemiBold,
+        fontFamily = FontFamily.SansSerif, fontWeight = FontWeight.Bold,
         fontSize = 34.sp, lineHeight = 40.sp, letterSpacing = (-0.5).sp,
     ),
+    headlineLarge = TextStyle(
+        fontFamily = FontFamily.SansSerif, fontWeight = FontWeight.Bold,
+        fontSize = 30.sp, lineHeight = 36.sp, letterSpacing = (-0.5).sp,
+    ),
     headlineMedium = TextStyle(
-        fontFamily = FontFamily.SansSerif, fontWeight = FontWeight.SemiBold,
-        fontSize = 26.sp, lineHeight = 32.sp, letterSpacing = (-0.3).sp,
+        fontFamily = FontFamily.SansSerif, fontWeight = FontWeight.Bold,
+        fontSize = 26.sp, lineHeight = 32.sp, letterSpacing = (-0.4).sp,
     ),
     headlineSmall = TextStyle(
+        fontFamily = FontFamily.SansSerif, fontWeight = FontWeight.Bold,
+        fontSize = 22.sp, lineHeight = 28.sp, letterSpacing = (-0.3).sp,
+    ),
+    titleLarge = TextStyle(
         fontFamily = FontFamily.SansSerif, fontWeight = FontWeight.SemiBold,
-        fontSize = 21.sp, lineHeight = 28.sp, letterSpacing = (-0.2).sp,
+        fontSize = 20.sp, lineHeight = 26.sp, letterSpacing = (-0.2).sp,
     ),
     titleMedium = TextStyle(
         fontFamily = FontFamily.SansSerif, fontWeight = FontWeight.SemiBold,
@@ -147,7 +164,15 @@ private val NilaTypography = Typography(
     ),
     labelMedium = TextStyle(
         fontFamily = FontFamily.SansSerif, fontWeight = FontWeight.Medium,
-        fontSize = 13.sp, lineHeight = 16.sp, letterSpacing = 0.5.sp,
+        fontSize = 13.sp, lineHeight = 16.sp, letterSpacing = 0.2.sp,
+    ),
+    labelSmall = TextStyle(
+        fontFamily = FontFamily.SansSerif, fontWeight = FontWeight.Medium,
+        fontSize = 12.sp, lineHeight = 16.sp, letterSpacing = 0.2.sp,
+    ),
+    bodySmall = TextStyle(
+        fontFamily = FontFamily.SansSerif, fontWeight = FontWeight.Normal,
+        fontSize = 14.sp, lineHeight = 20.sp,
     ),
 )
 

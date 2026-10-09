@@ -61,10 +61,21 @@ class AppState(app: Application) : AndroidViewModel(app) {
     private val deskBridge = com.nila.bridge.DeskBridge(app, db)
 
     private val index by lazy { KnowledgeIndex.load(app) }
-    private val llm by lazy { LlmBridge.tryLoad(app) }
+    /**
+     * The phrasing model, resolved again once its download lands.
+     *
+     * It used to be a lazy val, settled at startup: a model downloaded while
+     * the app was open was never picked up, and Settings said "Installed" over
+     * "Not installed" until the app was restarted.
+     */
+    @Volatile private var llmBridge: LlmBridge? = null
+    private val llm: LlmBridge
+        get() = llmBridge ?: LlmBridge.tryLoad(getApplication()).also { llmBridge = it }
     private val modelInstaller = com.nila.assistant.ModelInstaller(app)
     private val visionInstaller = com.nila.assistant.ModelInstaller(
         app, com.nila.assistant.ModelInstaller.Model.VISION)
+    private val assistantInstaller = com.nila.assistant.ModelInstaller(
+        app, com.nila.assistant.ModelInstaller.Model.ASSISTANT)
     val sceneDescriber = com.nila.vision.SceneDescriber(app)
     private val assistant by lazy { Assistant(app, db, index, llm) }
 
@@ -235,6 +246,12 @@ class AppState(app: Application) : AndroidViewModel(app) {
     val visionModelState: StateFlow<com.nila.assistant.ModelInstaller.State> =
         _visionModelState.asStateFlow()
 
+    private val _assistantModelState =
+        MutableStateFlow<com.nila.assistant.ModelInstaller.State>(
+            com.nila.assistant.ModelInstaller.State.Absent)
+    val assistantModelState: StateFlow<com.nila.assistant.ModelInstaller.State> =
+        _assistantModelState.asStateFlow()
+
     private val _observation =
         MutableStateFlow<com.nila.vision.SceneDescriber.Observation?>(null)
     val observation: StateFlow<com.nila.vision.SceneDescriber.Observation?> =
@@ -394,12 +411,23 @@ class AppState(app: Application) : AndroidViewModel(app) {
         // Build the language model in the background. Mapping the weights and
         // building an XNNPack cache takes long enough that doing it lazily
         // makes the first question the slow one.
-        viewModelScope.launch(llmDispatcher) { runCatching { llm.load() } }
+        // Not while a download is still writing the file: it is full-size on
+        // disk from the first second, and loading it then fails.
+        viewModelScope.launch(llmDispatcher) {
+            if (modelInstaller.state() !is com.nila.assistant.ModelInstaller.State.Downloading) {
+                runCatching { llm.load() }
+            }
+        }
 
         // The assistant's model, if its weights are installed. Loading is a
         // second or two and touches the NPU, so it is never on the main thread
         // and never blocks a screen.
         viewModelScope.launch(llmDispatcher) {
+            if (assistantInstaller.state() is com.nila.assistant.ModelInstaller.State.Downloading) {
+                // Still arriving: follow it, and load it the moment it lands.
+                followAssistantDownload()
+                return@launch
+            }
             runCatching { npu.start { _npuState.value = it } }
         }
 
@@ -534,6 +562,7 @@ class AppState(app: Application) : AndroidViewModel(app) {
             _irRemote.value = irActuator.remote()
             _modelState.value = modelInstaller.state()
             _visionModelState.value = visionInstaller.state()
+            _assistantModelState.value = assistantInstaller.state()
         }
     }
 
@@ -595,6 +624,46 @@ class AppState(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    /**
+     * Download the assistant's own model, the one Ask answers with on the NPU.
+     *
+     * The installer knew the file and its address; nothing offered it, so the
+     * only way onto a phone was a cable and `run-as`.
+     */
+    fun downloadAssistantModel() {
+        viewModelScope.launch {
+            assistantInstaller.start()
+            followAssistantDownload()
+        }
+    }
+
+    /** Poll a running download to the end, then put the model on the NPU. */
+    private var followingAssistant = false
+
+    private suspend fun followAssistantDownload() {
+        if (followingAssistant) return
+        followingAssistant = true
+        try {
+            while (true) {
+                val state = assistantInstaller.state()
+                _assistantModelState.value = state
+                if (state !is com.nila.assistant.ModelInstaller.State.Downloading) break
+                kotlinx.coroutines.delay(2_000)
+            }
+        } finally {
+            followingAssistant = false
+        }
+        if (_assistantModelState.value is com.nila.assistant.ModelInstaller.State.Installed) {
+            viewModelScope.launch(llmDispatcher) {
+                runCatching { npu.start { _npuState.value = it } }
+            }
+        }
+    }
+
+    fun cancelAssistantDownload() {
+        viewModelScope.launch { assistantInstaller.cancel(); refresh() }
+    }
+
     fun cancelVisionDownload() {
         viewModelScope.launch { visionInstaller.cancel(); refresh() }
     }
@@ -622,6 +691,7 @@ class AppState(app: Application) : AndroidViewModel(app) {
             }
             // Newly arrived: build it now rather than on the first question.
             if (_modelState.value is com.nila.assistant.ModelInstaller.State.Installed) {
+                if (llm.describe().startsWith("Not installed")) llmBridge = LlmBridge.tryLoad(getApplication())
                 viewModelScope.launch(llmDispatcher) { runCatching { llm.load() } }
 
         // The assistant's model, if its weights are installed. Loading is a

@@ -74,3 +74,13 @@
 -keep class com.google.common.flogger.** { *; }
 -dontwarn com.google.common.flogger.**
 -dontoptimize
+
+# LiteRT-LM, which runs the vision model and any .litertlm language model. Its
+# native side calls back into the Kotlin layer by name (the inference and
+# message callbacks), which the shrinker cannot see, so the package is kept
+# whole like GenieX above.
+-keep class com.google.ai.edge.litertlm.** { *; }
+-keepclassmembers class com.google.ai.edge.litertlm.** { native <methods>; }
+# Its ToolManager reflects over tool functions with kotlin-reflect, which this
+# app does not ship: Nila never registers a tool, so that path is never reached.
+-dontwarn kotlin.reflect.full.**

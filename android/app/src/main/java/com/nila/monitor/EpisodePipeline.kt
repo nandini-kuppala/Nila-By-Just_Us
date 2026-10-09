@@ -119,4 +119,102 @@ object EpisodePipeline {
     /** 0..1 through the ladder, for the progress rail above the steps. */
     fun progress(seconds: Int): Float =
         (seconds.toFloat() / Stage.CLOSED.atSeconds).coerceIn(0f, 1f)
+
+    // ------------------------------------------------------------ history
+
+    /**
+     * Everything that fired, in order, including the rungs that fired twice.
+     *
+     * [Fired] keeps one entry per rung, which is right for the ladder and wrong
+     * for the story: a second sound overwrites the first, and "white noise did
+     * not help, so it tried your voice" -- the sentence the whole product is
+     * built to be able to say -- became "it tried your voice". This is the
+     * append-only account the screen draws attempts and markers from.
+     */
+    data class Mark(
+        val stage: Stage,
+        val detail: String,
+        val atSeconds: Int,
+        val severity: Severity = Severity.NOTE,
+    )
+
+    /** One sound that was played, and what re-reading the cry said about it. */
+    data class Attempt(
+        val number: Int,
+        val name: String,
+        val startedAtSeconds: Int,
+        val checkedAtSeconds: Int? = null,
+        /** Null until it has been judged. */
+        val helped: Boolean? = null,
+    )
+
+    /**
+     * The sounds in an episode, each paired with its own check.
+     *
+     * A check belongs to the most recent sound that has not been judged, which
+     * is the only order the escalation ladder can produce them in.
+     */
+    fun attempts(history: List<Mark>): List<Attempt> {
+        val out = mutableListOf<Attempt>()
+        history.forEach { mark ->
+            when (mark.stage) {
+                Stage.SOOTHED -> out += Attempt(
+                    number = out.size + 1,
+                    name = mark.detail.substringAfter(": ", mark.detail).trim(),
+                    startedAtSeconds = mark.atSeconds,
+                )
+                Stage.VERIFIED -> {
+                    val open = out.indexOfLast { it.helped == null }
+                    if (open >= 0) {
+                        out[open] = out[open].copy(
+                            checkedAtSeconds = mark.atSeconds,
+                            helped = mark.severity == Severity.NOTE,
+                        )
+                    }
+                }
+                else -> Unit
+            }
+        }
+        return out
+    }
+
+    /** What the ladder will do next, in words a parent would use. */
+    enum class Upcoming { SOOTHE, CHECK, WAKE, CLOSE }
+
+    data class NextUp(val what: Upcoming, val atSeconds: Int) {
+        fun inSeconds(now: Int): Int = (atSeconds - now).coerceAtLeast(0)
+    }
+
+    /**
+     * The next rung due, and the second it is due at.
+     *
+     * Turns the wait between rungs into a countdown. The ladder's long pauses --
+     * thirty-five seconds of a sound playing before anything is judged -- read
+     * as an app that has stopped unless the screen says what it is waiting for
+     * and for how long. Only the earliest candidate is returned: a check that
+     * would land after the ninety-second alert is not next, the alert is.
+     *
+     * The alert can come earlier than this says, when a cry is still building
+     * after a sound; the countdown is the plan, and the plan can be overtaken.
+     */
+    fun nextUp(
+        seconds: Int,
+        history: List<Mark>,
+        config: Escalation.Config = Escalation.Config(),
+    ): NextUp? {
+        if (history.any { it.stage == Stage.CLOSED }) return null
+        if (history.any { it.stage == Stage.VERDICT }) {
+            return NextUp(Upcoming.CLOSE, config.closeSeconds).takeIf { seconds < it.atSeconds }
+        }
+        val candidates = mutableListOf(NextUp(Upcoming.WAKE, config.verdictSeconds))
+        val tried = attempts(history)
+        if (tried.isEmpty()) {
+            candidates += NextUp(Upcoming.SOOTHE, config.sootheAfterSeconds)
+        }
+        tried.lastOrNull { it.helped == null }?.let {
+            candidates += NextUp(Upcoming.CHECK, it.startedAtSeconds + config.verifyAfterSeconds)
+        }
+        return candidates.filter { it.atSeconds >= seconds }.minByOrNull { it.atSeconds }
+    }
 }
+

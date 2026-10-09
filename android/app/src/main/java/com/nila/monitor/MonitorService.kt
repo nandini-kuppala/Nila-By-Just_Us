@@ -211,6 +211,9 @@ class MonitorService : LifecycleService() {
     private val fired =
         mutableMapOf<EpisodePipeline.Stage, EpisodePipeline.Fired>()
 
+    /** The same rungs as an append-only list, so a second sound does not erase the first. */
+    private val history = mutableListOf<EpisodePipeline.Mark>()
+
     /** When the current episode started, for the summary. */
     private var episodeStartedAtMs = 0L
 
@@ -354,6 +357,7 @@ class MonitorService : LifecycleService() {
                 escalation.reset()
                 episodeHypothesis = null
                 fired.clear()
+                history.clear()
                 episodeStartedAtMs = System.currentTimeMillis()
                 // Off means off: with recording disabled the file is never
                 // opened, so there is no audio to trust anybody with rather
@@ -384,6 +388,7 @@ class MonitorService : LifecycleService() {
                     advice = null,
                     clipSeconds = recorder.seconds,
                     pipeline = ladder(evidence.durationSeconds),
+                    history = history.toList(),
                 )
                 notedHypothesis = false
                 pushToWatch()
@@ -398,6 +403,7 @@ class MonitorService : LifecycleService() {
                     silentWindows = 0,
                     clipSeconds = recorder.seconds,
                     pipeline = ladder(evidence.durationSeconds),
+                    history = history.toList(),
                 )
                 step(evidence)
                 pushToWatch()
@@ -446,6 +452,7 @@ class MonitorService : LifecycleService() {
                 summary?.let { retainClipFor(endedEpisodeId, evidence, it) }
                 escalation.reset()
                 fired.clear()
+                history.clear()
                 _state.value = _state.value.copy(
                     phase = MonitorState.Phase.Listening,
                     currentEvidence = null,
@@ -455,6 +462,7 @@ class MonitorService : LifecycleService() {
                     advice = null,
                     clipSeconds = 0f,
                     pipeline = emptyList(),
+                    history = emptyList(),
                     lastEpisode = summary ?: _state.value.lastEpisode,
                 )
             }
@@ -469,6 +477,7 @@ class MonitorService : LifecycleService() {
         severity: Severity = Severity.NOTE,
     ) {
         fired[stage] = EpisodePipeline.Fired(detail, atSeconds, severity)
+        history += EpisodePipeline.Mark(stage, detail, atSeconds, severity)
     }
 
     /** The ladder as it stands, for an episode [seconds] old. */
@@ -509,6 +518,7 @@ class MonitorService : LifecycleService() {
             durationSeconds = evidence.durationSeconds,
             evidence = evidence,
             pipeline = ladder(evidence.durationSeconds, closed = true),
+            history = history.toList(),
             actions = current.actions,
             advice = current.advice ?: adviceFor(evidence),
             clipPath = clip?.absolutePath,
@@ -736,6 +746,7 @@ class MonitorService : LifecycleService() {
                     nowPlayingIsVoice = false,
                     clipSeconds = 0f,
                     pipeline = emptyList(),
+                    history = emptyList(),
                     lastEpisode = summary,
                 )
                 // The ladder is finished with this cry, so the detector should
@@ -748,6 +759,7 @@ class MonitorService : LifecycleService() {
                 currentEventId = null
                 escalation.reset()
                 fired.clear()
+                history.clear()
                 engine?.reset()
             }
 
@@ -904,6 +916,7 @@ class MonitorService : LifecycleService() {
                     nowPlayingIsVoice = false,
                     advice = advice,
                     pipeline = ladder(evidence.durationSeconds),
+                    history = history.toList(),
                 )
                 note(
                     "Woke you: " +
@@ -975,6 +988,7 @@ class MonitorService : LifecycleService() {
         escalation.reset()
         episodeHypothesis = null
         fired.clear()
+        history.clear()
         demoSummary = null
 
         lifecycleScope.launch {

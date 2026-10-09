@@ -101,6 +101,9 @@ class NpuVlm(private val context: Context) : Closeable {
          */
         private val RETRY_WAITS_MS = longArrayOf(0, 2_000, 4_000, 8_000, 8_000, 8_000, 8_000, 8_000)
 
+        /** Set while a retry is inside the native create call. */
+        private const val RETRY_IN_FLIGHT = "retry_in_flight"
+
         /** Generated tokens. The form is four short lines; 120 is already generous. */
         private const val MAX_TOKENS = 120
     }
@@ -118,6 +121,9 @@ class NpuVlm(private val context: Context) : Closeable {
 
     private var vlm: VlmWrapper? = null
     private val lock = Mutex()
+
+    /** Survives a native crash; see the retry note in [start]. */
+    private val guard = context.getSharedPreferences("npu_vlm", Context.MODE_PRIVATE)
 
     /**
      * One thread for the engine, for the reason [com.nila.assistant.NpuLlm] gives:
@@ -189,20 +195,42 @@ class NpuVlm(private val context: Context) : Closeable {
             return@withLock false
         }
 
+        // A retry that took the process down last time is not tried again.
+        //
+        // On an iQOO 15, every retry after a failed first attempt crashed the
+        // app: SIGSEGV in QnnApi::createDevice, twice out of twice -- once with a
+        // bundle built for a newer QAIRT, once with the NPU still held by a
+        // process that had just been killed. The restarted process then loaded
+        // the model at the first attempt. A native crash cannot be caught, so the
+        // guard is a note written before each retry and cleared after it: found
+        // still set, the last retry never returned, and this start makes one
+        // attempt only. The bench phone that needed the ladder keeps it.
+        val retryCrashed = guard.getBoolean(RETRY_IN_FLIGHT, false)
+        if (retryCrashed) {
+            guard.edit().putBoolean(RETRY_IN_FLIGHT, false).commit()
+            Log.w(TAG, "a load retry crashed the app last time; one attempt only")
+        }
+        val waits = if (retryCrashed) RETRY_WAITS_MS.copyOf(1) else RETRY_WAITS_MS
+
         val started = System.currentTimeMillis()
-        for ((index, wait) in RETRY_WAITS_MS.withIndex()) {
+        for ((index, wait) in waits.withIndex()) {
             if (wait > 0) delay(wait)
-            update(State.Loading(index + 1, RETRY_WAITS_MS.size), onStep)
+            update(State.Loading(index + 1, waits.size), onStep)
+            // Committed, not applied: the write has to be on disk before a
+            // crash in the call below, or the next start cannot see it.
+            if (index > 0) guard.edit().putBoolean(RETRY_IN_FLIGHT, true).commit()
             val attempt = runCatching { create(paths.first, paths.second) }
                 .onFailure { Log.i(TAG, "load attempt ${index + 1} failed: ${it.message}") }
                 .getOrNull()
+            if (index > 0) guard.edit().putBoolean(RETRY_IN_FLIGHT, false).commit()
             if (attempt != null) {
                 vlm = attempt
                 update(State.Ready(System.currentTimeMillis() - started, index + 1), onStep)
                 return@withLock true
             }
         }
-        update(State.Failed("the NPU would not take the model after ${RETRY_WAITS_MS.size} attempts"), onStep)
+        update(State.Failed("the NPU would not take the model after ${waits.size} " +
+            if (waits.size == 1) "attempt" else "attempts"), onStep)
         NpuArbiter.visionUnloaded()
         return@withLock false
     }

@@ -73,6 +73,12 @@ data class MonitorState(
      */
     val pipeline: List<EpisodePipeline.Step> = emptyList(),
     /**
+     * Every rung as it fired, in order, repeats included -- the second sound
+     * and its check as well as the first. [pipeline] keeps one row per rung;
+     * this is what the attempts and the markers on the cry curve are drawn from.
+     */
+    val history: List<EpisodePipeline.Mark> = emptyList(),
+    /**
      * The cause, and what the corpus says to do about it.
      *
      * Published at the ninety-second rung, when the app has run out of things
@@ -127,6 +133,8 @@ data class MonitorState(
         val evidence: CryEvidence?,
         /** The rungs, as they ended up. */
         val pipeline: List<EpisodePipeline.Step>,
+        /** Every rung as it fired, repeats included. */
+        val history: List<EpisodePipeline.Mark> = emptyList(),
         val actions: List<String>,
         val advice: CryAdvice.Advice?,
         /** App-private WAV of the first ninety seconds, or null if none was kept. */
@@ -137,8 +145,14 @@ data class MonitorState(
         /** True when it was a replayed recording rather than the microphone. */
         val simulated: Boolean = false,
     ) {
+        /**
+         * Counted from [history] when there is one. The ladder keeps one row
+         * per rung, so a second sound replaced the first there and this read
+         * "1" beside a list of two.
+         */
         val soothersTried: Int
-            get() = pipeline.count {
+            get() = if (history.isNotEmpty()) EpisodePipeline.attempts(history).size
+            else pipeline.count {
                 it.stage == EpisodePipeline.Stage.SOOTHED &&
                     it.status != EpisodePipeline.Status.PENDING
             }

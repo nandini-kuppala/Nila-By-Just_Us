@@ -234,11 +234,33 @@ private fun PipelineRow(
                 )
             }
             Text(
-                text = step.body,
+                text = step.detail?.replace(" - ", " – ") ?: plainPending(step.stage),
                 style = MaterialTheme.typography.bodyMedium,
                 color = scheme.onSurfaceVariant,
             )
         }
+    }
+}
+
+/**
+ * What a rung will do, in a parent's words, while it has not happened yet.
+ *
+ * [EpisodePipeline.Stage.pending] is written for the engineer reading a log --
+ * "re-reads the loudness envelope". On the screen a rung that has not fired is
+ * a promise, and a promise has to say what it will do and when.
+ */
+private fun plainPending(stage: EpisodePipeline.Stage): String {
+    val c = com.nila.monitor.Escalation.Config()
+    fun at(s: Int) = "%d:%02d".format(s / 60, s % 60)
+    return when (stage) {
+        EpisodePipeline.Stage.HEARD -> "When the detector is sure it is a cry"
+        EpisodePipeline.Stage.LOGGED -> "Notes it in the timeline at ${at(c.noteSeconds)}"
+        EpisodePipeline.Stage.CLASSIFIED ->
+            "Guesses a reason from ${c.reasonSeconds} seconds of sound"
+        EpisodePipeline.Stage.SOOTHED -> "Plays a sound before waking anyone"
+        EpisodePipeline.Stage.VERIFIED -> "Listens again to see whether it helped"
+        EpisodePipeline.Stage.VERDICT -> "Wakes you at ${at(c.verdictSeconds)} if it has not settled"
+        EpisodePipeline.Stage.CLOSED -> "Wraps up at ${at(c.closeSeconds)} and keeps the clip"
     }
 }
 
@@ -276,14 +298,16 @@ fun ReasonVerdict(
     caution: String,
     source: String,
     modifier: Modifier = Modifier,
+    /** A plain instruction set above the headline, when there is one. */
+    lead: String? = null,
 ) {
     val scheme = MaterialTheme.colorScheme
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(14.dp))
+            .clip(RoundedCornerShape(18.dp))
             .background(scheme.surfaceContainerLowest)
-            .border(1.5.dp, scheme.primary.copy(alpha = 0.55f), RoundedCornerShape(14.dp))
+            .border(1.5.dp, scheme.primary.copy(alpha = 0.55f), RoundedCornerShape(18.dp))
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
@@ -305,13 +329,25 @@ fun ReasonVerdict(
             )
         }
 
-        Text(
-            text = headline,
-            style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.Bold,
-            lineHeight = 28.sp,
-            color = scheme.onSurface,
-        )
+        if (lead != null) {
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(lead, style = MaterialTheme.typography.titleLarge,
+                     fontWeight = FontWeight.Bold, color = scheme.onSurface)
+                Text(
+                    "$headline A guess from the sound, often wrong.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = scheme.onSurfaceVariant,
+                )
+            }
+        } else {
+            Text(
+                text = headline,
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                lineHeight = 28.sp,
+                color = scheme.onSurface,
+            )
+        }
 
         if (steps.isNotEmpty()) {
             Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {

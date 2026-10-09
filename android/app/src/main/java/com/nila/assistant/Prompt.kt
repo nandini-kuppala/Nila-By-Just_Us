@@ -24,6 +24,28 @@ package com.nila.assistant
 object Prompt {
 
     /**
+     * The prompt Qwen3.5's own chat template renders, written out here.
+     *
+     * Not `applyChatTemplate`. GenieX's llama.cpp builds a reply parser from
+     * the template by rendering it with test messages of its own, and once the
+     * conversation has an earlier answer in it that probe trips the template's
+     * "Unexpected message role" check. The exception is thrown in C++ and never
+     * caught, so the process aborts on the second question -- seen on an
+     * iQOO 15 as SIGABRT in nila-npu-llm.
+     *
+     * The format is the template's own for system, user and assistant turns
+     * with reasoning switched off: ChatML, earlier answers without a think
+     * block, and an empty one opening the reply.
+     */
+    fun chatMl(messages: List<Pair<String, String>>): String = buildString {
+        messages.forEach { (role, content) ->
+            append("<|im_start|>").append(role).append('\n')
+            append(content.trim()).append("<|im_end|>\n")
+        }
+        append("<|im_start|>assistant\n<think>\n\n</think>\n\n")
+    }
+
+    /**
      * Build the message list for one turn.
      *
      * Prior turns are included as real assistant turns rather than being folded

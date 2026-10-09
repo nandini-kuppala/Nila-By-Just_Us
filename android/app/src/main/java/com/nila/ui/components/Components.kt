@@ -9,7 +9,8 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Mic
-import androidx.compose.material.icons.outlined.VolumeUp
+import androidx.compose.material.icons.automirrored.outlined.VolumeUp
+import androidx.compose.material.icons.outlined.WarningAmber
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.getValue
 import androidx.compose.foundation.Canvas
@@ -56,29 +57,35 @@ import com.nila.ui.theme.severityColors
 @Composable
 fun SeverityChip(severity: Severity, modifier: Modifier = Modifier) {
     val colors = severityColors(severity)
-    Surface(color = colors.container, shape = RoundedCornerShape(4.dp),
+    Surface(color = colors.container, shape = RoundedCornerShape(50),
             modifier = modifier) {
-        Text(
-            text = severity.label.uppercase(),
-            color = colors.accent,
-            style = MaterialTheme.typography.labelMedium,
-            fontWeight = FontWeight.SemiBold,
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
-        )
+        Row(
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            Box(Modifier.size(7.dp).clip(CircleShape).background(colors.accent))
+            Text(
+                text = severity.label.uppercase(),
+                color = colors.accent,
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.Bold,
+            )
+        }
     }
 }
 
 @Composable
 fun CalmChip(text: String, modifier: Modifier = Modifier) {
     val colors = calmColors()
-    Surface(color = colors.container, shape = RoundedCornerShape(4.dp),
+    Surface(color = colors.container, shape = RoundedCornerShape(50),
             modifier = modifier) {
         Text(
             text = text,
             color = colors.accent,
             style = MaterialTheme.typography.labelMedium,
             fontWeight = FontWeight.SemiBold,
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
         )
     }
 }
@@ -146,50 +153,40 @@ fun StatBlock(label: String, value: String, modifier: Modifier = Modifier) {
 
 /** The slow pulse that says the guardian is awake. */
 @Composable
-fun PulseDot(active: Boolean, size: Dp = 10.dp, modifier: Modifier = Modifier) {
+fun PulseDot(
+    active: Boolean,
+    size: Dp = 10.dp,
+    modifier: Modifier = Modifier,
+    color: Color? = null,
+) {
     // The dot sits on the app surface, not on a severity ground, so it takes
-    // the accent for the current theme rather than the light-only green.
-    val color = if (active) calmColors().accent
-                else MaterialTheme.colorScheme.outline
+    // the accent for the current theme rather than the light-only green. A
+    // caller in an urgent state passes the urgent red: a green dot beside
+    // "Your baby needs you" contradicts the sentence it sits next to.
+    val fill = color ?: if (active) calmColors().accent
+                        else MaterialTheme.colorScheme.outline
     Box(
         modifier = modifier
             .size(size)
             .clip(CircleShape)
-            .background(color)
+            .background(fill)
     )
 }
 
 /** An inline caveat. Present whenever a claim has a limit, never empty. */
 @Composable
 fun HedgeNote(text: String, modifier: Modifier = Modifier) {
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(6.dp))
-            .background(MaterialTheme.colorScheme.surfaceContainer)
-            .padding(12.dp),
-        verticalAlignment = Alignment.Top,
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        Text("i", style = MaterialTheme.typography.labelMedium,
-             fontWeight = FontWeight.Bold,
-             color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Text(
-            text = text,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            fontSize = 14.sp,
-        )
-    }
+    InfoNote(text = text, modifier = modifier)
 }
 
 @Composable
 fun SectionHeader(text: String, modifier: Modifier = Modifier) {
     Text(
         text = text,
-        style = MaterialTheme.typography.titleMedium,
+        style = MaterialTheme.typography.titleLarge,
+        fontWeight = FontWeight.Bold,
         color = MaterialTheme.colorScheme.onSurface,
-        modifier = modifier.padding(bottom = 8.dp),
+        modifier = modifier.padding(bottom = 4.dp),
     )
 }
 
@@ -197,9 +194,9 @@ fun SectionHeader(text: String, modifier: Modifier = Modifier) {
 fun OutlinedBox(modifier: Modifier = Modifier, content: @Composable () -> Unit) {
     Box(
         modifier = modifier
-            .clip(RoundedCornerShape(10.dp))
+            .clip(CardShape)
             .background(MaterialTheme.colorScheme.surfaceContainerLowest)
-            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(10.dp))
+            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, CardShape)
             .padding(16.dp)
     ) { content() }
 }
@@ -261,12 +258,19 @@ fun WarningBox(title: String, body: String, modifier: Modifier = Modifier) {
     // unreadable at night -- including the one that says the microphone has
     // gone dead.
     val colors = severityColors(Severity.ATTENTION)
-    Box(
+    Row(
         modifier = modifier
             .clip(RoundedCornerShape(14.dp))
             .background(colors.container)
-            .padding(14.dp)
+            .padding(14.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
+        Icon(
+            androidx.compose.material.icons.Icons.Outlined.WarningAmber,
+            contentDescription = null,
+            tint = colors.accent,
+            modifier = Modifier.size(22.dp),
+        )
         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text(
                 title,
@@ -297,19 +301,20 @@ fun VoiceNoteBar(
     name: String,
     isVoice: Boolean,
     modifier: Modifier = Modifier,
+    detail: String? = null,
 ) {
     val transition = rememberInfiniteTransition(label = "voice-note")
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(10.dp))
+            .clip(RoundedCornerShape(14.dp))
             .background(MaterialTheme.colorScheme.secondaryContainer)
             .padding(horizontal = 14.dp, vertical = 11.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(11.dp),
     ) {
         Icon(
-            imageVector = if (isVoice) Icons.Outlined.Mic else Icons.Outlined.VolumeUp,
+            imageVector = if (isVoice) Icons.Outlined.Mic else Icons.AutoMirrored.Outlined.VolumeUp,
             contentDescription = null,
             tint = MaterialTheme.colorScheme.onSecondaryContainer,
             modifier = Modifier.size(19.dp),
@@ -351,8 +356,8 @@ fun VoiceNoteBar(
                 color = MaterialTheme.colorScheme.onSecondaryContainer,
             )
             Text(
-                text = if (isVoice) "Your recorded voice, playing now"
-                       else "Playing now",
+                text = detail ?: if (isVoice) "Your recorded voice, playing now"
+                                 else "Playing now",
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSecondaryContainer,
             )

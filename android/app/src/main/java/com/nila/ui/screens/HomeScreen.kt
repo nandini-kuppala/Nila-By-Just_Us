@@ -4,34 +4,45 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Stop
+import androidx.compose.material.icons.outlined.Shield
+import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
+import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.BarChart
 import androidx.compose.material.icons.outlined.Bedtime
-import androidx.compose.material.icons.outlined.ChangeCircle
+import androidx.compose.material.icons.outlined.Check
+import androidx.compose.material.icons.outlined.DateRange
+import androidx.compose.material.icons.outlined.GraphicEq
+import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.LightMode
-import androidx.compose.material.icons.outlined.LocalDrink
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material.icons.outlined.Mic
+import androidx.compose.material.icons.outlined.SentimentDissatisfied
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -39,12 +50,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.nila.data.CareKind
@@ -54,32 +64,46 @@ import com.nila.monitor.MonitorState
 import com.nila.ui.AppState
 import com.nila.ui.Insights
 import com.nila.ui.components.Bar
-import com.nila.ui.components.CalmChip
+import com.nila.ui.components.ColumnChart
+import com.nila.ui.components.AttemptsCard
+import com.nila.ui.components.BestGuessRow
 import com.nila.ui.components.CryClipPlayer
+import com.nila.ui.components.CryJourney
+import com.nila.ui.components.EpisodeCurve
+import com.nila.ui.components.NextUpRow
+import com.nila.ui.components.StepsToggle
+import com.nila.ui.components.clockOf
 import com.nila.ui.components.DonutChart
 import com.nila.ui.components.HedgeNote
-import com.nila.ui.components.HourProfile
+import com.nila.ui.components.IconBadge
+import com.nila.ui.components.InfoNote
 import com.nila.ui.components.InputLevelMeter
 import com.nila.ui.components.IntensityCurve
-import com.nila.ui.components.MetricTile
 import com.nila.ui.components.LineChart
-import com.nila.ui.components.OutlinedBox
+import com.nila.ui.components.MiniBars
+import com.nila.ui.components.NilaCard
+import com.nila.ui.components.NilaIcons
+import com.nila.ui.components.OutlinePillButton
+import com.nila.ui.components.PillButton
 import com.nila.ui.components.PipelineChart
 import com.nila.ui.components.Point
 import com.nila.ui.components.PulseDot
 import com.nila.ui.components.ReasonVerdict
-import com.nila.ui.components.SectionHeader
+import com.nila.ui.components.SectionTitle
 import com.nila.ui.components.SeverityChip
-import com.nila.ui.components.StatBlock
+import com.nila.ui.components.SleepingBabyArt
+import com.nila.ui.components.TakeawayStrip
+import com.nila.ui.components.TonePill
 import com.nila.ui.components.VoiceNoteBar
 import com.nila.ui.components.WarningBox
-import com.nila.ui.components.WeekBars
 import com.nila.ui.components.Wedge
 import com.nila.ui.components.humanMinutes
 import com.nila.ui.components.percent
 import com.nila.ui.theme.ChartPalette
-import com.nila.ui.theme.SeverityUrgent
+import com.nila.ui.theme.Tone
 import com.nila.ui.theme.chartPalette
+import com.nila.ui.theme.severityColors
+import com.nila.ui.theme.toneColors
 import java.time.format.TextStyle
 import java.util.Locale
 import java.util.concurrent.TimeUnit
@@ -98,34 +122,38 @@ import java.util.concurrent.TimeUnit
  * **Below it is a dashboard**, and that is a different reader. Nobody studies a
  * pie chart while a baby is screaming; they look at it at ten the next morning
  * with a coffee, asking a question the monitor cannot answer -- *is this
- * getting worse, and is there a pattern in it.* The app already had every row
- * needed to answer that and showed none of it, because a timeline of events is
- * a record, not an answer. Seven days of crying against the three-hour line, a
- * night laid over the feeds that punctuated it, and the share of cries the
- * model would not even name: those are answers, and the last of them is an
- * answer about the app's own limits.
+ * getting worse, and is there a pattern in it.* Seven days of crying against
+ * the three-hour line, a week of sleep, and the share of cries the model would
+ * not even name: those are answers, and the last of them is an answer about the
+ * app's own limits.
  *
  * Nothing below the fold interprets. Every chart has its own figures written
- * out beneath it in words, because a wedge is not a number and this reader is
+ * out beside it in words, because a wedge is not a number and this reader is
  * short of sleep.
  */
 @Composable
-fun HomeScreen(state: AppState) {
+fun HomeScreen(
+    state: AppState,
+    onOpenInsights: () -> Unit = {},
+    onOpenTimeline: () -> Unit = {},
+) {
     val monitor by state.monitor.collectAsState()
     val care by state.care.collectAsState()
     val insights by state.insights.collectAsState()
     val asleepSince by state.asleepSinceMs.collectAsState()
     val baby by state.baby.collectAsState()
+    val name = baby?.name?.takeIf { it.isNotBlank() }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = 20.dp, vertical = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+            .padding(start = 20.dp, end = 20.dp, top = 4.dp, bottom = 28.dp),
+        verticalArrangement = Arrangement.spacedBy(22.dp),
     ) {
         StatusCard(
             monitor = monitor,
+            babyName = name,
             onStart = state::startMonitoring,
             onStop = state::stopMonitoring,
             onCloseDemo = state::closeDemo,
@@ -135,40 +163,47 @@ fun HomeScreen(state: AppState) {
             WarningBox("Monitoring stopped", it, Modifier.fillMaxWidth())
         }
 
-        // The verdict outranks everything else on the screen the moment it
-        // exists: it is the only card that tells the reader what to do.
-        monitor.advice?.let { advice ->
-            ReasonVerdict(
-                headline = advice.headline,
-                steps = advice.steps,
-                caution = advice.caution,
-                source = advice.source,
-            )
+        if (monitor.running && !monitor.simulated) {
+            FullScreenAlertCheck(state)
         }
 
         val evidence = monitor.currentEvidence
         if (evidence != null) {
-            LiveEpisode(evidence, monitor)
+            LiveEpisode(evidence, monitor, onStop = state::stopMonitoring)
+        } else {
+            monitor.advice?.let { advice ->
+                ReasonVerdict(
+                    headline = advice.headline,
+                    steps = advice.steps,
+                    caution = advice.caution,
+                    source = advice.source,
+                )
+            }
         }
 
         monitor.lastEpisode?.let { episode ->
             EpisodeSummaryCard(episode, onDismiss = state::dismissEpisode)
         }
 
-        TryItRow(state, monitor)
-
         QuickLog(
             care = care,
             asleepSinceMs = asleepSince,
             onLog = state::logCare,
             onToggleSleep = state::toggleSleep,
+            onUndo = state::deleteCare,
         )
 
-        Dashboard(
-            insights = insights,
-            care = care,
-            babyName = baby?.name.orEmpty(),
-        )
+        TodayTiles(insights, care, name, onSeeAll = onOpenInsights)
+
+        CryTrendCard(insights, onOpenInsights)
+
+        TryItRow(state, monitor)
+
+        WeekBanner(insights, onOpenTimeline)
+
+        SleepCard(insights)
+
+        CauseCard(insights)
     }
 }
 
@@ -177,140 +212,296 @@ fun HomeScreen(state: AppState) {
 /**
  * The one card that has to be readable from across a dark room.
  *
- * It changes shape with the phase rather than only changing a word: idle shows
- * uptime and the input meter, an episode shows the elapsed time as the largest
- * thing on the screen and the ladder's position underneath it.
+ * It changes shape with the phase rather than only changing a word: idle is an
+ * invitation with one button, listening shows uptime and the input meter, and
+ * an episode shows the elapsed time as the largest thing on the screen.
  */
 @Composable
 private fun StatusCard(
     monitor: MonitorState,
+    babyName: String?,
     onStart: () -> Unit,
     onStop: () -> Unit,
     onCloseDemo: () -> Unit,
 ) {
+    val idle = !monitor.running && !monitor.demoComplete && monitor.currentEvidence == null
+    if (idle) {
+        IdleHero(babyName, onStart)
+        return
+    }
+
     val phase = monitor.phase
     val urgent = phase is MonitorState.Phase.Escalated || phase is MonitorState.Phase.Safety
     val evidence = monitor.currentEvidence
+    val urgentColors = severityColors(Severity.URGENT)
+    val scheme = MaterialTheme.colorScheme
 
-    OutlinedBox(modifier = Modifier.fillMaxWidth()) {
-        Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
-                PulseDot(active = monitor.running)
+    if (evidence != null) {
+        EpisodeHero(monitor, evidence, urgent)
+        return
+    }
+
+    NilaCard(
+        modifier = Modifier.fillMaxWidth(),
+        tone = if (evidence == null && !urgent) Tone.TEAL else null,
+        borderColor = if (urgent) urgentColors.accent.copy(alpha = 0.6f) else null,
+        contentPadding = PaddingValues(18.dp),
+        verticalSpacing = 16.dp,
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            PulseDot(active = monitor.running, size = 12.dp,
+                     color = if (urgent) urgentColors.accent else null)
+            Text(
+                text = headline(monitor),
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                color = if (urgent) urgentColors.accent else scheme.onSurface,
+                modifier = Modifier.weight(1f),
+            )
+            when {
+                urgent -> SeverityChip(Severity.URGENT)
+                monitor.simulated && monitor.running -> TonePill("Demo", Tone.PLUM, dot = true)
+                monitor.running -> TonePill("Live", Tone.TEAL, dot = true)
+            }
+        }
+
+        if (evidence != null) {
+            // Elapsed time as the hero number. During an episode this is the
+            // single fact that decides what a parent does next.
+            Row(verticalAlignment = Alignment.Bottom) {
                 Text(
-                    text = headline(monitor),
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    color = if (urgent) SeverityUrgent
-                            else MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.weight(1f),
+                    text = elapsed(evidence.durationSeconds),
+                    style = MaterialTheme.typography.displaySmall.copy(fontFeatureSettings = "tnum"),
+                    fontWeight = FontWeight.Bold,
+                    color = if (urgent) urgentColors.accent else scheme.onSurface,
                 )
-                if (urgent) SeverityChip(Severity.URGENT)
-            }
-
-            if (evidence != null) {
-                // Elapsed time as the hero number. During an episode this is
-                // the single fact that decides what a parent does next, and it
-                // used to be one of three equal-weight stat blocks.
-                Row(verticalAlignment = Alignment.Bottom) {
+                Spacer(Modifier.width(14.dp))
+                Column(modifier = Modifier.padding(bottom = 4.dp)) {
                     Text(
-                        text = elapsed(evidence.durationSeconds),
-                        style = MaterialTheme.typography.displaySmall.copy(fontFeatureSettings = "tnum"),
-                        fontWeight = FontWeight.Bold,
-                        color = if (urgent) SeverityUrgent
-                                else MaterialTheme.colorScheme.onSurface,
+                        "crying, " + evidence.trend.name.lowercase(),
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.SemiBold,
                     )
-                    Spacer(Modifier.width(14.dp))
-                    Column(modifier = Modifier.padding(bottom = 4.dp)) {
-                        Text(
-                            evidence.trend.name.lowercase()
-                                .replaceFirstChar { it.uppercase() },
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.SemiBold,
-                        )
-                        Text(
-                            "detector ${(evidence.detectorConfidence * 100).toInt()}%",
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
+                    Text(
+                        "${(evidence.detectorConfidence * 100).toInt()}% sure it is a cry",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = scheme.onSurfaceVariant,
+                    )
                 }
+            }
 
-                IntensityCurve(points = evidence.envelope)
+            IntensityCurve(points = evidence.envelope, color = chartPalette().cry)
 
-                if (monitor.clipSeconds > 0.5f) {
-                    ClipIndicator(monitor.clipSeconds)
-                }
-            } else if (monitor.running || monitor.demoComplete) {
-                Row(horizontalArrangement = Arrangement.spacedBy(28.dp)) {
-                    StatBlock(
-                        if (monitor.demoComplete) "Demo ran for" else "Listening for",
+            // Once a person is needed, nothing on this card may compete with
+            // that: the clip bar is bookkeeping and waits for the summary.
+            if (monitor.clipSeconds > 0.5f && !urgent) {
+                ClipIndicator(monitor.clipSeconds)
+            }
+        } else if (monitor.running || monitor.demoComplete) {
+            StatStrip(
+                listOf(
+                    (if (monitor.demoComplete) "Demo ran for" else "Listening for") to
                         uptime(monitor.armedSinceMs),
+                    "Cries tonight" to monitor.eventsTonight.toString(),
+                    "Cry score" to "${(monitor.lastCryProbability * 100).toInt()}%",
+                )
+            )
+        }
+
+        monitor.nowPlaying?.let { sound ->
+            VoiceNoteBar(name = sound, isVoice = monitor.nowPlayingIsVoice)
+        }
+
+        if (monitor.running || monitor.demoComplete) {
+            // The live signal. A bar that moves when you clap is the only thing
+            // that distinguishes "listening" from a dead microphone.
+            if (!monitor.simulated && !monitor.demoComplete && evidence == null) {
+                InputLevelMeter(monitor.inputLevel, monitor.inputDbfs)
+            }
+
+            // One reassurance, not a spec sheet. The accelerator and the
+            // latency are measured and shown in Insights, where somebody who
+            // wants them goes looking; on the monitor they read as a debug
+            // build, and during a cry they push the instructions down.
+            if (!urgent && evidence == null) {
+                TonePill("Analysed on this phone", Tone.TEAL, icon = Icons.Outlined.Shield)
+            }
+        }
+
+        // The demo says what it is in one line. It used to be a six-line amber
+        // box, which during the escalation sat between "Your baby needs you"
+        // and the instructions -- the one place nothing may sit. Amber is for
+        // a real problem, and a demo is not one.
+        if (monitor.demoComplete) {
+            InfoNote(
+                "Demo finished. Everything here ran through the real pipeline – read " +
+                    "what Nila did, then close it.",
+                tone = Tone.PLUM,
+            )
+        } else if (monitor.simulated) {
+            InfoNote(
+                "Demo: a real recording through the real detector, in real time. " +
+                    "Nothing is wrong. You are woken at 1:30.",
+                tone = Tone.PLUM,
+            )
+        } else if (monitor.microphoneLooksDead) {
+            WarningBox(
+                "No sound reaching the microphone",
+                "A minute of silence. Check nothing else is using the mic.",
+            )
+        }
+
+        if (monitor.demoComplete) {
+            // Deliberately the only button here. The summary is the point of
+            // having run the demo, and a second control beside it invites
+            // dismissing it before reading it.
+            PillButton("Close the demo", onCloseDemo, Modifier.fillMaxWidth(),
+                       icon = Icons.Outlined.Check)
+        } else if (monitor.running) {
+            OutlinePillButton(
+                if (monitor.simulated) "Stop the demo" else "Stop monitoring",
+                onStop,
+                Modifier.fillMaxWidth(),
+                icon = Icons.Filled.Stop,
+            )
+        }
+    }
+}
+
+/**
+ * Monitoring is off: one sentence, one button, and the sleeping baby.
+ *
+ * The line under the button says what pressing it does in the terms that matter
+ * to a parent deciding whether to: it listens, and the listening stays here.
+ */
+@Composable
+private fun IdleHero(babyName: String?, onStart: () -> Unit) {
+    val scheme = MaterialTheme.colorScheme
+    NilaCard(
+        modifier = Modifier.fillMaxWidth(),
+        tone = Tone.TEAL,
+        contentPadding = PaddingValues(start = 18.dp, top = 18.dp, end = 10.dp, bottom = 16.dp),
+        verticalSpacing = 14.dp,
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    PulseDot(active = false, size = 12.dp)
+                    Text(
+                        "Monitoring is off",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
                     )
-                    StatBlock("Cries tonight", monitor.eventsTonight.toString())
-                    StatBlock("Cry score", "${(monitor.lastCryProbability * 100).toInt()}%")
                 }
-            }
-
-            monitor.nowPlaying?.let { sound ->
-                VoiceNoteBar(name = sound, isVoice = monitor.nowPlayingIsVoice)
-            }
-
-            if (monitor.running || monitor.demoComplete) {
-                // The live signal. A bar that moves when you clap is the only
-                // thing that distinguishes "listening" from a dead microphone.
-                if (!monitor.simulated && !monitor.demoComplete && evidence == null) {
-                    InputLevelMeter(monitor.inputLevel, monitor.inputDbfs)
-                }
-
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    CalmChip("On device")
-                    CalmChip(monitor.accelerator)
-                    if (monitor.detectorLatencyMs > 0) {
-                        CalmChip("%.1f ms".format(monitor.detectorLatencyMs))
-                    }
-                }
-            }
-
-            if (monitor.demoComplete) {
-                WarningBox(
-                    "Demo finished",
-                    "Everything above ran through the real pipeline. " +
-                        "Read what Nila did, then close this.",
-                )
-            } else if (monitor.simulated) {
-                WarningBox(
-                    "Demo cry",
-                    "A recording, played aloud through the real detector at its " +
-                        "own speed. Nothing is sped up, so the clock on screen " +
-                        "is the clock in the room. Three minutes for the full " +
-                        "ladder; you are woken at ninety seconds.",
-                )
-            } else if (monitor.microphoneLooksDead) {
-                WarningBox(
-                    "No sound reaching the microphone",
-                    "A minute of silence. Check nothing else is using the mic.",
+                Text(
+                    if (babyName != null) "$babyName is not being monitored."
+                    else "Your baby is not being monitored.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = scheme.onSurfaceVariant,
+                    modifier = Modifier.padding(start = 22.dp),
                 )
             }
+            Box(Modifier.size(width = 120.dp, height = 104.dp)) { SleepingBabyArt(dreaming = true) }
+        }
+        PillButton(
+            "Start monitoring",
+            onStart,
+            Modifier.fillMaxWidth().padding(end = 8.dp),
+            icon = Icons.Filled.PlayArrow,
+        )
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Icon(Icons.Outlined.Mic, contentDescription = null,
+                 tint = scheme.primary, modifier = Modifier.size(18.dp))
+            Text(
+                "Listens for crying, on this phone only",
+                style = MaterialTheme.typography.labelLarge,
+                color = scheme.onSurfaceVariant,
+            )
+        }
+    }
+}
 
-            if (monitor.demoComplete) {
-                // Deliberately the only button here. The summary is the point of
-                // having run the demo, and a second control beside it invites
-                // dismissing it before reading it.
-                Button(onClick = onCloseDemo, modifier = Modifier.fillMaxWidth()) {
-                    Text("Close the demo")
-                }
-            } else if (monitor.running) {
-                OutlinedButton(onClick = onStop, modifier = Modifier.fillMaxWidth()) {
-                    Text(if (monitor.simulated) "Stop the demo" else "Stop monitoring")
-                }
-            } else {
-                Button(onClick = onStart, modifier = Modifier.fillMaxWidth()) {
-                    Text("Start monitoring")
-                }
+/**
+ * The one permission that decides whether a 3am alert lights the screen.
+ *
+ * Android 14 and later do not grant it at install, and it used to be asked for
+ * only on a Settings page about a second phone -- discovered, if at all, on the
+ * night it mattered. It is checked whenever monitoring is on, and again each
+ * time the app comes back from the system page that grants it.
+ */
+@Composable
+private fun FullScreenAlertCheck(state: AppState) {
+    val owner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    var granted by remember { mutableStateOf(state.canUseFullScreenAlerts) }
+    androidx.compose.runtime.DisposableEffect(owner) {
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
+                granted = state.canUseFullScreenAlerts
+            }
+        }
+        owner.lifecycle.addObserver(observer)
+        onDispose { owner.lifecycle.removeObserver(observer) }
+    }
+    if (granted) return
+    val colors = severityColors(Severity.ATTENTION)
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(colors.container)
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Text("Urgent alerts cannot wake the screen yet",
+             style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold,
+             color = colors.accent)
+        Text("Android asks for this separately. Without it, an alert arrives as an " +
+                 "ordinary notification on a dark phone.",
+             style = MaterialTheme.typography.bodySmall, color = colors.onContainer)
+        OutlinePillButton("Allow full-screen alerts", state::requestFullScreenAlerts,
+                          Modifier.fillMaxWidth())
+    }
+}
+
+/** Three figures in a white inset, dividers between them. */
+@Composable
+private fun StatStrip(stats: List<Pair<String, String>>) {
+    val scheme = MaterialTheme.colorScheme
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(14.dp))
+            .background(scheme.surfaceContainerLowest)
+            .height(IntrinsicSize.Min)
+            .padding(vertical = 12.dp),
+    ) {
+        stats.forEachIndexed { i, (label, value) ->
+            if (i > 0) {
+                Box(Modifier.width(1.dp).fillMaxHeight().background(scheme.outlineVariant))
+            }
+            Column(
+                modifier = Modifier.weight(1f).padding(horizontal = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(2.dp),
+            ) {
+                Text(label, style = MaterialTheme.typography.labelMedium,
+                     color = scheme.onSurfaceVariant, maxLines = 1,
+                     overflow = TextOverflow.Ellipsis)
+                Text(value, style = MaterialTheme.typography.titleLarge
+                         .copy(fontFeatureSettings = "tnum"),
+                     fontWeight = FontWeight.Bold)
             }
         }
     }
@@ -342,52 +533,88 @@ private fun ClipIndicator(seconds: Float) {
                 color = scheme.onSurfaceVariant,
             )
         }
-        Row(
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(4.dp)
-                .clip(RoundedCornerShape(2.dp))
+                .height(6.dp)
+                .clip(CircleShape)
                 .background(scheme.surfaceContainerHighest)
         ) {
-            Row(
+            Box(
                 modifier = Modifier
                     .fillMaxWidth(fraction)
-                    .fillMaxSize()
+                    .fillMaxHeight()
+                    .clip(CircleShape)
                     .background(scheme.primary)
-            ) {}
+            )
         }
     }
 }
 
 /**
- * The two things a new user should try first, as one quiet row.
+ * The two things a new user should try first, as two quiet tiles.
  *
- * These were a card each, with a paragraph each, taking up more of the screen
- * than the monitor itself. They are affordances, not features.
+ * Both run the real pipeline, which is why they sit on the monitor rather than
+ * in Settings: they are how somebody without a crying baby finds out the
+ * monitor works.
  */
 @Composable
 private fun TryItRow(state: AppState, monitor: MonitorState) {
     val result by state.selfTest.collectAsState()
     val running by state.selfTestRunning.collectAsState()
+    val demoEnabled = !monitor.running && !monitor.demoComplete
 
-    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-            TextButton(
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        SectionTitle("Test & troubleshoot")
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            TryTile(
+                title = "Play a demo cry",
+                subtitle = if (demoEnabled) "Sound up – it plays aloud" else "Running now",
+                icon = Icons.Filled.PlayArrow,
+                tone = Tone.TEAL,
+                enabled = demoEnabled,
                 onClick = state::runDemoCry,
-                enabled = !monitor.running && !monitor.demoComplete,
-            ) { Text("Play a demo cry") }
-            TextButton(
-                onClick = state::runSelfTest,
+                modifier = Modifier.weight(1f),
+            )
+            TryTile(
+                title = "Test the detector",
+                subtitle = if (running) "Testing..." else "Check it's working",
+                icon = Icons.Outlined.GraphicEq,
+                tone = Tone.BLUE,
                 enabled = !running,
-            ) { Text(if (running) "Testing..." else "Test the detector") }
+                onClick = state::runSelfTest,
+                modifier = Modifier.weight(1f),
+            )
         }
         result?.let {
-            Text(
-                it.shortLine,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(start = 12.dp),
-            )
+            InfoNote(it.shortLine, icon = Icons.Outlined.Info, tone = Tone.BLUE)
+        }
+    }
+}
+
+@Composable
+private fun TryTile(
+    title: String,
+    subtitle: String,
+    icon: ImageVector,
+    tone: Tone,
+    enabled: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    NilaCard(
+        modifier = modifier.alpha(if (enabled) 1f else 0.55f),
+        tone = tone,
+        contentPadding = PaddingValues(14.dp),
+        onClick = if (enabled) onClick else null,
+    ) {
+        IconBadge(icon, tone, size = 42.dp, iconSize = 24.dp)
+        Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
+            Text(title, style = MaterialTheme.typography.titleSmall,
+                 fontWeight = FontWeight.Bold, maxLines = 1)
+            Text(subtitle, style = MaterialTheme.typography.labelMedium,
+                 color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1,
+                 overflow = TextOverflow.Ellipsis)
         }
     }
 }
@@ -395,80 +622,222 @@ private fun TryItRow(state: AppState, monitor: MonitorState) {
 // ------------------------------------------------------------ this cry
 
 /**
- * The cause, and the ladder working through it, while the cry is still going.
+ * The top of a cry in progress: how long, what Nila is doing, the plan, and
+ * what is next.
  *
- * The reason appears here from the twenty-second rung -- as a hypothesis with
- * its own uncertainty attached. The instructions for acting on it deliberately
- * do not: those wait for the verdict at ninety seconds, by which point the app
- * has tried what it can on its own and there is a person reading.
+ * The plan is the part that changed. The ladder used to be a progress rail and
+ * seven technical rows further down the screen; a parent watching at forty
+ * seconds could not tell whether the app was mid-plan or stuck. The journey
+ * shows the four steps they would name, with the second each is due, and the
+ * line under it says what is next and how long until it happens.
+ */
+@Composable
+private fun EpisodeHero(
+    monitor: MonitorState,
+    evidence: com.nila.audio.CryEvidence,
+    urgent: Boolean,
+) {
+    val scheme = MaterialTheme.colorScheme
+    val urgentColors = severityColors(Severity.URGENT)
+    val seconds = evidence.durationSeconds
+    val tried = EpisodePipeline.attempts(monitor.history)
+    val latest = tried.lastOrNull()
+    val phase = monitor.phase
+
+    NilaCard(
+        modifier = Modifier.fillMaxWidth(),
+        tone = if (urgent) null else Tone.TEAL,
+        borderColor = if (urgent) urgentColors.accent.copy(alpha = 0.5f) else null,
+        contentPadding = PaddingValues(18.dp),
+        verticalSpacing = 14.dp,
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            PulseDot(active = true, size = 12.dp,
+                     color = if (urgent) urgentColors.accent else null)
+            Text(
+                text = when {
+                    urgent -> "Your baby needs you"
+                    phase is MonitorState.Phase.Settling ->
+                        if (monitor.nowPlayingIsVoice) "Trying your voice"
+                        else "Trying ${(monitor.nowPlaying ?: phase.soother).lowercase()}"
+                    phase is MonitorState.Phase.Verifying -> "Checking if it helped"
+                    else -> "Crying"
+                },
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                color = if (urgent) urgentColors.accent else scheme.onSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
+            )
+            when {
+                urgent -> SeverityChip(Severity.URGENT)
+                monitor.simulated -> TonePill("Demo", Tone.PLUM, dot = true)
+                else -> TonePill("Live", Tone.TEAL, dot = true)
+            }
+        }
+
+        // Elapsed time as the hero number: during an episode it is the single
+        // fact that decides what a parent does next.
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = clockOf(seconds),
+                style = MaterialTheme.typography.displaySmall.copy(fontFeatureSettings = "tnum"),
+                fontWeight = FontWeight.Bold,
+                color = if (urgent) urgentColors.accent else scheme.onSurface,
+            )
+            Spacer(Modifier.width(14.dp))
+            Column {
+                Text("crying, " + evidence.trend.name.lowercase(),
+                     style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                Text(
+                    when {
+                        urgent && tried.isNotEmpty() && tried.none { it.helped == true } ->
+                            if (tried.size == 1) "1 sound tried, it did not settle her"
+                            else "${tried.size} sounds tried, none settled her"
+                        latest?.helped == false -> "${latest.name} did not help"
+                        latest?.helped == true -> "${latest.name} seemed to help"
+                        else -> "${(evidence.detectorConfidence * 100).toInt()}% sure it is a cry"
+                    },
+                    style = MaterialTheme.typography.labelMedium,
+                    color = scheme.onSurfaceVariant,
+                )
+            }
+        }
+
+        CryJourney(
+            seconds = seconds,
+            history = monitor.history,
+            settling = phase is MonitorState.Phase.Settling,
+            verifying = phase is MonitorState.Phase.Verifying,
+        )
+
+        if (!urgent) {
+            EpisodePipeline.nextUp(seconds, monitor.history)?.let { next ->
+                NextUpRow(next, seconds, tried, keepingClip = monitor.clipSeconds > 0.5f)
+            }
+        }
+    }
+}
+
+/**
+ * Everything under the hero while a cry runs, in the order a parent needs it.
+ *
+ * Before the alert: the sound that is playing, the sounds already judged, the
+ * cry's loudness with each sound drawn on it, and the guess about the cause --
+ * small, because it is a guess. At the alert: what to do, what was tried, and
+ * how long until the episode closes. The full seven-rung ladder is folded at
+ * the bottom for anybody who wants every step.
  */
 @Composable
 private fun LiveEpisode(
     evidence: com.nila.audio.CryEvidence,
     monitor: MonitorState,
+    onStop: () -> Unit,
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        evidence.hypothesis?.let { h ->
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                SectionHeader("Cry reason")
-                OutlinedBox(modifier = Modifier.fillMaxWidth()) {
-                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text(
-                            "PROBABLY",
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                        ) {
-                            Text(
-                                h.label.replace('_', ' ')
-                                    .replaceFirstChar { it.uppercase() },
-                                style = MaterialTheme.typography.headlineSmall,
-                                fontWeight = FontWeight.Bold,
-                            )
-                            Text(
-                                "${(h.confidence * 100).toInt()}%",
-                                style = MaterialTheme.typography.titleMedium.copy(fontFeatureSettings = "tnum"),
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                        Text(
-                            buildString {
-                                if (h.ambiguous && h.runnerUp != null) {
-                                    append("Close to ")
-                                    append(h.runnerUp.replace('_', ' '))
-                                    append(". ")
-                                }
-                                append("Averaged over ")
-                                append(h.windowsAveraged)
-                                append(if (h.windowsAveraged == 1) " window" else " windows")
-                                append(" of this cry. A best guess from the sound, ")
-                                append("not a diagnosis.")
-                            },
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                }
+    val phase = monitor.phase
+    val urgent = phase is MonitorState.Phase.Escalated || phase is MonitorState.Phase.Safety
+    val seconds = evidence.durationSeconds
+    val tried = EpisodePipeline.attempts(monitor.history)
+    var showSteps by remember { mutableStateOf(false) }
+
+    Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        if (!urgent) {
+            monitor.nowPlaying?.let { sound ->
+                val current = tried.lastOrNull()
+                VoiceNoteBar(
+                    name = sound,
+                    isVoice = monitor.nowPlayingIsVoice,
+                    detail = current?.let {
+                        "Try ${it.number} · playing for ${(seconds - it.startedAtSeconds)
+                            .coerceAtLeast(0)}s"
+                    },
+                )
+            }
+        }
+
+        // The verdict outranks everything else the moment it exists: it is
+        // the only card that tells the reader what to do.
+        if (urgent) {
+            monitor.advice?.let { advice ->
+                ReasonVerdict(
+                    headline = advice.headline,
+                    steps = advice.steps,
+                    caution = advice.caution,
+                    source = advice.source,
+                    lead = "Go to her now.",
+                )
+            }
+        }
+
+        // One sound playing is already on screen in the bar above. The list
+        // earns its place once there is a result in it, or a second sound.
+        if (urgent || tried.size > 1 || tried.any { it.helped != null }) {
+            AttemptsCard(
+                attempts = tried,
+                seconds = seconds,
+                playingNow = monitor.nowPlaying != null,
+                subtitle = if (urgent) "before waking you" else "measured, not assumed",
+            )
+        }
+
+        if (urgent) {
+            EpisodePipeline.nextUp(seconds, monitor.history)?.let { next ->
+                NextUpRow(next, seconds, tried, keepingClip = monitor.clipSeconds > 0.5f)
+            }
+        }
+
+        EpisodeCurve(
+            envelope = evidence.envelope,
+            seconds = seconds,
+            attempts = tried,
+            clipSeconds = if (urgent) 0f else monitor.clipSeconds,
+        )
+
+        if (!urgent) {
+            evidence.hypothesis?.let { h ->
+                BestGuessRow(h.label, h.confidence, h.runnerUp.takeIf { h.ambiguous })
             }
         }
 
         if (monitor.pipeline.isNotEmpty()) {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                SectionHeader("What Nila is doing")
-                OutlinedBox(modifier = Modifier.fillMaxWidth()) {
-                    PipelineChart(
-                        steps = monitor.pipeline,
-                        seconds = evidence.durationSeconds,
-                    )
+            StepsToggle(
+                done = monitor.pipeline.count {
+                    it.status == EpisodePipeline.Status.DONE ||
+                        it.status == EpisodePipeline.Status.ACTIVE
+                },
+                total = monitor.pipeline.size,
+                open = showSteps,
+                onToggle = { showSteps = !showSteps },
+            )
+            AnimatedVisibility(visible = showSteps) {
+                NilaCard(modifier = Modifier.fillMaxWidth()) {
+                    PipelineChart(steps = monitor.pipeline, seconds = seconds, showRail = false)
                 }
             }
         }
+
+        if (monitor.simulated) {
+            InfoNote(
+                "Demo: a real recording through the real detector, in real time. " +
+                    if (urgent) "Nothing is wrong – this is what an alert looks like."
+                    else "Nothing is wrong. You are woken at 1:30.",
+                tone = Tone.PLUM,
+            )
+        }
+        OutlinePillButton(
+            if (monitor.simulated) "Stop the demo" else "Stop monitoring",
+            onStop,
+            Modifier.fillMaxWidth(),
+            icon = Icons.Filled.Stop,
+        )
     }
 }
+
 
 // -------------------------------------------------------- closed episode
 
@@ -487,81 +856,92 @@ private fun EpisodeSummaryCard(
 ) {
     var showSteps by remember(episode.startedAtMs) { mutableStateOf(false) }
 
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        SectionHeader(
-            if (episode.closedByTimeout) "Last cry - closed at three minutes"
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        SectionTitle(
+            if (episode.closedByTimeout) "Last cry – closed at three minutes"
             else "Last cry"
         )
-        OutlinedBox(modifier = Modifier.fillMaxWidth()) {
-            Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                ) {
-                    StatBlock("Ran for", elapsed(episode.durationSeconds))
-                    StatBlock("Sounds tried", episode.soothersTried.toString())
-                    StatBlock("Woke you", if (episode.wokeSomebody) "Yes" else "No")
-                }
+        NilaCard(modifier = Modifier.fillMaxWidth(), verticalSpacing = 14.dp) {
+            StatStrip(
+                listOf(
+                    "Ran for" to elapsed(episode.durationSeconds),
+                    "Sounds tried" to episode.soothersTried.toString(),
+                    "Woke you" to if (episode.wokeSomebody) "Yes" else "No",
+                )
+            )
 
-                episode.clipPath?.let { path ->
-                    CryClipPlayer(
-                        path = path,
-                        envelope = episode.evidence?.envelope.orEmpty(),
-                    )
-                }
+            episode.clipPath?.let { path ->
+                CryClipPlayer(
+                    path = path,
+                    envelope = episode.evidence?.envelope.orEmpty(),
+                )
+            }
 
-                episode.advice?.let { advice ->
-                    Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                        Text(
-                            "REASON DETERMINED",
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                        Text(
-                            advice.headline,
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            lineHeight = 24.sp,
-                        )
-                    }
-                } ?: episode.evidence?.hypothesis?.let { h ->
-                    Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                        Text(
-                            "REASON DETERMINED",
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                        Text(
-                            "Probably ${h.label.replace('_', ' ')} - " +
-                                "${(h.confidence * 100).toInt()}%, a guess from the sound.",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.SemiBold,
-                        )
-                    }
-                }
-
-                TextButton(onClick = { showSteps = !showSteps }) {
+            episode.advice?.let { advice ->
+                Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
                     Text(
-                        if (showSteps) "Hide the steps Nila took"
-                        else "Show the ${episode.pipeline.count {
-                            it.status == EpisodePipeline.Status.DONE
-                        }} steps Nila took"
+                        "REASON DETERMINED",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Text(
+                        advice.headline,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        lineHeight = 24.sp,
                     )
                 }
-                AnimatedVisibility(visible = showSteps) {
-                    PipelineChart(
-                        steps = episode.pipeline,
-                        seconds = episode.durationSeconds,
-                        showRail = false,
+            } ?: episode.evidence?.hypothesis?.let { h ->
+                Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                    Text(
+                        "REASON DETERMINED",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
-                }
-
-                OutlinedButton(onClick = onDismiss, modifier = Modifier.fillMaxWidth()) {
-                    Text("Dismiss")
+                    Text(
+                        "Probably ${h.label.replace('_', ' ')} – " +
+                            "${(h.confidence * 100).toInt()}%, a guess from the sound.",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                    )
                 }
             }
+
+            TextButton(
+                onClick = { showSteps = !showSteps },
+                contentPadding = PaddingValues(horizontal = 0.dp),
+            ) {
+                Text(
+                    if (showSteps) "Hide the steps Nila took"
+                    else "Show the ${episode.pipeline.count {
+                        it.status == EpisodePipeline.Status.DONE
+                    }} steps Nila took",
+                    fontWeight = FontWeight.SemiBold,
+                )
+            }
+            AnimatedVisibility(visible = showSteps) {
+                PipelineChart(
+                    steps = episode.pipeline,
+                    seconds = episode.durationSeconds,
+                    showRail = false,
+                )
+            }
+
+            OutlinePillButton("Dismiss", onDismiss, Modifier.fillMaxWidth())
         }
-        HedgeNote(
+        AttemptsCard(
+            attempts = EpisodePipeline.attempts(episode.history),
+            seconds = episode.durationSeconds,
+            playingNow = false,
+            subtitle = "measured, not assumed",
+        )
+        // Only while the clip is actually there. The player already says when
+        // it has gone, and a note promising seven days of storage under that
+        // sentence contradicted it.
+        val clipKept = remember(episode.clipPath) {
+            episode.clipPath?.let { java.io.File(it).exists() } == true
+        }
+        if (clipKept) HedgeNote(
             "The clip is ${episode.clipSeconds.toInt()}s of audio in this app's " +
                 "private storage. It is deleted after " +
                 "${com.nila.audio.EpisodeRecorder.RETAIN_DAYS} days and is never uploaded."
@@ -579,15 +959,14 @@ private fun EpisodeSummaryCard(
  *
  * Sleep is the one of the three that is not an instant. A feed and a nappy are
  * things that happened; a sleep is a thing that is *still happening*, and
- * logging it as a timestamp -- which is all this did, one `SLEEP_START` row per
- * tap and no end, ever -- produced a log from which no duration could be
- * recovered. There was no way to chart a night, and the assistant's "Woke"
- * field had nothing behind it.
+ * logging it as a timestamp produced a log from which no duration could be
+ * recovered. So the sleep tile is a stopwatch with two states. Tap to start,
+ * tap to stop, and while it runs it shows the time on its face. Still one tap
+ * either way.
  *
- * So the sleep button is a stopwatch with two states, not a button. Tap to
- * start, tap to stop, and while it runs it shows the time on its face. Still
- * one tap either way, which was the constraint that produced the write-only
- * version in the first place.
+ * Each tile confirms itself with a tick for a moment after it is tapped. A log
+ * that changes nothing visible except "1h 8m ago" becoming "just now" is a log
+ * people tap twice.
  */
 @Composable
 private fun QuickLog(
@@ -595,89 +974,162 @@ private fun QuickLog(
     asleepSinceMs: Long?,
     onLog: (CareKind) -> Unit,
     onToggleSleep: () -> Unit,
+    onUndo: (Long) -> Unit,
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        SectionHeader("Quick log")
+    var confirmed by remember { mutableStateOf<String?>(null) }
+    var undoable by remember { mutableStateOf<Pair<CareKind, Long>?>(null) }
+    LaunchedEffect(confirmed) {
+        if (confirmed != null) {
+            kotlinx.coroutines.delay(1_800)
+            confirmed = null
+        }
+    }
+    // Long enough to notice a mis-tap and reach back for it one-handed.
+    LaunchedEffect(undoable) {
+        if (undoable != null) {
+            kotlinx.coroutines.delay(6_000)
+            undoable = null
+        }
+    }
+    val sleepElapsed = rememberElapsed(asleepSinceMs)
+    fun logged(kind: CareKind) { undoable = kind to System.currentTimeMillis() }
+
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        SectionTitle("Quick log")
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            LogButton("Fed", Icons.Outlined.LocalDrink,
-                      lastOf(care, CareKind.FEED), Modifier.weight(1f)) {
-                onLog(CareKind.FEED)
-            }
-            LogButton("Changed", Icons.Outlined.ChangeCircle,
-                      lastOf(care, CareKind.DIAPER), Modifier.weight(1f)) {
-                onLog(CareKind.DIAPER)
-            }
-            SleepButton(
-                asleepSinceMs = asleepSinceMs,
-                lastStart = lastOf(care, CareKind.SLEEP_START),
+            LogTile(
+                label = "Feed",
+                subtitle = lastOf(care, CareKind.FEED),
+                icon = NilaIcons.Bottle,
+                tone = Tone.TEAL,
+                confirmed = confirmed == "feed",
                 modifier = Modifier.weight(1f),
-                onClick = onToggleSleep,
+            ) { onLog(CareKind.FEED); confirmed = "feed"; logged(CareKind.FEED) }
+            LogTile(
+                label = "Nappy",
+                subtitle = lastOf(care, CareKind.DIAPER),
+                icon = NilaIcons.Nappy,
+                tone = Tone.PEACH,
+                confirmed = confirmed == "nappy",
+                modifier = Modifier.weight(1f),
+            ) { onLog(CareKind.DIAPER); confirmed = "nappy"; logged(CareKind.DIAPER) }
+            // One word on the face: "Sleep" when awake, "Awake" when asleep --
+            // each is the *action*, matching the two tiles beside it.
+            LogTile(
+                label = if (asleepSinceMs != null) "Awake" else "Sleep",
+                subtitle = sleepElapsed?.let { "asleep $it" } ?: lastOf(care, CareKind.SLEEP_START),
+                icon = if (asleepSinceMs != null) Icons.Outlined.LightMode
+                       else Icons.Outlined.Bedtime,
+                tone = Tone.BLUE,
+                emphasised = asleepSinceMs != null,
+                confirmed = confirmed == "sleep",
+                action = if (asleepSinceMs != null) Icons.Filled.Stop else Icons.Filled.PlayArrow,
+                modifier = Modifier.weight(1f),
+            ) {
+                val kind = if (asleepSinceMs != null) CareKind.SLEEP_END else CareKind.SLEEP_START
+                onToggleSleep(); confirmed = "sleep"; logged(kind)
+            }
+        }
+        undoable?.let { (kind, at) ->
+            UndoStrip(
+                text = when (kind) {
+                    CareKind.FEED -> "Feed logged"
+                    CareKind.DIAPER -> "Nappy change logged"
+                    CareKind.SLEEP_START -> "Sleep started"
+                    else -> "Sleep ended"
+                } + " at " + java.text.SimpleDateFormat("HH:mm", Locale.getDefault())
+                    .format(java.util.Date(at)),
+                onUndo = {
+                    care.firstOrNull { it.kind == kind.name && it.atMs >= at - 5_000 }
+                        ?.let { onUndo(it.id) }
+                    undoable = null
+                },
             )
         }
-        if (asleepSinceMs != null) {
+        if (asleepSinceMs != null && undoable == null) {
             SleepTrackerNote(asleepSinceMs)
         }
     }
 }
 
-/**
- * The sleep stopwatch.
- *
- * One word on the face, because it has a third of the row's width: "Sleep"
- * when awake, "Awake" when asleep -- each is the *action*, matching the two
- * buttons beside it, which are also actions. The earlier attempt labelled the
- * state instead ("Asleep") with the elapsed time beneath, and a third of a
- * 360dp screen wrapped "asleep 1h 12m" into an ellipsis. The running clock is
- * the subtitle and nothing else shares the line with it.
- */
+/** "Feed logged at 03:12 · Undo", for six seconds after a tap. */
 @Composable
-private fun SleepButton(
-    asleepSinceMs: Long?,
-    lastStart: String,
+private fun UndoStrip(text: String, onUndo: () -> Unit) {
+    val scheme = MaterialTheme.colorScheme
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(14.dp))
+            .background(scheme.inverseSurface)
+            .padding(start = 16.dp, end = 4.dp, top = 2.dp, bottom = 2.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(Icons.Outlined.Check, contentDescription = null, tint = scheme.inverseOnSurface,
+             modifier = Modifier.size(18.dp))
+        Text(text, style = MaterialTheme.typography.bodyMedium, color = scheme.inverseOnSurface,
+             modifier = Modifier.weight(1f).padding(start = 10.dp))
+        TextButton(onClick = onUndo) {
+            Text("Undo", color = scheme.inversePrimary, fontWeight = FontWeight.Bold)
+        }
+    }
+}
+
+@Composable
+private fun LogTile(
+    label: String,
+    subtitle: String,
+    icon: ImageVector,
+    tone: Tone,
     modifier: Modifier = Modifier,
+    emphasised: Boolean = false,
+    confirmed: Boolean = false,
+    action: ImageVector = Icons.Outlined.Add,
     onClick: () -> Unit,
 ) {
-    val elapsed = rememberElapsed(asleepSinceMs)
-    LogButton(
-        label = if (asleepSinceMs != null) "Awake" else "Sleep",
-        icon = if (asleepSinceMs != null) Icons.Outlined.LightMode
-               else Icons.Outlined.Bedtime,
-        subtitle = elapsed ?: lastStart,
+    val colors = toneColors(tone)
+    val scheme = MaterialTheme.colorScheme
+    NilaCard(
         modifier = modifier,
-        emphasised = asleepSinceMs != null,
+        tone = tone,
+        borderColor = if (emphasised) colors.ink.copy(alpha = 0.6f) else null,
+        contentPadding = PaddingValues(12.dp),
+        verticalSpacing = 6.dp,
         onClick = onClick,
-    )
+    ) {
+        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
+            IconBadge(if (confirmed) Icons.Outlined.Check else icon, tone,
+                      size = 38.dp, iconSize = 21.dp)
+            Spacer(Modifier.weight(1f))
+            Icon(action, contentDescription = null,
+                 tint = colors.ink.copy(alpha = 0.75f), modifier = Modifier.size(18.dp))
+        }
+        Column {
+            Text(label, style = MaterialTheme.typography.titleSmall,
+                 fontWeight = FontWeight.Bold, maxLines = 1)
+            Text(
+                if (confirmed) "Logged" else subtitle,
+                style = MaterialTheme.typography.bodySmall,
+                color = if (confirmed) colors.ink else scheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+    }
 }
 
 /** The line under the row while a sleep is running. Says what to tap, and when it began. */
 @Composable
 private fun SleepTrackerNote(sinceMs: Long) {
-    val scheme = MaterialTheme.colorScheme
     val started = remember(sinceMs) {
         java.text.SimpleDateFormat("HH:mm", Locale.getDefault())
             .format(java.util.Date(sinceMs))
     }
     val elapsed = rememberElapsed(sinceMs) ?: "just now"
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(10.dp))
-            .background(scheme.secondaryContainer)
-            .padding(horizontal = 12.dp, vertical = 9.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(9.dp),
-    ) {
-        Icon(
-            Icons.Outlined.Bedtime, contentDescription = null,
-            tint = scheme.onSecondaryContainer,
-            modifier = Modifier.size(17.dp),
-        )
-        Text(
-            "Asleep since $started - $elapsed. Tap Awake when she wakes.",
-            style = MaterialTheme.typography.labelLarge,
-            color = scheme.onSecondaryContainer,
-        )
-    }
+    InfoNote(
+        "Asleep since $started – $elapsed. Tap Awake when she wakes.",
+        icon = Icons.Outlined.Bedtime,
+        tone = Tone.BLUE,
+    )
 }
 
 /**
@@ -707,90 +1159,19 @@ private fun rememberElapsed(sinceMs: Long?): String? {
     }
 }
 
-@Composable
-private fun LogButton(
-    label: String,
-    icon: ImageVector,
-    subtitle: String,
-    modifier: Modifier = Modifier,
-    emphasised: Boolean = false,
-    onClick: () -> Unit,
-) {
-    OutlinedButton(
-        onClick = onClick,
-        modifier = modifier.height(74.dp),
-        contentPadding = androidx.compose.foundation.layout.PaddingValues(4.dp),
-        colors = ButtonDefaults.outlinedButtonColors(
-            containerColor = if (emphasised) MaterialTheme.colorScheme.secondaryContainer
-                             else Color.Transparent,
-            contentColor = MaterialTheme.colorScheme.onSurface,
-        ),
-    ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(2.dp),
-        ) {
-            Icon(icon, contentDescription = null,
-                 tint = MaterialTheme.colorScheme.primary)
-            Text(label, style = MaterialTheme.typography.labelLarge, maxLines = 1)
-            Text(subtitle, style = MaterialTheme.typography.labelMedium,
-                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                 maxLines = 1)
-        }
-    }
-}
-
 // ------------------------------------------------------------- dashboard
 
 /**
- * The week, for the reader who is no longer in the middle of a cry.
- *
- * Four figures, then three charts, in the order the questions get asked: what
- * happened today, how today compares with the week, when in the day it happens,
- * and -- last, because it is the least trustworthy thing on the screen -- what
- * the sound suggested it was about.
+ * Today in four numbers, each in the colour of the chart it belongs to, with
+ * the last five days drawn small in the corner so "today" has something to be
+ * compared with.
  */
-@Composable
-private fun Dashboard(
-    insights: Insights.Summary,
-    care: List<com.nila.data.CareRecord>,
-    babyName: String,
-) {
-    val palette = chartPalette()
-    val scheme = MaterialTheme.colorScheme
-
-    Column(verticalArrangement = Arrangement.spacedBy(18.dp)) {
-        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text(
-                if (babyName.isBlank()) "The last seven days"
-                else "$babyName's last seven days",
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.SemiBold,
-            )
-            Text(
-                "Built from the cries Nila detected and the care you logged. " +
-                    "Nothing here left the phone.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = scheme.onSurfaceVariant,
-            )
-        }
-
-        TodayTiles(insights, care, palette)
-
-        CryTrendCard(insights, palette)
-
-        SleepCard(insights, palette)
-
-        CauseCard(insights, palette)
-    }
-}
-
-/** Today in four numbers, each in the colour of the chart it belongs to. */
 @Composable
 private fun TodayTiles(
     insights: Insights.Summary,
     care: List<com.nila.data.CareRecord>,
-    palette: ChartPalette,
+    babyName: String?,
+    onSeeAll: () -> Unit,
 ) {
     // Every figure on the dashboard comes from one place. The colic summary is
     // the same crying counted a different way -- rolling twenty-four hour
@@ -799,46 +1180,94 @@ private fun TodayTiles(
     val today = insights.today
     val cryMinutes = today?.cryMinutes ?: 0
     val episodes = today?.cryEpisodes ?: 0
+    val recent = insights.days.takeLast(5)
 
-    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        SectionTitle(
+            if (babyName != null) "$babyName today" else "Today",
+            action = "See all",
+            onAction = onSeeAll,
+        )
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            MetricTile(
-                label = "Crying today",
+            MetricCard(
+                label = "Crying",
                 value = humanMinutes(cryMinutes),
                 caption = when (episodes) {
                     0 -> "no episodes yet"
                     1 -> "1 episode"
                     else -> "$episodes episodes"
                 },
-                accent = palette.cry,
+                icon = Icons.Outlined.SentimentDissatisfied,
+                tone = Tone.PLUM,
+                trend = recent.map { it.cryMinutes.toFloat() },
                 modifier = Modifier.weight(1f),
             )
-            MetricTile(
-                label = "Slept today",
+            MetricCard(
+                label = "Sleep",
                 value = today?.sleepMinutes?.takeIf { it > 0 }
                     ?.let { humanMinutes(it) } ?: "-",
                 caption = if ((today?.sleepMinutes ?: 0) > 0) "from your sleep log"
-                          else "tap Slept to start one",
-                accent = palette.sleep,
+                          else "tap Sleep to start one",
+                icon = Icons.Outlined.Bedtime,
+                tone = Tone.BLUE,
+                trend = recent.map { it.sleepMinutes.toFloat() },
                 modifier = Modifier.weight(1f),
             )
         }
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            MetricTile(
-                label = "Feeds today",
+            MetricCard(
+                label = "Feeds",
                 value = (today?.feeds ?: 0).toString(),
                 caption = "last ${lastOf(care, CareKind.FEED)}",
-                accent = palette.feed,
+                icon = NilaIcons.Bottle,
+                tone = Tone.TEAL,
+                trend = recent.map { it.feeds.toFloat() },
                 modifier = Modifier.weight(1f),
             )
-            MetricTile(
+            MetricCard(
                 label = "Days over 3h",
                 value = "${insights.daysOverThreeHours}/${Insights.DAYS}",
                 caption = if (insights.meetsDurationCriterion) "worth a doctor's eye"
                           else "the colic duration rule",
-                accent = palette.cry,
+                icon = Icons.Outlined.DateRange,
+                tone = Tone.PLUM,
+                trend = null,
                 modifier = Modifier.weight(1f),
             )
+        }
+    }
+}
+
+@Composable
+private fun MetricCard(
+    label: String,
+    value: String,
+    caption: String,
+    icon: ImageVector,
+    tone: Tone,
+    trend: List<Float>?,
+    modifier: Modifier = Modifier,
+) {
+    val colors = toneColors(tone)
+    NilaCard(
+        modifier = modifier,
+        tone = tone,
+        contentPadding = PaddingValues(14.dp),
+        verticalSpacing = 10.dp,
+    ) {
+        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
+            IconBadge(icon, tone, size = 40.dp, iconSize = 22.dp)
+            Spacer(Modifier.weight(1f))
+            trend?.let { MiniBars(it, colors.ink) }
+        }
+        Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
+            Text(label, style = MaterialTheme.typography.labelLarge, color = colors.ink,
+                 fontWeight = FontWeight.SemiBold)
+            Text(value, style = MaterialTheme.typography.headlineSmall
+                     .copy(fontFeatureSettings = "tnum"))
+            Text(caption, style = MaterialTheme.typography.labelMedium,
+                 color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1,
+                 overflow = TextOverflow.Ellipsis)
         }
     }
 }
@@ -854,70 +1283,96 @@ private fun TodayTiles(
  * crossing it three times is not a diagnosis, is in Insights.
  */
 @Composable
-private fun CryTrendCard(
-    insights: Insights.Summary,
-    palette: ChartPalette,
-) {
+private fun CryTrendCard(insights: Insights.Summary, onOpenInsights: () -> Unit) {
+    val palette = chartPalette()
     val scheme = MaterialTheme.colorScheme
     var picked by remember { mutableStateOf<Int?>(null) }
     if (insights.days.isEmpty()) return
+    val peak = insights.peakCryMinutes
 
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        SectionHeader("Crying, day by day")
-        OutlinedBox(modifier = Modifier.fillMaxWidth()) {
-            Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                WeekBars(
-                    bars = insights.days.map {
-                        Bar(
-                            label = it.date.dayOfWeek
-                                .getDisplayName(TextStyle.NARROW, Locale.getDefault()),
-                            value = it.cryMinutes.toFloat(),
-                            readout = humanMinutes(it.cryMinutes),
-                            emphasised = it.isToday,
-                        )
-                    },
-                    color = palette.cry,
-                    threshold = 180f,
-                    thresholdLabel = "three hours - the colic duration line",
-                    selected = picked,
-                    onSelect = { picked = if (picked == it) null else it },
-                )
-
-                val day = picked?.let(insights.days::getOrNull)
-                Text(
-                    text = day?.let {
-                        "${dayTitle(it)}: ${humanMinutes(it.cryMinutes)} over " +
-                            "${it.cryEpisodes} ${if (it.cryEpisodes == 1) "episode" else "episodes"}."
-                    } ?: ("Averaging ${humanMinutes(insights.averageCryMinutes)} a day, " +
-                        "with a worst day of ${humanMinutes(insights.peakCryMinutes)}. " +
-                        "Tap a bar for that day."),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = scheme.onSurface,
-                )
-
-                Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
-                    Text(
-                        "WHEN IN THE DAY",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = scheme.onSurfaceVariant,
-                    )
-                    HourProfile(insights.hourlyCryMinutes, palette.cry)
-                    Text(
-                        insights.pattern
-                            ?: "No time of day stands out yet - the crying is spread " +
-                                "fairly evenly, or there is not enough of it to tell.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = scheme.onSurface,
-                    )
-                }
-            }
+    NilaCard(modifier = Modifier.fillMaxWidth(), verticalSpacing = 14.dp,
+             contentPadding = PaddingValues(18.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("Crying, day by day", style = MaterialTheme.typography.titleLarge,
+                 fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+            Text("Last 7 days", style = MaterialTheme.typography.labelLarge,
+                 color = scheme.onSurfaceVariant)
         }
-        if (insights.meetsDurationCriterion) {
-            HedgeNote(
-                "Over three hours on ${insights.daysOverThreeHours} days this " +
-                    "week. That is the duration part of the colic definition and " +
-                    "nothing more - it is worth showing your doctor, not a diagnosis."
-            )
+        ColumnChart(
+            bars = insights.days.map {
+                Bar(
+                    label = dayShort(it),
+                    value = it.cryMinutes.toFloat(),
+                    readout = humanMinutes(it.cryMinutes),
+                    emphasised = it.isToday,
+                )
+            },
+            color = palette.cry,
+            ticks = hourTicks(maxOf(peak, 180)),
+            threshold = 180f,
+            thresholdLabel = "3h colic line",
+            selected = picked,
+            onSelect = { picked = it },
+        )
+        val day = picked?.let(insights.days::getOrNull)
+        Text(
+            text = day?.let {
+                "${dayTitle(it)}: ${humanMinutes(it.cryMinutes)} over " +
+                    "${it.cryEpisodes} ${if (it.cryEpisodes == 1) "episode" else "episodes"}."
+            } ?: ("Averaging ${humanMinutes(insights.averageCryMinutes)} a day, " +
+                "with a worst day of ${humanMinutes(peak)}. Tap a bar for that day."),
+            style = MaterialTheme.typography.bodyMedium,
+            color = scheme.onSurfaceVariant,
+        )
+        TakeawayStrip(
+            text = when (val n = insights.daysOverThreeHours) {
+                0 -> "No day reached the 3h line this week"
+                1 -> "1 day was above the 3h line"
+                else -> "$n days were above the 3h line"
+            },
+            tone = Tone.PLUM,
+            icon = Icons.Outlined.BarChart,
+            onClick = onOpenInsights,
+        )
+    }
+}
+
+/**
+ * The bridge from today to the week: one sentence and a way into the full record.
+ */
+@Composable
+private fun WeekBanner(insights: Insights.Summary, onOpenTimeline: () -> Unit) {
+    val cries = insights.days.sumOf { it.cryEpisodes }
+    if (insights.days.isEmpty()) return
+    val colors = toneColors(Tone.PLUM)
+    NilaCard(
+        modifier = Modifier.fillMaxWidth(),
+        tone = Tone.PLUM,
+        onClick = onOpenTimeline,
+        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 14.dp),
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            Icon(Icons.Outlined.BarChart, contentDescription = null, tint = colors.ink,
+                 modifier = Modifier.size(28.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    when (cries) {
+                        0 -> "No crying this week"
+                        1 -> "1 crying episode this week"
+                        else -> "$cries crying episodes this week"
+                    },
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Text("Each one is in the timeline, with what Nila did.",
+                     style = MaterialTheme.typography.bodySmall,
+                     color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            Icon(Icons.AutoMirrored.Outlined.KeyboardArrowRight, contentDescription = null,
+                 tint = colors.ink)
         }
     }
 }
@@ -929,82 +1384,77 @@ private fun CryTrendCard(
  *
  * A line rather than the bars used for crying, because the two charts are
  * asked different questions. Crying is measured against a fixed rule -- three
- * hours -- so its chart has to support *counting* the days that crossed it,
- * which is what columns against a threshold do. Sleep has no threshold worth
- * drawing for a four-month-old, and the only question a parent actually has
- * about it is whether it is getting better or worse. That is a slope.
+ * hours -- so its chart has to support *counting* the days that crossed it.
+ * Sleep has no threshold worth drawing for a four-month-old, and the only
+ * question a parent actually has about it is whether it is getting better or
+ * worse. That is a slope.
  *
  * A day with nothing logged is a hole in the line, not a zero. "We forgot to
  * tap" and "she did not sleep" are wildly different facts and this chart will
  * not print one as the other.
  */
 @Composable
-private fun SleepCard(insights: Insights.Summary, palette: ChartPalette) {
+private fun SleepCard(insights: Insights.Summary) {
+    val palette = chartPalette()
     val scheme = MaterialTheme.colorScheme
     var picked by remember { mutableStateOf<Int?>(null) }
     if (insights.days.isEmpty()) return
 
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        SectionHeader("Sleep, day by day")
-        OutlinedBox(modifier = Modifier.fillMaxWidth()) {
-            if (insights.daysWithSleepLogged == 0) {
-                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text(
-                        "No sleep tracked yet.",
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.SemiBold,
+    NilaCard(modifier = Modifier.fillMaxWidth(), verticalSpacing = 14.dp,
+             contentPadding = PaddingValues(18.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("Sleep, day by day", style = MaterialTheme.typography.titleLarge,
+                 fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+            insights.averageSleepMinutes?.let {
+                TonePill("Avg ${humanMinutes(it)}/day", Tone.BLUE, icon = Icons.Outlined.Bedtime)
+            }
+        }
+        if (insights.daysWithSleepLogged == 0) {
+            Text(
+                "No sleep tracked yet. Tap Sleep when she goes down and Awake when " +
+                    "she wakes. Two taps a nap is all this chart needs, and Nila will " +
+                    "not guess at the ones you miss.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = scheme.onSurfaceVariant,
+            )
+        } else {
+            LineChart(
+                points = insights.days.map {
+                    Point(
+                        label = dayShort(it),
+                        value = it.sleepMinutes.takeIf { m -> m > 0 }?.let { m -> m / 60f },
+                        readout = humanMinutes(it.sleepMinutes),
+                        title = dayTitle(it),
+                        emphasised = it.isToday,
                     )
-                    Text(
-                        "Tap Sleep when she goes down and Awake when she wakes. " +
-                            "Two taps a nap is all this chart needs, and Nila will " +
-                            "not guess at the ones you miss.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = scheme.onSurfaceVariant,
-                    )
-                }
-            } else {
-                Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                    LineChart(
-                        points = insights.days.map {
-                            Point(
-                                label = it.date.dayOfWeek
-                                    .getDisplayName(TextStyle.NARROW, Locale.getDefault()),
-                                value = it.sleepMinutes.takeIf { m -> m > 0 }
-                                    ?.let { m -> m / 60f },
-                                readout = humanMinutes(it.sleepMinutes),
-                                title = dayTitle(it),
-                                emphasised = it.isToday,
-                            )
-                        },
-                        color = palette.sleep,
-                        valueSuffix = "h",
-                        selected = picked,
-                        onSelect = { picked = it },
-                    )
-                    val day = picked?.let(insights.days::getOrNull)
-                    Text(
-                        text = day?.let {
-                            if (it.sleepMinutes == 0) "${dayTitle(it)}: nothing tracked."
-                            else "${dayTitle(it)}: ${humanMinutes(it.sleepMinutes)} over " +
-                                "${it.sleepSessions} " +
-                                (if (it.sleepSessions == 1) "stretch." else "stretches.")
-                        } ?: (insights.averageSleepMinutes?.let {
-                            "Averaging ${humanMinutes(it)} a day across the " +
-                                "${insights.daysWithSleepLogged} days you tracked. " +
-                                "Touch the line to read a day."
-                        } ?: "Touch the line to read a day."),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = scheme.onSurface,
-                    )
-                    if (insights.daysWithSleepLogged < Insights.DAYS) {
-                        Text(
-                            "A gap in the line is a day with nothing tracked, " +
-                                "not a day without sleep.",
-                            style = MaterialTheme.typography.labelMedium,
-                            color = scheme.onSurfaceVariant,
-                        )
-                    }
-                }
+                },
+                color = palette.sleep,
+                valueSuffix = "h",
+                selected = picked,
+                onSelect = { picked = it },
+                height = 190.dp,
+            )
+            val day = picked?.let(insights.days::getOrNull)
+            Text(
+                text = day?.let {
+                    if (it.sleepMinutes == 0) "${dayTitle(it)}: nothing tracked."
+                    else "${dayTitle(it)}: ${humanMinutes(it.sleepMinutes)} over " +
+                        "${it.sleepSessions} " +
+                        (if (it.sleepSessions == 1) "stretch." else "stretches.")
+                } ?: (insights.averageSleepMinutes?.let {
+                    "Averaging ${humanMinutes(it)} a day across the " +
+                        "${insights.daysWithSleepLogged} days you tracked. " +
+                        "Touch the line to read a day."
+                } ?: "Touch the line to read a day."),
+                style = MaterialTheme.typography.bodyMedium,
+                color = scheme.onSurfaceVariant,
+            )
+            if (insights.daysWithSleepLogged < Insights.DAYS) {
+                Text(
+                    "A gap in the line is a day with nothing tracked, not a day without sleep.",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = scheme.onSurfaceVariant,
+                )
             }
         }
     }
@@ -1026,50 +1476,60 @@ private fun SleepCard(insights: Insights.Summary, palette: ChartPalette) {
  * figure as much as the named ones are, which is why it is never dropped.
  */
 @Composable
-private fun CauseCard(insights: Insights.Summary, palette: ChartPalette) {
-    val scheme = MaterialTheme.colorScheme
+private fun CauseCard(insights: Insights.Summary) {
+    val palette = chartPalette()
     if (!insights.hasCauses) return
     val total = insights.causes.sumOf { it.episodes }.toFloat()
 
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        SectionHeader("What the sound suggested")
-        OutlinedBox(modifier = Modifier.fillMaxWidth()) {
-            Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                DonutChart(
-                    wedges = insights.causes.mapIndexed { i, cause ->
-                        Wedge(
-                            label = cause.label,
-                            value = cause.episodes.toFloat(),
-                            // The unnamed bucket is always the last colour, a
-                            // deliberate grey, whatever rank it came out at.
-                            color = if (cause.key.isEmpty()) palette.causes.last()
-                                    else palette.cause(i),
-                            readout = "${cause.episodes} · " +
-                                "${percent(cause.episodes.toFloat(), total)}%",
-                        )
-                    },
-                    centreValue = total.toInt().toString(),
-                    centreLabel = "cries\nthis week",
+    NilaCard(modifier = Modifier.fillMaxWidth(), verticalSpacing = 16.dp,
+             contentPadding = PaddingValues(18.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("What the sound suggested", style = MaterialTheme.typography.titleLarge,
+                 fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+            Text("This week", style = MaterialTheme.typography.labelLarge,
+                 color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        DonutChart(
+            wedges = insights.causes.mapIndexed { i, cause ->
+                Wedge(
+                    label = cause.label,
+                    value = cause.episodes.toFloat(),
+                    // The unnamed bucket is always the last colour, a
+                    // deliberate grey, whatever rank it came out at.
+                    color = if (cause.key.isEmpty()) palette.causes.last()
+                            else palette.cause(i),
+                    readout = "${cause.episodes} · " +
+                        "${percent(cause.episodes.toFloat(), total)}%",
                 )
-                Text(
-                    insights.causes.firstOrNull()?.let {
-                        "Most often ${it.label.lowercase()} - " +
-                            "${it.episodes} of ${total.toInt()} cries."
-                    }.orEmpty(),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = scheme.onSurface,
-                )
-            }
+            },
+            centreValue = total.toInt().toString(),
+            centreLabel = "cries\nthis week",
+        )
+        insights.causes.firstOrNull()?.let {
+            TakeawayStrip(
+                "Most often ${it.label.lowercase()} – ${it.episodes} of ${total.toInt()} cries.",
+                tone = Tone.PLUM,
+                icon = Icons.Outlined.SentimentDissatisfied,
+            )
         }
         HedgeNote(
-            "These are the detector's guesses from the sound, not findings. The " +
-                "cause model scores below chance on infants it has never heard, " +
-                "so read this as what Nila kept guessing, not as what was wrong."
+            "Guesses from the sound, not findings – on babies it has never heard, " +
+                "the cause model does no better than chance."
         )
     }
 }
 
 // ---------------------------------------------------------------- helpers
+
+/** Axis ticks in whole hours up to a little above [maxMinutes]. */
+internal fun hourTicks(maxMinutes: Int): List<Pair<Float, String>> {
+    val topHours = ((maxMinutes + 59) / 60).coerceAtLeast(3)
+    val step = if (topHours <= 4) 1 else 2
+    return (0..topHours step step).map { it * 60f to "${it}h" }
+}
+
+private fun dayShort(day: Insights.Day): String =
+    day.date.dayOfWeek.getDisplayName(TextStyle.SHORT, Locale.getDefault())
 
 private fun dayTitle(day: Insights.Day): String =
     if (day.isToday) "Today"

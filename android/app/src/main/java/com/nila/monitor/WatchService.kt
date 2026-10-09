@@ -499,6 +499,7 @@ class WatchService : LifecycleService() {
         _state.value = _state.value.copy(
             looking = false,
             observation = seen ?: _state.value.observation,
+            lookFailed = seen == null,
             hazard = if (confirmed) verdict else null,
             visionBackend = backend,
             nextLookAt = policy.nextDueAt,

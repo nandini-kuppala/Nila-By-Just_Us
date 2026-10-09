@@ -6,17 +6,28 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
-import androidx.compose.material.icons.outlined.Book
+import androidx.compose.material.icons.outlined.History
+import androidx.compose.material.icons.outlined.Assessment
 import androidx.compose.material.icons.outlined.DarkMode
 import androidx.compose.material.icons.outlined.LightMode
 import androidx.compose.material.icons.outlined.CameraAlt
 import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material.icons.outlined.Hearing
 import androidx.compose.material.icons.outlined.QuestionAnswer
-import androidx.compose.material.icons.outlined.Timeline
 import androidx.compose.material.icons.outlined.FolderShared
 import androidx.compose.material.icons.outlined.Tune
-import androidx.compose.material3.Button
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.size
+import androidx.compose.material.icons.outlined.Mic
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.NavigationBarItemDefaults
+import androidx.compose.ui.text.font.FontWeight
+import com.nila.ui.components.PillButton
+import com.nila.ui.components.SleepingBabyArt
+import com.nila.ui.screens.SettingsPage
+import com.nila.ui.screens.SettingsPageScreen
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.IconButton
@@ -29,6 +40,8 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -67,6 +80,7 @@ private enum class Tab(val route: String, val label: String, val icon: ImageVect
 }
 
 private const val SETTINGS_ROUTE = "settings"
+private const val SETTINGS_PAGE_ROUTE = "settings/{page}"
 private const val LEARN_ROUTE = "learn"
 private const val TIMELINE_ROUTE = "timeline"
 
@@ -87,8 +101,17 @@ fun NilaRoot(
     val current = backStack?.destination
 
     val onSettings = current?.route == SETTINGS_ROUTE
+    val onSettingsPage = current?.route == SETTINGS_PAGE_ROUTE
+    val settingsPage = backStack?.arguments?.getString("page")
+        ?.let(SettingsPage::fromKey)
     val onLearn = current?.route == LEARN_ROUTE
     val onTimeline = current?.route == TIMELINE_ROUTE
+    val nested = onSettings || onSettingsPage || onLearn || onTimeline
+
+    // The tab a pushed page was opened from stays lit, so the bottom bar never
+    // shows nothing selected -- that reads as being nowhere in the app.
+    var lastTab by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(Tab.HOME.route) }
+    Tab.entries.firstOrNull { it.route == current?.route }?.let { lastTab = it.route }
 
     Scaffold(
         topBar = {
@@ -98,20 +121,27 @@ fun NilaRoot(
             // which reads as a misaligned title rather than a centred one.
             TopAppBar(
                 title = {
+                    // A tab's name is the screen's title and is set large, the
+                    // way a page is headed. A page reached from the top bar is
+                    // a step down and says so with a smaller title and a back
+                    // arrow.
                     Text(
                         when {
                             onSettings -> "Settings"
+                            onSettingsPage -> settingsPage?.title ?: "Settings"
                             onLearn -> "Insights"
                             onTimeline -> "Timeline"
                             else -> Tab.entries
                                 .firstOrNull { it.route == current?.route }
                                 ?.label ?: "Nila"
                         },
-                        style = MaterialTheme.typography.titleMedium,
+                        style = if (nested) MaterialTheme.typography.titleLarge
+                                else MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.Bold,
                     )
                 },
                 navigationIcon = {
-                    if (onSettings || onLearn || onTimeline) {
+                    if (nested) {
                         IconButton(onClick = { navController.popBackStack() }) {
                             Icon(Icons.AutoMirrored.Outlined.ArrowBack,
                                  contentDescription = "Back")
@@ -125,12 +155,12 @@ fun NilaRoot(
                     // wrong, and sending someone into Settings to find it at
                     // three in the morning defeats it.
                     ThemeToggle()
-                    if (!onSettings && !onLearn && !onTimeline) {
+                    if (!nested) {
                         IconButton(onClick = { navController.navigate(TIMELINE_ROUTE) }) {
-                            Icon(Icons.Outlined.Timeline, contentDescription = "Timeline")
+                            Icon(Icons.Outlined.History, contentDescription = "Timeline")
                         }
                         IconButton(onClick = { navController.navigate(LEARN_ROUTE) }) {
-                            Icon(Icons.Outlined.Book, contentDescription = "Insights")
+                            Icon(Icons.Outlined.Assessment, contentDescription = "Insights")
                         }
                         IconButton(onClick = { navController.navigate(SETTINGS_ROUTE) }) {
                             Icon(Icons.Outlined.Tune, contentDescription = "Settings")
@@ -139,28 +169,56 @@ fun NilaRoot(
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surface,
+                    actionIconContentColor = MaterialTheme.colorScheme.onSurface,
                 ),
             )
         },
         bottomBar = {
-            NavigationBar(containerColor = MaterialTheme.colorScheme.surfaceContainerLow) {
+            val scheme = MaterialTheme.colorScheme
+            Column {
+            HorizontalDivider(color = scheme.outlineVariant)
+            NavigationBar(
+                containerColor = scheme.surfaceContainerLowest,
+                tonalElevation = 0.dp,
+            ) {
                 Tab.entries.forEach { tab ->
-                    val selected = current?.hierarchy?.any { it.route == tab.route } == true
+                    val selected = current?.hierarchy?.any { it.route == tab.route } == true ||
+                        (nested && tab.route == lastTab)
                     NavigationBarItem(
+                        colors = NavigationBarItemDefaults.colors(
+                            indicatorColor = scheme.primaryContainer,
+                            selectedIconColor = scheme.primary,
+                            selectedTextColor = scheme.onSurface,
+                            unselectedIconColor = scheme.onSurfaceVariant,
+                            unselectedTextColor = scheme.onSurfaceVariant,
+                        ),
                         selected = selected,
                         onClick = {
-                            navController.navigate(tab.route) {
-                                popUpTo(navController.graph.findStartDestination().id) {
-                                    saveState = true
+                            // Off a pushed page (settings, timeline, insights)
+                            // first. It sits on the last tab's stack, so
+                            // restoring that tab used to restore the page too:
+                            // tapping the highlighted tab did nothing at all.
+                            if (nested) navController.popBackStack(lastTab, inclusive = false)
+                            if (!nested || tab.route != lastTab) {
+                                navController.navigate(tab.route) {
+                                    popUpTo(navController.graph.findStartDestination().id) {
+                                        saveState = true
+                                    }
+                                    launchSingleTop = true
+                                    restoreState = true
                                 }
-                                launchSingleTop = true
-                                restoreState = true
                             }
                         },
                         icon = { Icon(tab.icon, contentDescription = tab.label) },
-                        label = { Text(tab.label) },
+                        label = {
+                            Text(
+                                tab.label,
+                                fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                            )
+                        },
                     )
                 }
+            }
             }
         }
     ) { padding ->
@@ -169,14 +227,28 @@ fun NilaRoot(
             startDestination = Tab.HOME.route,
             modifier = Modifier.padding(padding),
         ) {
-            composable(Tab.HOME.route) { HomeScreen(state) }
+            composable(Tab.HOME.route) {
+                HomeScreen(
+                    state,
+                    onOpenInsights = { navController.navigate(LEARN_ROUTE) },
+                    onOpenTimeline = { navController.navigate(TIMELINE_ROUTE) },
+                )
+            }
             composable(Tab.HEALTH.route) { HealthScreen(state) }
             composable(TIMELINE_ROUTE) { TimelineScreen(state) }
             composable(Tab.ASK.route) { AskScreen(state) }
             composable(Tab.WATCH.route) { WatchScreen(state) }
             composable(Tab.SCAN.route) { ScanScreen(state) }
             composable(LEARN_ROUTE) { LearnScreen(state) }
-            composable(SETTINGS_ROUTE) { SettingsScreen(state) }
+            composable(SETTINGS_ROUTE) {
+                SettingsScreen(state, onOpen = { page ->
+                    navController.navigate("settings/${page.key}")
+                })
+            }
+            composable(SETTINGS_PAGE_ROUTE) { entry ->
+                val page = entry.arguments?.getString("page")?.let(SettingsPage::fromKey)
+                if (page != null) SettingsPageScreen(state, page)
+            }
         }
     }
 }
@@ -205,10 +277,14 @@ private fun ThemeToggle() {
 @Composable
 private fun PermissionGate(onRequest: () -> Unit) {
     Column(
-        modifier = Modifier.fillMaxSize().padding(32.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically),
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+            .padding(28.dp),
+        verticalArrangement = Arrangement.spacedBy(18.dp, Alignment.CenterVertically),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
+        Box(Modifier.size(150.dp)) { SleepingBabyArt() }
         Text(
             "Nila needs the microphone",
             style = MaterialTheme.typography.headlineSmall,
@@ -221,6 +297,11 @@ private fun PermissionGate(onRequest: () -> Unit) {
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
         )
-        Button(onClick = onRequest) { Text("Grant permissions") }
+        PillButton(
+            text = "Grant permissions",
+            onClick = onRequest,
+            icon = Icons.Outlined.Mic,
+            modifier = Modifier.fillMaxWidth(),
+        )
     }
 }

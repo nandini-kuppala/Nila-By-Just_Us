@@ -67,6 +67,8 @@ data class WatchState(
     /** When the last look happened, and when the next is due. */
     val lastLookAt: Long = 0,
     val nextLookAt: Long = 0,
+    /** The last look returned nothing usable, so the screen can say so. */
+    val lookFailed: Boolean = false,
     /** What the phone last played or lit to hold the baby's attention. */
     val distraction: String? = null,
 ) {

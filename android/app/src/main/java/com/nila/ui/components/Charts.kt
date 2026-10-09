@@ -225,7 +225,7 @@ fun DonutChart(
     centreValue: String,
     centreLabel: String,
     modifier: Modifier = Modifier,
-    diameter: Dp = 128.dp,
+    diameter: Dp = 140.dp,
 ) {
     val total = wedges.sumOf { it.value.toDouble() }.toFloat()
     if (total <= 0f) return
@@ -237,11 +237,11 @@ fun DonutChart(
     Row(
         modifier = modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(14.dp),
+        horizontalArrangement = Arrangement.spacedBy(18.dp),
     ) {
         Box(contentAlignment = Alignment.Center) {
             Canvas(modifier = Modifier.size(diameter)) {
-                val stroke = size.minDimension * 0.17f
+                val stroke = size.minDimension * 0.2f
                 val inset = stroke / 2f
                 var start = -90f
                 wedges.forEach { wedge ->
@@ -266,7 +266,7 @@ fun DonutChart(
             ) {
                 Text(
                     centreValue,
-                    style = MaterialTheme.typography.headlineSmall
+                    style = MaterialTheme.typography.headlineMedium
                         .copy(fontFeatureSettings = "tnum"),
                     fontWeight = FontWeight.Bold,
                     color = scheme.onSurface,
@@ -283,7 +283,7 @@ fun DonutChart(
 
         Column(
             modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(7.dp),
+            verticalArrangement = Arrangement.spacedBy(11.dp),
         ) {
             wedges.forEach { wedge ->
                 Row(
@@ -309,7 +309,7 @@ fun DonutChart(
                     )
                     Text(
                         wedge.readout,
-                        style = MaterialTheme.typography.labelMedium
+                        style = MaterialTheme.typography.labelLarge
                             .copy(fontFeatureSettings = "tnum"),
                         color = scheme.onSurfaceVariant,
                     )
@@ -386,9 +386,10 @@ fun LineChart(
         label = "sleep-line",
     )
 
-    val tipStyle = MaterialTheme.typography.labelMedium
-        .copy(color = scheme.onSurface, fontWeight = FontWeight.SemiBold)
-    val tipSubStyle = MaterialTheme.typography.labelSmall.copy(color = scheme.onSurfaceVariant)
+    val tipStyle = MaterialTheme.typography.titleSmall
+        .copy(color = scheme.surfaceContainerLowest, fontWeight = FontWeight.Bold)
+    val tipSubStyle = MaterialTheme.typography.labelSmall
+        .copy(color = scheme.surfaceContainerLowest.copy(alpha = 0.85f))
     val axisStyle = MaterialTheme.typography.labelSmall
         .copy(color = scheme.onSurfaceVariant, fontFeatureSettings = "tnum")
     val labelStyle = MaterialTheme.typography.labelMedium.copy(color = scheme.onSurfaceVariant)
@@ -418,7 +419,7 @@ fun LineChart(
     ) {
         val axisW = 34.dp.toPx()
         val labelH = 20.dp.toPx()
-        val tipH = 46.dp.toPx()
+        val tipH = 52.dp.toPx()
         val plotLeft = axisW
         val plotRight = size.width
         val plotTop = tipH
@@ -433,7 +434,9 @@ fun LineChart(
         // ---- grid and axis
         listOf(1f, 0.5f, 0f).forEach { f ->
             val gy = plotBottom - f * plotH
-            drawLine(grid, Offset(plotLeft, gy), Offset(plotRight, gy), strokeWidth = 1f)
+            drawLine(grid, Offset(plotLeft, gy), Offset(plotRight, gy), strokeWidth = 1.dp.toPx(),
+                     pathEffect = if (f == 0f) null
+                                  else PathEffect.dashPathEffect(floatArrayOf(6f, 8f)))
             val text = measurer.measure(AnnotatedString("${fmt(top * f)}$valueSuffix"), axisStyle)
             drawText(
                 text,
@@ -560,18 +563,19 @@ fun LineChart(
             val left = (x(selected) - w / 2f).coerceIn(plotLeft, plotRight - w)
             val topY = (y(chosen.value) - h - 12.dp.toPx()).coerceAtLeast(0f)
             drawRoundRect(
-                color = scheme.surfaceContainerHighest,
+                color = color,
                 topLeft = Offset(left, topY),
                 size = Size(w, h),
                 cornerRadius = CornerRadius(10.dp.toPx()),
             )
-            drawRoundRect(
-                color = color.copy(alpha = 0.55f),
-                topLeft = Offset(left, topY),
-                size = Size(w, h),
-                cornerRadius = CornerRadius(10.dp.toPx()),
-                style = Stroke(width = 1.dp.toPx()),
-            )
+            val pointer = Path().apply {
+                val px = x(selected)
+                moveTo(px - 5.dp.toPx(), topY + h - 1f)
+                lineTo(px + 5.dp.toPx(), topY + h - 1f)
+                lineTo(px, topY + h + 5.dp.toPx())
+                close()
+            }
+            drawPath(pointer, color)
             drawText(title, topLeft = Offset(left + (w - title.size.width) / 2f, topY + padY))
             drawText(
                 sub,
@@ -659,7 +663,7 @@ fun HourProfile(
     minutesPerHour: List<Float>,
     color: Color,
     modifier: Modifier = Modifier,
-    height: Dp = 64.dp,
+    height: Dp = 84.dp,
 ) {
     if (minutesPerHour.size != 24) return
     val top = (minutesPerHour.maxOrNull() ?: 0f).coerceAtLeast(0.5f)
@@ -671,8 +675,7 @@ fun HourProfile(
             minutesPerHour.forEachIndexed { hour, minutes ->
                 val barH = (minutes / top * size.height).coerceAtLeast(2f)
                 drawRoundRect(
-                    color = if (hour in 20..23 || hour in 0..6)
-                        color.copy(alpha = 0.55f) else color,
+                    color = color.copy(alpha = 0.3f + 0.7f * (minutes / top).coerceIn(0f, 1f)),
                     topLeft = Offset(hour * slot + (slot - barW) / 2f, size.height - barH),
                     size = Size(barW, barH),
                     cornerRadius = CornerRadius(barW / 2.5f),
@@ -718,10 +721,10 @@ fun MetricTile(
     val scheme = MaterialTheme.colorScheme
     Column(
         modifier = modifier
-            .clip(RoundedCornerShape(12.dp))
-            .background(scheme.surfaceContainerLowest)
-            .border(1.dp, scheme.outlineVariant, RoundedCornerShape(12.dp))
-            .padding(horizontal = 12.dp, vertical = 11.dp),
+            .clip(RoundedCornerShape(16.dp))
+            .background(accent.copy(alpha = 0.07f))
+            .border(1.dp, accent.copy(alpha = 0.16f), RoundedCornerShape(16.dp))
+            .padding(horizontal = 14.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(3.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically,
@@ -759,3 +762,217 @@ fun humanMinutes(minutes: Int): String = when {
 /** A share, rounded once so the rows always add to something sensible. */
 fun percent(part: Float, whole: Float): Int =
     if (whole <= 0f) 0 else (part / whole * 100f).roundToInt()
+
+// ---------------------------------------------------------- column chart
+
+/**
+ * A week of columns on a labelled axis, with a threshold and a tap-out reading.
+ *
+ * The successor to [WeekBars] for the dashboard: it carries its own y-axis, so
+ * "3h" is printed where three hours is rather than left to a legend, and the
+ * columns that cross the threshold are drawn at full strength while the rest
+ * stay pale. That contrast is the chart's argument -- *how many days crossed
+ * the line* -- made without a word.
+ *
+ * @param ticks axis values with the label to print for each, bottom to top.
+ * @param strongAbove columns at or over this are drawn at full strength. Null
+ *   draws every column pale except the selected one.
+ * @param valueLabels print each column's [Bar.readout] above it, for a chart
+ *   short enough to label every value (the model card).
+ */
+@Composable
+fun ColumnChart(
+    bars: List<Bar>,
+    color: Color,
+    ticks: List<Pair<Float, String>>,
+    modifier: Modifier = Modifier,
+    height: Dp = 176.dp,
+    threshold: Float? = null,
+    thresholdLabel: String? = null,
+    strongAbove: Float? = threshold,
+    valueLabels: Boolean = false,
+    selected: Int? = null,
+    onSelect: ((Int?) -> Unit)? = null,
+    labelLines: Int = 1,
+) {
+    if (bars.isEmpty()) return
+    val scheme = MaterialTheme.colorScheme
+    val top = maxOf(
+        ticks.maxOfOrNull { it.first } ?: 0f,
+        bars.maxOf { it.value },
+        threshold ?: 0f,
+    ).coerceAtLeast(0.0001f)
+    val measurer = rememberTextMeasurer(cacheSize = 32)
+    val description = bars.joinToString(", ") { "${it.label} ${it.readout}" }
+    val grow by animateFloatAsState(1f, tween(650, easing = FastOutSlowInEasing),
+                                    label = "columns")
+
+    val axisStyle = MaterialTheme.typography.labelSmall
+        .copy(color = scheme.onSurfaceVariant, fontFeatureSettings = "tnum")
+    val dayStyle = MaterialTheme.typography.labelMedium.copy(color = scheme.onSurfaceVariant,
+                                                              textAlign = TextAlign.Center)
+    val dayStyleOn = dayStyle.copy(color = scheme.onSurface, fontWeight = FontWeight.Bold)
+    val valueStyle = MaterialTheme.typography.labelLarge
+        .copy(color = scheme.onSurface, fontWeight = FontWeight.SemiBold,
+              fontFeatureSettings = "tnum")
+    val tipStyle = MaterialTheme.typography.labelLarge
+        .copy(color = scheme.surfaceContainerLowest, fontWeight = FontWeight.Bold,
+              fontFeatureSettings = "tnum")
+    val grid = scheme.outlineVariant
+
+    Canvas(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(height)
+            .semantics { contentDescription = description }
+            .then(
+                if (onSelect == null) Modifier else Modifier.pointerInput(bars.size, selected) {
+                    detectTapGestures { offset ->
+                        val axisW = 36.dp.toPx()
+                        val slot = (size.width - axisW) / bars.size
+                        val hit = ((offset.x - axisW) / slot).toInt()
+                            .coerceIn(0, bars.lastIndex)
+                        onSelect(if (hit == selected) null else hit)
+                    }
+                }
+            )
+    ) {
+        val axisW = 36.dp.toPx()
+        val labelH = (if (labelLines > 1) 34.dp else 22.dp).toPx()
+        val headroom = (if (valueLabels) 22.dp else 28.dp).toPx()
+        val plotLeft = axisW
+        val plotTop = headroom
+        val plotBottom = size.height - labelH
+        val plotH = plotBottom - plotTop
+        val slot = (size.width - plotLeft) / bars.size
+        val barW = (slot * 0.5f).coerceAtMost(30.dp.toPx())
+        fun y(v: Float) = plotBottom - (v / top) * plotH
+
+        // Grid and axis labels.
+        ticks.forEach { (value, label) ->
+            val gy = y(value)
+            drawLine(
+                grid, Offset(plotLeft, gy), Offset(size.width, gy), strokeWidth = 1.dp.toPx(),
+                pathEffect = if (value == 0f) null
+                             else PathEffect.dashPathEffect(floatArrayOf(6f, 8f)),
+            )
+            val t = measurer.measure(AnnotatedString(label), axisStyle)
+            drawText(t, topLeft = Offset(plotLeft - 8.dp.toPx() - t.size.width,
+                                         gy - t.size.height / 2f))
+        }
+
+        threshold?.let { t ->
+            val ty = y(t)
+            drawLine(
+                color.copy(alpha = 0.7f), Offset(plotLeft, ty), Offset(size.width, ty),
+                strokeWidth = 1.5.dp.toPx(),
+                pathEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 8f)),
+            )
+            thresholdLabel?.let { label ->
+                val text = measurer.measure(AnnotatedString(label), axisStyle)
+                drawText(text, topLeft = Offset(size.width - text.size.width,
+                                                ty - text.size.height - 3.dp.toPx()))
+            }
+        }
+
+        bars.forEachIndexed { i, bar ->
+            val cx = plotLeft + slot * i + slot / 2f
+            val h = ((bar.value / top) * plotH * grow)
+                .coerceAtLeast(if (bar.value > 0f) 3.dp.toPx() else 0f)
+            val strong = i == selected ||
+                (selected == null && strongAbove != null && bar.value >= strongAbove) ||
+                (selected == null && strongAbove == null && bar.emphasised)
+            val fill = if (strong) color else color.copy(alpha = 0.38f)
+            if (h > 0f) {
+                // Rounded at the top only, and never more than the bar is tall:
+                // a near-zero day is a short stub, not a blob.
+                val r = minOf(6.dp.toPx(), h)
+                val path = Path().apply {
+                    addRoundRect(
+                        androidx.compose.ui.geometry.RoundRect(
+                            left = cx - barW / 2f, top = plotBottom - h,
+                            right = cx + barW / 2f, bottom = plotBottom,
+                            topLeftCornerRadius = CornerRadius(r),
+                            topRightCornerRadius = CornerRadius(r),
+                            bottomLeftCornerRadius = CornerRadius(0f),
+                            bottomRightCornerRadius = CornerRadius(0f),
+                        )
+                    )
+                }
+                drawPath(path, fill)
+            }
+            if (valueLabels) {
+                val t = measurer.measure(AnnotatedString(bar.readout), valueStyle)
+                var labelTop = plotBottom - h - t.size.height - 4.dp.toPx()
+                // A label that would sit on the threshold line is lifted clear
+                // above it, so "0.44" never reads as struck through.
+                threshold?.let { th ->
+                    val ty = y(th)
+                    if (labelTop + t.size.height > ty - 2.dp.toPx() && labelTop < ty + 2.dp.toPx()) {
+                        labelTop = ty - t.size.height - 3.dp.toPx()
+                    }
+                }
+                drawText(t, topLeft = Offset(cx - t.size.width / 2f, labelTop))
+            }
+            val day = measurer.measure(
+                AnnotatedString(bar.label),
+                if (i == selected) dayStyleOn else dayStyle,
+                constraints = androidx.compose.ui.unit.Constraints(
+                    maxWidth = slot.toInt().coerceAtLeast(1)),
+            )
+            drawText(day, topLeft = Offset(cx - day.size.width / 2f, plotBottom + 6.dp.toPx()))
+        }
+
+        // The reading over the chosen column, pointing at it.
+        val chosen = selected?.let(bars::getOrNull)
+        if (chosen != null && !valueLabels) {
+            val i = selected
+            val cx = plotLeft + slot * i + slot / 2f
+            val h = (chosen.value / top) * plotH
+            val t = measurer.measure(AnnotatedString(chosen.readout), tipStyle)
+            val padX = 10.dp.toPx()
+            val padY = 5.dp.toPx()
+            val w = t.size.width + padX * 2
+            val hh = t.size.height + padY * 2
+            val left = (cx - w / 2f).coerceIn(plotLeft, size.width - w)
+            val tipTop = (plotBottom - h - hh - 9.dp.toPx()).coerceAtLeast(0f)
+            drawRoundRect(color, topLeft = Offset(left, tipTop), size = Size(w, hh),
+                          cornerRadius = CornerRadius(hh / 2f))
+            val pointer = Path().apply {
+                moveTo(cx - 5.dp.toPx(), tipTop + hh - 1f)
+                lineTo(cx + 5.dp.toPx(), tipTop + hh - 1f)
+                lineTo(cx, tipTop + hh + 5.dp.toPx())
+                close()
+            }
+            drawPath(pointer, color)
+            drawText(t, topLeft = Offset(left + padX, tipTop + padY))
+        }
+    }
+}
+
+/**
+ * Four or five tiny columns, for the corner of a stat tile: the shape of the
+ * last few days, with no axis. The last one, today, is drawn darkest.
+ */
+@Composable
+fun MiniBars(
+    values: List<Float>,
+    color: Color,
+    modifier: Modifier = Modifier,
+) {
+    if (values.isEmpty() || values.all { it <= 0f }) return
+    val top = values.max().coerceAtLeast(0.0001f)
+    Canvas(modifier = modifier.size(width = 44.dp, height = 28.dp)) {
+        val gap = 3.dp.toPx()
+        val w = (size.width - gap * (values.size - 1)) / values.size
+        values.forEachIndexed { i, v ->
+            val h = (v / top * size.height).coerceAtLeast(4.dp.toPx())
+            drawRoundRect(
+                color = if (i == values.lastIndex) color else color.copy(alpha = 0.35f),
+                topLeft = Offset(i * (w + gap), size.height - h),
+                size = Size(w, h),
+                cornerRadius = CornerRadius(w / 2f),
+            )
+        }
+    }
+}

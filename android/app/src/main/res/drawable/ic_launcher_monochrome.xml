@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Themed-icon layer: the same moon and baby as one shape; the launcher tints it. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp"
+    android:viewportWidth="108" android:viewportHeight="108">
+    <group android:rotation="-14" android:pivotX="54" android:pivotY="57">
+        <path android:fillColor="#FFFFFFFF" android:pathData="M30.76,54.00 A24,24 0 1,0 77.24,54.00 A24,24 0 0,1 30.76,54.00 Z" />
+    </group>
+    <path android:fillColor="#FFFFFFFF" android:pathData="M42.0,61 a10.5,10.5 0 1,0 21.0,0 a10.5,10.5 0 1,0 -21.0,0 Z" />
+    <path android:fillColor="#FFFFFFFF" android:pathData="M72,27.8 Q73.04,31.96 77.2,33 Q73.04,34.04 72,38.2 Q70.96,34.04 66.8,33 Q70.96,31.96 72,27.8 Z" />
+</vector>

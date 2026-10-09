@@ -4,9 +4,13 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.util.Log
 import com.google.ai.edge.litertlm.Backend
+import com.google.ai.edge.litertlm.Content
+import com.google.ai.edge.litertlm.Contents
+import com.google.ai.edge.litertlm.ConversationConfig
 import com.google.ai.edge.litertlm.Engine
 import com.google.ai.edge.litertlm.EngineConfig
 import com.google.ai.edge.litertlm.InputData
+import com.google.ai.edge.litertlm.Message
 import java.io.ByteArrayOutputStream
 import java.io.Closeable
 import java.io.File
@@ -108,6 +112,9 @@ class SceneDescriber(private val context: Context) : Closeable {
             high edge - or none
             DOING: one short sentence about what the baby is doing
         """.trimIndent()
+
+        /** The reply is begun for the model, so it can only continue the form. */
+        private const val FORM_START = "POSITION:"
 
         /** Frames are downscaled before encoding; the encoder works at 336px. */
         private const val FRAME_EDGE = 672
@@ -248,6 +255,7 @@ class SceneDescriber(private val context: Context) : Closeable {
     @Volatile private var engine: Engine? = null
     @Volatile private var mediapipe: com.google.mediapipe.tasks.genai.llminference.LlmInference? = null
     @Volatile private var failure: String? = null
+    @Volatile private var lookFailure: String? = null
 
     /**
      * The same form, asked of a model on the NPU.
@@ -329,12 +337,15 @@ class SceneDescriber(private val context: Context) : Closeable {
     val isLoaded: Boolean get() = engine != null
 
     fun describe(): String = when {
+        npuReady -> "Intern3.5-VL-2B, on the NPU"
+        npuInstalled -> "Intern3.5-VL-2B, loads onto the NPU on the first look"
         !isSupported -> "Needs Android 12 or newer"
         !isInstalled -> "Not installed"
         mediapipe != null -> "${mediapipeModel()?.name}, loaded"
-        engine != null -> "FastVLM-0.5B, loaded"
+        engine != null && lookFailure != null -> "FastVLM-0.5B loaded, but the last look failed"
+        engine != null -> "FastVLM-0.5B, loaded on this phone"
         failure != null -> "Failed to load: $failure"
-        else -> "Installed, loads when you ask it to look"
+        else -> "FastVLM-0.5B on this phone, loads on the watch's first look"
     }
 
     private fun modelFile() = File(context.getExternalFilesDir("models"), FILE_NAME)
@@ -360,8 +371,9 @@ class SceneDescriber(private val context: Context) : Closeable {
                     modelPath = modelFile().absolutePath,
                     // The text side is small; the image encoder is the part
                     // that wants a GPU, and it is where the latency lives.
-                    backend = Backend.CPU,
-                    visionBackend = Backend.GPU,
+                    backend = Backend.CPU(),
+                    visionBackend = Backend.GPU(),
+                    maxNumImages = 1,
                     // Deliberately not audioBackend. FastVLM is vision-only,
                     // and naming an audio backend makes LiteRT-LM go looking
                     // for a TF_LITE_AUDIO_ENCODER_HW section that is not in
@@ -452,13 +464,7 @@ class SceneDescriber(private val context: Context) : Closeable {
                 buffer.toByteArray()
             }
 
-            // Session, not Conversation.
-            //
-            // Conversation refuses this model with "Unsupported model type":
-            // it expects a registered chat template, and the FastVLM bundle
-            // does not carry one. Session is the layer underneath, so the
-            // template is written out here instead -- FastVLM is Qwen2-based,
-            // hence the im_start markers.
+            // MediaPipe first when its bundle is present; LiteRT-LM below.
             if (mediapipe != null) {
                 val reply = lookWithMediaPipe(jpeg, frame)
                 val elapsed = System.currentTimeMillis() - started
@@ -467,24 +473,66 @@ class SceneDescriber(private val context: Context) : Closeable {
                 return parse(reply, elapsed)
             }
 
-            val reply = active.createSession().use { session ->
-                session.generateContent(
-                    listOf(
-                        InputData.Text("<|im_start|>user\n"),
-                        InputData.Image(jpeg),
-                        InputData.Text("\n$PROMPT<|im_end|>\n<|im_start|>assistant\n"),
-                    )
-                )
-            }
+            // The Session layer first, with the answer already begun. Writing
+            // the template ourselves lets the reply start at "POSITION:", which
+            // is what holds a 0.5B model to the form: asked through the
+            // Conversation layer it answers in prose ("The baby is engaging
+            // with a white charger...") that has no fields to read.
+            //
+            // Session only takes images from LiteRT-LM 0.12; on the alpha
+            // before it, every look failed with "Image must be preprocessed
+            // before being used in SessionBasic". So the Conversation layer,
+            // which runs the model's own preprocessing, stays as the fallback.
+            val viaSession = if (sessionWorks != false) {
+                runCatching {
+                    FORM_START + active.createSession().use { session ->
+                        session.generateContent(
+                            listOf(
+                                InputData.Text("<|im_start|>system\n$SYSTEM_PROMPT<|im_end|>\n" +
+                                    "<|im_start|>user\n"),
+                                InputData.Image(jpeg),
+                                InputData.Text("\n$PROMPT<|im_end|>\n<|im_start|>assistant\n" +
+                                    FORM_START),
+                            )
+                        )
+                    }
+                }
+                    .onSuccess { sessionWorks = true }
+                    .onFailure {
+                        Log.w(TAG, "session look failed, trying a conversation", it)
+                        if (sessionWorks == null) sessionWorks = false
+                    }
+                    .getOrNull()
+            } else null
+            val reply = viaSession ?: lookWithConversation(active, jpeg)
 
             val elapsed = System.currentTimeMillis() - started
             Log.i(TAG, "reply in ${elapsed}ms: ${reply.replace("\n", " | ").take(160)}")
+            lookFailure = null
             parse(reply, elapsed)
         } catch (t: Throwable) {
             Log.e(TAG, "look failed", t)
+            lookFailure = t.message ?: t::class.java.simpleName
             null
         }
     }
+
+    /** Whether the Session layer takes this model's images; null until tried once. */
+    @Volatile private var sessionWorks: Boolean? = null
+
+    private fun lookWithConversation(active: Engine, jpeg: ByteArray): String =
+        active.createConversation(
+            // No worked examples. Given a filled-in form to follow, FastVLM-0.5B
+            // copied it: "on back, face clear, concern none" for a photo of a
+            // desk with no baby in it, which is false reassurance. Without
+            // them it answers in prose, [parse] finds no form and the look
+            // counts as failed -- the honest result for a model this small.
+            ConversationConfig(systemInstruction = Contents.of(SYSTEM_PROMPT))
+        ).use { conversation ->
+            conversation.sendMessage(
+                Message.user(Contents.of(Content.ImageBytes(jpeg), Content.Text(PROMPT)))
+            ).contents.contents.filterIsInstance<Content.Text>().joinToString("") { it.text }
+        }
 
     /** Downscale before encoding. A 12-megapixel frame is all cost and no signal. */
     private fun scaled(frame: Bitmap): Derived {

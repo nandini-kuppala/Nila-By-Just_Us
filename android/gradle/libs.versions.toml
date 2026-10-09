@@ -15,7 +15,7 @@ mediapipeVision = "0.10.18"
 mediapipeGenai = "0.10.35"
 mlkitText = "16.0.1"
 onnxruntime = "1.20.0"
-litertlm = "0.0.0-alpha05"
+litertlm = "0.12.0"
 geniex = "0.4.0"
 hiddenapibypass = "6.1"
 coroutines = "1.9.0"
@@ -68,7 +68,7 @@ mediapipe-genai = { module = "com.google.mediapipe:tasks-genai", version.ref = "
 mlkit-text-recognition = { module = "com.google.mlkit:text-recognition", version.ref = "mlkitText" }
 mlkit-text-devanagari = { module = "com.google.mlkit:text-recognition-devanagari", version.ref = "mlkitText" }
 onnxruntime-android = { module = "com.microsoft.onnxruntime:onnxruntime-android", version.ref = "onnxruntime" }
-litertlm = { module = "com.google.ai.edge.litertlm:litertlm", version.ref = "litertlm" }
+litertlm = { module = "com.google.ai.edge.litertlm:litertlm-android", version.ref = "litertlm" }
 
 kotlinx-coroutines-android = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-android", version.ref = "coroutines" }
 androidx-datastore-preferences = { module = "androidx.datastore:datastore-preferences", version.ref = "datastore" }

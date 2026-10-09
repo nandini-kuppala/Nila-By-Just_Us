@@ -148,3 +148,78 @@ class EpisodePipelineTest {
         assertEquals("clamped past the close", 1f, EpisodePipeline.progress(400), 1e-4f)
     }
 }
+
+/**
+ * The episode as a story: which sounds were tried, what each one did, and what
+ * the ladder will do next.
+ */
+class EpisodeHistoryTest {
+
+    private fun mark(stage: EpisodePipeline.Stage, at: Int, detail: String = "x",
+                     severity: Severity = Severity.NOTE) =
+        EpisodePipeline.Mark(stage, detail, at, severity)
+
+    @Test
+    fun `a second sound does not erase the first`() {
+        val history = listOf(
+            mark(EpisodePipeline.Stage.SOOTHED, 20, "Attempt 1: White noise"),
+            mark(EpisodePipeline.Stage.VERIFIED, 55, "White noise did not help",
+                 Severity.ATTENTION),
+            mark(EpisodePipeline.Stage.SOOTHED, 55, "Attempt 2: Amma humming"),
+        )
+        val tried = EpisodePipeline.attempts(history)
+        assertEquals(listOf("White noise", "Amma humming"), tried.map { it.name })
+        assertEquals(false, tried[0].helped)
+        assertEquals(55, tried[0].checkedAtSeconds)
+        assertNull(tried[1].helped)
+    }
+
+    @Test
+    fun `a calm check marks the sound as having helped`() {
+        val tried = EpisodePipeline.attempts(listOf(
+            mark(EpisodePipeline.Stage.SOOTHED, 20, "Attempt 1: Heartbeat"),
+            mark(EpisodePipeline.Stage.VERIFIED, 55, "Heartbeat is working"),
+        ))
+        assertEquals(true, tried.single().helped)
+    }
+
+    @Test
+    fun `before anything is tried the next rung is the first sound`() {
+        val next = EpisodePipeline.nextUp(5, emptyList())
+        assertEquals(EpisodePipeline.Upcoming.SOOTHE, next?.what)
+        assertEquals(15, next?.inSeconds(5))
+    }
+
+    @Test
+    fun `while a sound plays the next rung is its check`() {
+        val next = EpisodePipeline.nextUp(
+            30, listOf(mark(EpisodePipeline.Stage.SOOTHED, 20, "Attempt 1: White noise")),
+        )
+        assertEquals(EpisodePipeline.Upcoming.CHECK, next?.what)
+        assertEquals(55, next?.atSeconds)
+    }
+
+    @Test
+    fun `a check that would land after the alert is not next - the alert is`() {
+        val next = EpisodePipeline.nextUp(
+            70, listOf(
+                mark(EpisodePipeline.Stage.SOOTHED, 20, "Attempt 1: White noise"),
+                mark(EpisodePipeline.Stage.VERIFIED, 55, "no", Severity.ATTENTION),
+                mark(EpisodePipeline.Stage.SOOTHED, 60, "Attempt 2: Your voice"),
+            ),
+        )
+        assertEquals(EpisodePipeline.Upcoming.WAKE, next?.what)
+        assertEquals(90, next?.atSeconds)
+    }
+
+    @Test
+    fun `after the alert the only thing left is closing`() {
+        val next = EpisodePipeline.nextUp(
+            95, listOf(mark(EpisodePipeline.Stage.VERDICT, 90, "woke you", Severity.URGENT)),
+        )
+        assertEquals(EpisodePipeline.Upcoming.CLOSE, next?.what)
+        assertNull(EpisodePipeline.nextUp(
+            181, listOf(mark(EpisodePipeline.Stage.CLOSED, 180)),
+        ))
+    }
+}

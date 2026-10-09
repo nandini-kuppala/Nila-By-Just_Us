@@ -111,7 +111,7 @@ val ErrorRed10 = Color(0xFF410E0B)
 // Each pair is chosen so a 3dp bar of it is distinguishable from the other two
 // for the common forms of colour blindness -- they differ in lightness as well
 // as hue -- and every one of them clears 3:1 against its own theme's surface.
-val ChartSleepLight = Color(0xFF3F607C)   // indigo, the night lane
+val ChartSleepLight = Color(0xFF3A63A0)   // blue, the night lane
 val ChartSleepDark = Color(0xFFA8C8E8)
 val ChartFeedLight = Color(0xFF0F6B60)    // the brand teal
 val ChartFeedDark = Color(0xFF6FDBC9)
@@ -146,3 +146,88 @@ val CauseWheelDark = listOf(
     Color(0xFFB2CE9C),
     Color(0xFF8A8F8D),
 )
+
+// ---- tones: soft identity colours for icon badges and tinted tiles ---------
+//
+// The revamp leans on small areas of colour -- a pale circle behind an icon, a
+// barely-tinted tile -- to tell a feed from a nappy from a cry at a glance. They
+// are identity, like the chart hues above, never severity: amber and red stay
+// reserved for the severity ladder, and nothing here is a warning.
+//
+// Each tone is a pair: a pale container and the saturated ink that sits on it,
+// for both themes. The dark containers are deep and desaturated, for the same
+// reason the dark severity grounds are -- a pale tile on a black screen is a
+// torch in a dark nursery.
+val ToneTealBg = Color(0xFFE3F2EE)
+val ToneTealInk = Color(0xFF0F6B60)
+val ToneTealBgDark = Color(0xFF16302B)
+val ToneTealInkDark = Color(0xFF7FD6C5)
+
+val TonePeachBg = Color(0xFFFDEEE2)
+val TonePeachInk = Color(0xFFB85C1E)
+val TonePeachBgDark = Color(0xFF3A2618)
+val TonePeachInkDark = Color(0xFFF2B98E)
+
+val ToneBlueBg = Color(0xFFE8EEFB)
+val ToneBlueInk = Color(0xFF3F5FB8)
+val ToneBlueBgDark = Color(0xFF1C2540)
+val ToneBlueInkDark = Color(0xFFAFC3F5)
+
+val TonePlumBg = Color(0xFFF3E9F6)
+val TonePlumInk = Color(0xFF7B4B86)
+val TonePlumBgDark = Color(0xFF2E2133)
+val TonePlumInkDark = Color(0xFFD9AEE4)
+
+val TonePinkBg = Color(0xFFFCE9EE)
+val TonePinkInk = Color(0xFFC0405F)
+val TonePinkBgDark = Color(0xFF3A1E26)
+val TonePinkInkDark = Color(0xFFF2A7B9)
+
+val ToneSlateBg = Color(0xFFEEF2F4)
+val ToneSlateInk = Color(0xFF4F5F69)
+val ToneSlateBgDark = Color(0xFF222A2E)
+val ToneSlateInkDark = Color(0xFFB8C6CE)
+
+// ---- illustration inks -----------------------------------------------------
+//
+// The hand-drawn spot illustrations. Fixed colours, the same in both themes --
+// a baby's skin does not change with the system setting -- and drawn on their
+// own pale ground so they never depend on the surface under them.
+val IllSkin = Color(0xFFF7CDB0)
+val IllSkinShade = Color(0xFFEDB495)
+val IllHair = Color(0xFF8C5A43)
+val IllCheek = Color(0xFFF29C9C)
+val IllFeature = Color(0xFF5A3B33)
+val IllBlanket = Color(0xFFB9E2D7)
+val IllBlanketShade = Color(0xFF94CFC0)
+val IllPillow = Color(0xFFFFFFFF)
+val IllHeart = Color(0xFFEF7A93)
+val IllSpark = Color(0xFF6CC3B2)
+val IllWood = Color(0xFFE9D9C5)
+val IllWoodShade = Color(0xFFD9C3A8)
+val IllBubble = Color(0xFFFFD9B8)
+val IllBubbleInk = Color(0xFFC0662A)
+val IllBottle = Color(0xFFF4A6A6)
+val IllBottleCap = Color(0xFFFFFFFF)
+val IllPill = Color(0xFFFFFFFF)
+val IllPillAccent = Color(0xFFE2574C)
+val IllPhone = Color(0xFF39434A)
+val IllGround = Color(0xFFE5F3EF)
+val IllGroundDark = Color(0xFF1C302B)
+
+/**
+ * The safe-zone outline on a camera view. Bright, because it is drawn over an
+ * arbitrary video frame rather than over the app's own surface, and the calm
+ * green that reads on a white card disappears into a dim nursery.
+ */
+val ZoneLine = Color(0xFF3DDBB0)
+
+/**
+ * The fill of a primary button in the dark theme.
+ *
+ * The scheme's dark primary is a light mint, which is right for text and icons
+ * on a near-black page and wrong as the largest filled shape on it: a mint slab
+ * is the brightest thing on the screen at 3am. Buttons take this deeper teal
+ * with white text instead (about 5:1).
+ */
+val ButtonFillDark = Color(0xFF1B7A6C)

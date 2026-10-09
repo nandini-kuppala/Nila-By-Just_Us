@@ -330,9 +330,9 @@ class LlmBridge private constructor(
     private fun loadLiteRt(path: String): Boolean {
         val gpuWrittenOff = watchdog.getBoolean(GPU_UNSAFE, false)
         val ladder = buildList {
-            add(com.google.ai.edge.litertlm.Backend.NPU)
-            if (!gpuWrittenOff) add(com.google.ai.edge.litertlm.Backend.GPU)
-            add(com.google.ai.edge.litertlm.Backend.CPU)
+            add(com.google.ai.edge.litertlm.Backend.NPU(context.applicationInfo.nativeLibraryDir))
+            if (!gpuWrittenOff) add(com.google.ai.edge.litertlm.Backend.GPU())
+            add(com.google.ai.edge.litertlm.Backend.CPU())
         }
 
         for (backend in ladder) {

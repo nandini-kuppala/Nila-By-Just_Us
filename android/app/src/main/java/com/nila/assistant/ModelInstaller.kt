@@ -104,14 +104,25 @@ class ModelInstaller(
     /** Enough of the file to be a model rather than an error page. */
     private val minimumBytes: Long get() = model.approxBytes / 4
 
+    /**
+     * The download's own status first, the file only after.
+     *
+     * DownloadManager reserves the destination at its full size the moment a
+     * download starts, so a file of the right length proves nothing while one
+     * is running. Checking the file first reported every model "Installed"
+     * within seconds of tapping Download -- and the NPU was then handed a file
+     * that was still mostly zeros, and failed to load it.
+     */
     suspend fun state(): State {
         val file = target()
-        if (file.exists() && file.length() > minimumBytes) return State.Installed
+        val onDisk = file.exists() && file.length() > minimumBytes
 
         val id = context.installerStore.data.first()[downloadKey(model)]
-            ?: return State.Absent
+            ?: return if (onDisk) State.Installed else State.Absent
         manager.query(DownloadManager.Query().setFilterById(id)).use { cursor ->
-            if (!cursor.moveToFirst()) return State.Absent
+            // The record is gone once the system tidies it up; by then the
+            // file is all there is to go on.
+            if (!cursor.moveToFirst()) return if (onDisk) State.Installed else State.Absent
             val status = cursor.getInt(
                 cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_STATUS))
             val soFar = cursor.getLong(cursor.getColumnIndexOrThrow(

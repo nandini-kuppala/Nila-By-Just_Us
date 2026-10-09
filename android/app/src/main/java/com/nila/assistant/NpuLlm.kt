@@ -5,7 +5,6 @@ import android.util.Log
 import com.geniex.sdk.GenieXSdk
 import com.geniex.sdk.LlmWrapper
 import com.geniex.sdk.ModelManagerWrapper
-import com.geniex.sdk.bean.ChatMessage
 import com.geniex.sdk.bean.ComputeUnitValue
 import com.geniex.sdk.bean.GenerationConfig
 import com.geniex.sdk.bean.HubSource
@@ -60,6 +59,7 @@ class NpuLlm(private val context: Context) : Closeable {
 
     companion object {
         private const val TAG = "NpuLlm"
+
 
         /** The name GenieX registers this model under in its own cache. */
         const val MODEL_NAME = "local/Qwen3.5-2B-GGUF"
@@ -341,8 +341,8 @@ class NpuLlm(private val context: Context) : Closeable {
         .llmCreateInput(
             // GenieX 0.4.0 moved the reply ceiling to GenerationConfig.maxTokens,
             // which generate() sets on every call, and dropped enable_thinking
-            // from the model config -- reasoning is switched off where it always
-            // also was, in the chat template (applyChatTemplate's `false`).
+            // from the model config -- reasoning is switched off in the prompt
+            // itself, by the empty think block Prompt.chatMl opens the reply with.
             LlmCreateInput(
                 model_path = path,
                 tokenizer_path = tokenizer,
@@ -416,11 +416,8 @@ class NpuLlm(private val context: Context) : Closeable {
         val active = activeEngine() ?: return null
         val started = System.currentTimeMillis()
 
-        val prompt = active.applyChatTemplate(
-            messages.map { (role, content) -> ChatMessage(role, content) }.toTypedArray(),
-            null,
-            false,
-        ).getOrNull()?.formattedText ?: return null
+        // Rendered here, not by applyChatTemplate -- see [Prompt.chatMl].
+        val prompt = Prompt.chatMl(messages)
 
         val config = GenerationConfig(
             maxTokens = maxTokens,

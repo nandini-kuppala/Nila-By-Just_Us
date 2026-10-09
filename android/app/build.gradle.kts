@@ -17,8 +17,8 @@ android {
         // which is what the README has always claimed anyway.
         minSdk = 27
         targetSdk = 35
-        versionCode = 12
-        versionName = "2.5.1"
+        versionCode = 13
+        versionName = "2.5.2"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
     }
@@ -79,7 +79,16 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
-    kotlinOptions { jvmTarget = "17" }
+    kotlinOptions {
+        jvmTarget = "17"
+        // LiteRT-LM 0.12 is compiled by Kotlin 2.2 and this project by 2.0,
+        // which refuses library metadata more than one version ahead. The
+        // library's public API is plain classes and data classes, so reading
+        // it is safe. 0.12 is the first release that can preprocess a
+        // FastVLM image; on the alpha it replaces, the vision model loaded and
+        // then failed every look.
+        freeCompilerArgs += "-Xskip-metadata-version-check"
+    }
     buildFeatures { compose = true; buildConfig = true }
 
     // TFLite models are already compressed; letting aapt deflate them again

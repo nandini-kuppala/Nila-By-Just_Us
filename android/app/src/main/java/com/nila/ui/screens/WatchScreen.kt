@@ -2,23 +2,59 @@ package com.nila.ui.screens
 
 import androidx.camera.core.Preview
 import androidx.camera.view.PreviewView
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Stop
+import androidx.compose.material.icons.outlined.DarkMode
+import androidx.compose.material.icons.outlined.VisibilityOff
+import androidx.compose.material.icons.automirrored.outlined.ArrowForward
+import androidx.compose.material.icons.automirrored.outlined.HelpOutline
+import androidx.compose.material.icons.outlined.AccessibilityNew
+import androidx.compose.material.icons.outlined.Check
+import androidx.compose.material.icons.outlined.CropFree
+import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material.icons.outlined.Face
+import androidx.compose.material.icons.outlined.Gesture
+import androidx.compose.material.icons.outlined.HourglassTop
+import androidx.compose.material.icons.outlined.Image
+import androidx.compose.material.icons.outlined.LightMode
+import androidx.compose.material.icons.outlined.Lightbulb
+import androidx.compose.material.icons.outlined.MusicNote
+import androidx.compose.material.icons.outlined.Visibility
+import androidx.compose.material.icons.outlined.PhoneAndroid
+import androidx.compose.material.icons.outlined.Place
+import androidx.compose.material.icons.outlined.SentimentSatisfied
+import androidx.compose.material.icons.outlined.Shield
+import androidx.compose.material.icons.outlined.Videocam
+import androidx.compose.material.icons.outlined.WarningAmber
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -37,28 +73,41 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.nila.data.Severity
 import com.nila.monitor.WatchService
 import com.nila.ui.AppState
-import com.nila.ui.components.CalmChip
-import com.nila.ui.components.HedgeNote
-import com.nila.ui.components.OutlinedBox
-import com.nila.ui.components.SectionHeader
+import com.nila.ui.components.CardShape
+import com.nila.ui.components.CotBabyArt
+import com.nila.ui.components.IconBadge
+import com.nila.ui.components.InfoNote
+import com.nila.ui.components.ListRow
+import com.nila.ui.components.NilaCard
+import com.nila.ui.components.OutlinePillButton
+import com.nila.ui.components.PhonePlacementArt
+import com.nila.ui.components.PillButton
+import com.nila.ui.components.ScreenHero
 import com.nila.ui.components.SeverityChip
-import com.nila.ui.components.StatBlock
+import com.nila.ui.components.TonePill
 import com.nila.ui.components.WarningBox
-import com.nila.ui.theme.SeverityAttention
-import com.nila.ui.theme.SeverityCalm
 import com.nila.ui.theme.SeverityUrgent
+import com.nila.ui.theme.Tone
+import com.nila.ui.theme.ZoneLine
+import com.nila.ui.theme.calmColors
+import com.nila.ui.theme.severityColors
+import com.nila.ui.theme.toneColors
 import com.nila.vision.ActivityRules
-import com.nila.vision.LightMode
+import com.nila.vision.HazardRules
+import com.nila.vision.LightMode as SceneLight
 import com.nila.vision.CameraWatch
 import com.nila.vision.DemoFootage
 import com.nila.vision.FaceWatcher
@@ -242,24 +291,48 @@ fun WatchScreen(state: AppState) {
         onDispose { demo = false; footage.close() }
     }
 
+    // A still from the demo clip, for the safe-zone card while nothing is
+    // running. A real frame of a real cot -- read once, off the main thread --
+    // shows what drawing a zone means far better than an empty grey box.
+    var poster by remember { mutableStateOf<android.graphics.Bitmap?>(null) }
+    LaunchedEffect(Unit) {
+        poster = withContext(Dispatchers.IO) {
+            runCatching {
+                DemoFootage(context).use { clip -> if (clip.open()) clip.frameAt(0L) else null }
+            }.getOrNull()
+        }
+    }
+
+    val active = live.running || demo
+
     Column(
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = 20.dp, vertical = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+            .padding(start = 20.dp, end = 20.dp, top = 4.dp, bottom = 28.dp),
+        verticalArrangement = Arrangement.spacedBy(20.dp),
     ) {
-        Text("Safety watch", style = MaterialTheme.typography.headlineMedium,
-             fontWeight = FontWeight.SemiBold)
-        Text(
-            "Point the camera at the cot. Frames are analysed on this phone and " +
-                "never leave it. The watch keeps running with the screen off.",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-
-        if (live.running || demo) {
-            Box(modifier = Modifier.fillMaxWidth().aspectRatio(3f / 4f)) {
+        if (!active) {
+            ScreenHero(
+                title = "Safety watch",
+                body = "Point the camera at the cot. Frames are analysed on this " +
+                    "phone and never leave it, and the watch keeps running with " +
+                    "the screen off.",
+                art = { CotBabyArt() },
+            )
+            IdleCard(
+                onStart = { WatchService.start(context) },
+                onDemo = { demo = true },
+            )
+            live.fault?.let { WarningBox("Camera unavailable", it, Modifier.fillMaxWidth()) }
+        } else {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .aspectRatio(3f / 4f)
+                    .clip(RoundedCornerShape(24.dp))
+                    .background(Color.Black),
+            ) {
                 if (live.running) {
                     AndroidView(
                         factory = { ctx -> PreviewView(ctx).also { previewView = it } },
@@ -295,71 +368,149 @@ fun WatchScreen(state: AppState) {
                     editing = editingZone != null,
                     onChange = { editingZone = it },
                     modifier = Modifier.fillMaxSize(),
+                    handles = true,
                 )
+                // Stop, on the view itself: the controls below scroll off the
+                // first screen, and the way out of a camera must never need a
+                // scroll to find.
+                OverlayPill(
+                    text = "Stop",
+                    icon = Icons.Filled.Stop,
+                    iconDescription = if (demo) "Stop the demo" else "Stop watching",
+                    onClick = { if (demo) demo = false else WatchService.stop(context) },
+                    modifier = Modifier.align(Alignment.TopEnd).padding(14.dp),
+                )
+                OverlayPill(
+                    text = when {
+                        demo -> "Demo footage"
+                        live.lightMode == SceneLight.NIGHT -> "Live · night view"
+                        else -> "Live"
+                    },
+                    dot = if (demo) calmColors().accent
+                          else severityColors(Severity.URGENT).accent,
+                    modifier = Modifier.align(Alignment.TopStart).padding(14.dp),
+                )
+                if (editingZone == null) {
+                    OverlayPill(
+                        text = zoneLabel(shownState.zone),
+                        icon = Icons.Outlined.Edit,
+                        onClick = { editingZone = shownState.zone },
+                        modifier = Modifier.align(Alignment.BottomStart).padding(14.dp),
+                    )
+                }
+            }
+
+            if (editingZone != null) {
+                ZoneEditor(
+                    onSave = {
+                        editingZone?.let { z -> scope.launch { state.saveSafeZone(z) } }
+                        editingZone = null
+                    },
+                    onCancel = { editingZone = null },
+                    onReset = { scope.launch { state.resetSafeZone() }; editingZone = null },
+                    configured = shownState.zone.configured,
+                )
+            }
+
+            LiveStatusCard(shownState)
+            StatsCard(shownState)
+            // The model looks at the real camera, not the demo clip.
+            if (!demo) {
+                SceneCard(
+                    state = shownState,
+                    onLook = { WatchService.lookNow(context) },
+                    onDistract = { WatchService.distractNow(context) },
+                )
+            }
+            ChipsRow(shownState)
+
+            // Only once a frame has been through the models. Before that the
+            // pose landmarker is still loading, and saying it failed is both
+            // wrong and the first thing a parent reads.
+            if (shownState.poseStatus == PoseStatus.UNAVAILABLE && shownState.running && !demo) {
+                WarningBox(
+                    "Posture is unavailable on this phone",
+                    "The pose model could not run, so the watch is reporting face " +
+                        "presence and movement only – what it did before.",
+                )
+            }
+
+            if (demo) {
+                OutlinePillButton("Stop the demo", { demo = false }, Modifier.fillMaxWidth(),
+                                  icon = Icons.Filled.Stop)
+            } else {
+                OutlinePillButton("Stop watching", { WatchService.stop(context) },
+                                  Modifier.fillMaxWidth(), icon = Icons.Filled.Stop,
+                                  danger = true)
             }
         }
 
-        StatusCard(
-            state = shownState,
-            onStart = { WatchService.start(context) },
-            onStop = { WatchService.stop(context) },
-            demo = demo,
-            onDemo = { demo = it },
-        )
-
-        SceneCard(
-            state = shownState,
-            onLook = { WatchService.lookNow(context) },
-            onDistract = { WatchService.distractNow(context) },
-        )
-
-        ZoneCard(
+        SafeZoneSection(
             zone = shownState.zone,
-            editing = editingZone,
-            watching = live.running || demo,
+            poster = poster,
+            active = active,
             onEdit = { editingZone = shownState.zone },
-            onSave = {
-                editingZone?.let { z -> scope.launch { state.saveSafeZone(z) } }
-                editingZone = null
-            },
-            onCancel = { editingZone = null },
-            onReset = { scope.launch { state.resetSafeZone() }; editingZone = null },
         )
 
-        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            SectionHeader("Where to put the phone")
-            OutlinedBox(modifier = Modifier.fillMaxWidth()) {
-                Text(
-                    "Place it to the side of the cot, so the baby lies across " +
-                        "the picture rather than up and down it. A camera looking " +
-                        "along the length of the cot sees a lying baby the same " +
-                        "way it sees a standing one, and no single view can " +
-                        "separate those.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+        PlacementCard()
+        TipsRow()
+        LimitsCard()
+    }
+}
+
+// ----------------------------------------------------------------- idle
+
+@Composable
+private fun IdleCard(onStart: () -> Unit, onDemo: () -> Unit) {
+    NilaCard(modifier = Modifier.fillMaxWidth(), contentPadding = PaddingValues(18.dp),
+             verticalSpacing = 16.dp) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            IconBadge(Icons.Outlined.VisibilityOff, Tone.SLATE, size = 56.dp, iconSize = 28.dp)
+            Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                Text("Not watching", style = MaterialTheme.typography.titleLarge,
+                     fontWeight = FontWeight.Bold)
+                Text("Start the watch to analyse your baby's position and movement.",
+                     style = MaterialTheme.typography.bodyMedium,
+                     color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
-
-        HedgeNote(
-            "Reads coarse posture, movement across the frame, and distance " +
-                "relative to where the baby started. It is not a breathing or " +
-                "vital-signs monitor, and it cannot tell a baby who has left " +
-                "the room from one hidden under a blanket."
-        )
+        PillButton("Start safety watch", onStart, Modifier.fillMaxWidth(),
+                   icon = Icons.Filled.PlayArrow)
+        Text("Not a breathing monitor. Best with a night light.",
+             style = MaterialTheme.typography.bodySmall,
+             color = MaterialTheme.colorScheme.onSurfaceVariant,
+             textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+        NilaCard(
+            modifier = Modifier.fillMaxWidth(),
+            tone = Tone.TEAL,
+            onClick = onDemo,
+            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 4.dp),
+        ) {
+            ListRow(
+                title = "Play demo footage",
+                subtitle = "A real clip through the real detectors",
+                icon = Icons.Outlined.Videocam,
+                tone = Tone.TEAL,
+                badgeSize = 40.dp,
+                chevron = true,
+            )
+        }
     }
 }
 
 // ----------------------------------------------------------- the scene model
 
 /**
- * What the model saw, and when it will look again.
+ * What the scene model saw, and when it will look again.
  *
- * Separate from [StatusCard] on purpose. That card is the always-on lane --
+ * Separate from [LiveStatusCard] on purpose. That card is the always-on lane --
  * face, posture, movement, five frames a second -- and this one is a model that
  * is asked occasionally and can be wrong in a way the cheap lane cannot: it
  * produces sentences. Keeping them apart means a parent can see which of the two
- * said what, and the hedge below belongs to this one alone.
+ * said what, and the hedge at the bottom belongs to this one alone.
  */
 @Composable
 private fun SceneCard(
@@ -367,210 +518,363 @@ private fun SceneCard(
     onLook: () -> Unit,
     onDistract: () -> Unit,
 ) {
-    if (!state.running) return
+    val scheme = MaterialTheme.colorScheme
     val hazard = state.hazard
-    OutlinedBox(modifier = Modifier.fillMaxWidth()) {
-        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
+    NilaCard(modifier = Modifier.fillMaxWidth(), contentPadding = PaddingValues(16.dp),
+             verticalSpacing = 14.dp) {
+        Row(verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            IconBadge(Icons.Outlined.Visibility, Tone.PLUM, size = 40.dp)
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
+                Text("What the camera sees", style = MaterialTheme.typography.titleMedium,
+                     fontWeight = FontWeight.Bold)
                 Text(
-                    "What the model sees",
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier.weight(1f),
-                )
-                CalmChip(if (state.lightMode == LightMode.NIGHT) "Night vision" else "Daylight")
-            }
-
-            // A confirmed hazard is the one thing in this card that is allowed
-            // to shout, and it has been seen twice before it gets here.
-            if (hazard != null && hazard.isDanger) {
-                WarningBox(
-                    hazard.headline,
-                    listOfNotNull(
-                        state.observation?.doing?.takeIf { it.isNotBlank() },
-                        hazard.hazard.takeIf { it.isNotBlank() },
-                    ).joinToString(" - "),
-                    Modifier.fillMaxWidth(),
+                    when {
+                        !state.visionModelInstalled -> "Scene model not installed"
+                        state.looking -> "Looking now…"
+                        state.asleep -> "Resting while your baby is settled"
+                        else -> "Looks again when something changes"
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = scheme.onSurfaceVariant,
                 )
             }
+        }
 
-            state.observation?.let { seen ->
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text(seen.summary, style = MaterialTheme.typography.bodyLarge)
-                    if (seen.doing.isNotBlank()) {
-                        Text(
-                            seen.doing,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
+        // A confirmed hazard is the one thing in this card allowed to shout, and
+        // it has been seen twice before it gets here.
+        if (hazard != null && hazard.isDanger) {
+            HazardBanner(hazard.headline, hazard.hazard)
+        } else if (hazard != null && hazard.level == HazardRules.Level.UNSURE) {
+            InfoNote(
+                title = hazard.headline,
+                text = "It mentioned “${hazard.hazard}”, which is not on the list " +
+                    "of things worth waking you for.",
+                icon = Icons.Outlined.Lightbulb,
+                tone = Tone.PEACH,
+            )
+        }
+
+        val seen = state.observation
+        when {
+            !state.visionModelInstalled -> Text(
+                "Posture, movement and the safe zone above work without it. With the " +
+                    "model on this phone, it would also describe the cot in a sentence.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = scheme.onSurfaceVariant,
+            )
+            seen != null -> Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                Text(seen.summary.replaceFirstChar { it.uppercase() },
+                     style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                // Only when it adds something: with nothing in view the model
+                // answers "not visible" for both lines.
+                if (seen.doing.isNotBlank() &&
+                    !seen.doing.trimEnd('.').equals(seen.summary, ignoreCase = true)) {
+                    Text(seen.doing, style = MaterialTheme.typography.bodyMedium,
+                         color = scheme.onSurfaceVariant)
+                }
+                if (state.lastLookAt > 0) {
+                    Text(lookedAgo(state.lastLookAt), style = MaterialTheme.typography.labelMedium,
+                         color = scheme.onSurfaceVariant)
                 }
             }
+            state.lookFailed -> InfoNote(
+                "The model could not describe the last picture. Posture, movement and " +
+                    "the safe zone are unaffected.",
+                icon = Icons.Outlined.WarningAmber,
+                tone = Tone.PEACH,
+            )
+            else -> Text(
+                "Nothing yet. It looks when something changes – a cry, a roll, or your " +
+                    "baby waking – and stays idle otherwise.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = scheme.onSurfaceVariant,
+            )
+        }
 
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                when {
-                    state.looking -> CalmChip("Looking")
-                    state.asleep -> CalmChip("Settled - model idle")
-                    else -> CalmChip("Watching")
-                }
-                if (state.visionBackend != "none") CalmChip(state.visionBackend)
-                if (!state.visionModelInstalled) CalmChip("No model installed")
-            }
+        state.distraction?.let {
+            // The player's own summary, e.g. "played Amma-humming, lit the ring".
+            TonePill(it.replace('-', ' ').replaceFirstChar { c -> c.uppercase() }, Tone.TEAL,
+                     icon = Icons.Outlined.MusicNote)
+        }
 
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                // Disabled rather than silently doing nothing: with no model on
-                // the phone a look has nothing to ask, and a button that answers
-                // with nothing reads as a broken one.
-                Button(
-                    onClick = onLook,
-                    enabled = !state.looking && state.visionModelInstalled,
-                ) { Text("Look now") }
-                OutlinedButton(onClick = onDistract) { Text("Distract") }
-            }
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            // Disabled rather than silently doing nothing: with no model on the
+            // phone a look has nothing to ask, and a button that answers with
+            // nothing reads as a broken one.
+            PillButton("Look now", onLook, Modifier.weight(1f), icon = Icons.Outlined.Visibility,
+                       enabled = !state.looking && state.visionModelInstalled)
+            OutlinePillButton("Distract", onDistract, Modifier.weight(1f),
+                              icon = Icons.Outlined.MusicNote)
+        }
 
+        if (state.visionModelInstalled) {
             Text(
-                if (!state.visionModelInstalled) {
-                    "No scene model is installed, so this card stays empty and " +
-                        "\"Look now\" is off. The watch above is unaffected - posture, " +
-                        "movement and the safe zone do not use it."
-                } else if (state.observation == null) {
-                    "The model is asked when something changes - a cry, a posture " +
-                        "event, or the baby waking - and otherwise left alone. It " +
-                        "loads on the first look, not when the watch starts."
-                } else {
-                    "Asked occasionally rather than every frame: a settled baby costs " +
-                        "no inference at all. It reports what is visible, and the " +
-                        "hazard line is checked against a list before it is allowed " +
-                        "to wake anybody."
-                },
+                "A description from one picture, and sometimes wrong. Only a hazard it " +
+                    "names twice, and that is on Nila's list, can wake you.",
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = scheme.onSurfaceVariant,
             )
         }
     }
 }
 
+/** A confirmed hazard: the rules' headline, then the model's own words. */
+@Composable
+private fun HazardBanner(headline: String, words: String) {
+    val colors = severityColors(Severity.URGENT)
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(14.dp))
+            .background(colors.container)
+            .padding(14.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Icon(Icons.Outlined.WarningAmber, contentDescription = null, tint = colors.accent,
+             modifier = Modifier.size(24.dp))
+        Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+            Text(headline, style = MaterialTheme.typography.titleSmall,
+                 fontWeight = FontWeight.Bold, color = colors.accent)
+            if (words.isNotBlank()) {
+                Text("It saw: $words", style = MaterialTheme.typography.bodyMedium,
+                     color = colors.onContainer)
+            }
+            Text("Go and look. Seen twice before Nila said anything.",
+                 style = MaterialTheme.typography.bodySmall, color = colors.onContainerMuted)
+        }
+    }
+}
+
+private fun lookedAgo(at: Long): String {
+    val minutes = ((System.currentTimeMillis() - at) / 60_000L).toInt()
+    return when {
+        minutes < 1 -> "Looked just now"
+        minutes == 1 -> "Looked 1 minute ago"
+        minutes < 60 -> "Looked $minutes minutes ago"
+        else -> "Looked over an hour ago"
+    }
+}
+
 // --------------------------------------------------------------- status
 
+/**
+ * What the watch believes, sized to how much it matters.
+ *
+ * Calm is a green card with a smile; attention is amber; urgent is red with
+ * every fact listed, not just the worst one -- a baby who has rolled onto their
+ * front *and* crossed the cot line is two facts, and the parent walking in
+ * should know both.
+ */
 @Composable
-private fun StatusCard(
-    state: WatchState,
-    onStart: () -> Unit,
-    onStop: () -> Unit,
-    demo: Boolean,
-    onDemo: (Boolean) -> Unit,
-) {
-    OutlinedBox(modifier = Modifier.fillMaxWidth()) {
-        Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
+private fun LiveStatusCard(state: WatchState) {
+    val scheme = MaterialTheme.colorScheme
+    val severe = state.severity.level >= Severity.ATTENTION.level
+    val colors = if (severe) severityColors(state.severity) else calmColors()
+    // A dark room is not "all clear" -- it is "cannot tell". The rules already
+    // refuse to raise an alarm from a view they cannot trust; the card must not
+    // raise a reassurance from one either.
+    val paused = state.roomDark && !severe
+    val calibrating = (state.calibrating || paused) && !severe
+    val outside = state.assessment?.zoneOvershoot?.let { it > 0f } == true
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(CardShape)
+            .background(if (calibrating) scheme.surfaceContainerLowest else colors.container)
+            .border(1.dp, if (calibrating) scheme.outlineVariant
+                          else colors.accent.copy(alpha = 0.25f), CardShape)
+            .padding(18.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+            Box(
+                modifier = Modifier
+                    .size(52.dp)
+                    .clip(CircleShape)
+                    .background(if (calibrating) scheme.surfaceContainer
+                                else colors.accent.copy(alpha = 0.18f)),
+                contentAlignment = Alignment.Center,
             ) {
-                Text(
-                    state.headline,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    color = when (state.severity) {
-                        Severity.URGENT, Severity.CRITICAL -> SeverityUrgent
-                        Severity.ATTENTION -> SeverityAttention
-                        else -> MaterialTheme.colorScheme.onSurface
+                Icon(
+                    when {
+                        paused -> Icons.Outlined.DarkMode
+                        calibrating -> Icons.Outlined.HourglassTop
+                        severe -> Icons.Outlined.WarningAmber
+                        else -> Icons.Outlined.SentimentSatisfied
                     },
-                    modifier = Modifier.weight(1f),
+                    contentDescription = null,
+                    tint = if (calibrating) scheme.onSurfaceVariant else colors.accent,
+                    modifier = Modifier.size(28.dp),
                 )
-                when {
-                    !state.running -> Unit
-                    state.severity.level >= Severity.ATTENTION.level ->
-                        SeverityChip(state.severity)
-                    state.calibrating -> CalmChip("Warming up")
-                    else -> CalmChip("All clear")
+            }
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        when {
+                            paused -> "Paused – too dark"
+                            calibrating -> "Getting a baseline"
+                            severe -> state.headline
+                            else -> "Nothing unusual"
+                        },
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = if (calibrating) scheme.onSurface else colors.accent,
+                        modifier = Modifier.weight(1f),
+                    )
+                    if (severe) SeverityChip(state.severity)
+                    else TonePill(if (state.simulated) "Demo" else "Live", Tone.TEAL, dot = true)
                 }
-            }
-
-            state.fault?.let {
-                WarningBox("Camera unavailable", it, Modifier.fillMaxWidth())
-            }
-
-            // Everything believed, not just the worst of it. A baby who has
-            // rolled onto their front and crossed the cot line is two facts,
-            // and the old single-state watch could only ever show one.
-            if (state.running && state.descriptions.isNotEmpty()) {
-                Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                    state.descriptions.forEach { line ->
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Text("→", color = MaterialTheme.colorScheme.primary,
-                                 style = MaterialTheme.typography.bodyLarge)
-                            Text(line, style = MaterialTheme.typography.bodyLarge)
-                        }
-                    }
-                }
-            }
-
-            state.caveat?.let {
                 Text(
-                    it,
+                    when {
+                        paused -> "Nila will not guess until there is more light."
+                        calibrating -> "Learning what the scene looks like."
+                        severe -> if (outside) "Outside the safe zone" else "Needs a look"
+                        else -> state.headline + if (!outside) " · inside the safe zone" else ""
+                    },
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = if (calibrating) scheme.onSurfaceVariant else colors.onContainerMuted,
                 )
             }
+        }
 
-            if (state.running) {
-                Row(modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween) {
-                    StatBlock("Posture", posture(state.assessment?.posture))
-                    StatBlock("Distance", distance(state.assessment?.distanceRatio))
-                    StatBlock("Movement",
-                              "${(state.motion.activeFraction * 100).toInt()}%")
-                    StatBlock("Frames", state.framesAnalysed.toString())
-                }
-
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    CalmChip("On device")
-                    when (state.poseStatus) {
-                        PoseStatus.RUNNING -> CalmChip("Pose ${state.poseDelegate}")
-                        PoseStatus.LOADING -> CalmChip("Warming up")
-                        PoseStatus.UNAVAILABLE -> CalmChip("Face only")
+        // Everything believed, not just the worst of it. In the calm state the
+        // headline is already the first of these, so only the rest are listed.
+        val extra = if (severe) state.descriptions
+                    else state.descriptions.filter { it != state.headline }
+        if (!calibrating && extra.isNotEmpty()) {
+            Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                extra.forEach { line ->
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Icon(Icons.AutoMirrored.Outlined.ArrowForward, contentDescription = null,
+                             tint = colors.accent, modifier = Modifier.padding(top = 2.dp).size(18.dp))
+                        Text(line, style = MaterialTheme.typography.bodyLarge,
+                             color = colors.onContainer)
                     }
-                    state.lux?.let { CalmChip("${it.toInt()} lx") }
                 }
             }
+        }
 
-            // Only once a frame has been through the models. Before that the
-            // pose landmarker is still loading, and saying it failed is both
-            // wrong and the first thing a parent reads.
-            if (state.poseStatus == PoseStatus.UNAVAILABLE && state.running && !demo) {
-                WarningBox(
-                    "Posture is unavailable on this phone",
-                    "The pose model could not run, so the watch is reporting face " +
-                        "presence and movement only -- what it did before.",
-                )
-            }
+        state.caveat?.let {
+            Text(it, style = MaterialTheme.typography.bodyMedium,
+                 color = if (calibrating) scheme.onSurfaceVariant else colors.onContainerMuted)
+        }
+    }
+}
 
-            when {
-                demo -> OutlinedButton(
-                    onClick = { onDemo(false) },
-                    modifier = Modifier.fillMaxWidth(),
-                ) { Text("Stop the demo") }
-
-                state.running -> OutlinedButton(
-                    onClick = onStop,
-                    modifier = Modifier.fillMaxWidth(),
-                ) { Text("Stop watching") }
-
-                else -> {
-                    Button(onClick = onStart, modifier = Modifier.fillMaxWidth()) {
-                        Text("Start safety watch")
+/** Four readings in a row, each with the thing it is read from. */
+@Composable
+private fun StatsCard(state: WatchState) {
+    val scheme = MaterialTheme.colorScheme
+    val movement = state.motion.activeFraction.coerceIn(0f, 1f)
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(CardShape)
+            .background(scheme.surfaceContainerLowest)
+            .border(1.dp, scheme.outlineVariant, CardShape)
+            .height(IntrinsicSize.Min)
+            .padding(vertical = 14.dp),
+    ) {
+        val cells = listOf(
+            Triple(Icons.Outlined.AccessibilityNew, "Posture", posture(state.assessment?.posture)),
+            Triple(Icons.Outlined.Place, "Distance", distance(state.assessment?.distanceRatio)),
+            Triple(Icons.Outlined.Gesture, "Movement", when {
+                movement < 0.05f -> "Still"
+                movement < 0.3f -> "A little"
+                else -> "A lot"
+            }),
+            Triple(Icons.Outlined.Image, "Frames", state.framesAnalysed.toString()),
+        )
+        cells.forEachIndexed { i, (icon, label, value) ->
+            if (i > 0) Box(Modifier.width(1.dp).fillMaxHeight().background(scheme.outlineVariant))
+            Column(
+                modifier = Modifier.weight(1f).padding(horizontal = 4.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                Icon(icon, contentDescription = null, tint = scheme.onSurfaceVariant,
+                     modifier = Modifier.size(22.dp))
+                Text(label, style = MaterialTheme.typography.labelMedium,
+                     color = scheme.onSurfaceVariant)
+                Text(value, style = MaterialTheme.typography.titleSmall,
+                     fontWeight = FontWeight.Bold, maxLines = 1,
+                     overflow = TextOverflow.Ellipsis)
+                if (i == 2) {
+                    Box(
+                        Modifier
+                            .padding(top = 2.dp)
+                            .width(44.dp)
+                            .height(5.dp)
+                            .clip(CircleShape)
+                            .background(scheme.surfaceContainerHighest)
+                    ) {
+                        Box(
+                            Modifier
+                                .fillMaxWidth(movement)
+                                .fillMaxHeight()
+                                .clip(CircleShape)
+                                .background(calmColors().accent)
+                        )
                     }
-                    TextButton(
-                        onClick = { onDemo(true) },
-                        modifier = Modifier.fillMaxWidth(),
-                    ) { Text("Play demo footage") }
                 }
             }
+        }
+    }
+}
+
+/** Where the analysis is running and how trustworthy the view is. */
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+@Composable
+private fun ChipsRow(state: WatchState) {
+    androidx.compose.foundation.layout.FlowRow(
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        TonePill("Analysed on this phone", Tone.TEAL, icon = Icons.Outlined.Shield)
+        when (state.poseStatus) {
+            PoseStatus.RUNNING -> Unit
+            PoseStatus.LOADING -> TonePill("Warming up", Tone.SLATE,
+                                           icon = Icons.Outlined.HourglassTop)
+            PoseStatus.UNAVAILABLE -> TonePill("Face only", Tone.PEACH,
+                                               icon = Icons.Outlined.Face)
+        }
+        if (state.lightMode == SceneLight.NIGHT && !state.simulated) {
+            TonePill("Night vision", Tone.PLUM, icon = Icons.Outlined.DarkMode)
+        }
+        when {
+            state.roomDark -> TonePill("Low light", Tone.PEACH, icon = Icons.Outlined.LightMode)
+            state.lux != null -> TonePill("${state.lux.toInt()} lx", Tone.SLATE,
+                                          icon = Icons.Outlined.LightMode)
+        }
+    }
+}
+
+/** A label floating over the camera view. */
+@Composable
+private fun OverlayPill(
+    text: String,
+    modifier: Modifier = Modifier,
+    dot: Color? = null,
+    icon: ImageVector? = null,
+    iconDescription: String = "Adjust the safe zone",
+    onClick: (() -> Unit)? = null,
+) {
+    Row(
+        modifier = modifier
+            .clip(CircleShape)
+            .background(Color.Black.copy(alpha = 0.55f))
+            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
+            .padding(horizontal = 14.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        dot?.let { Box(Modifier.size(9.dp).clip(CircleShape).background(it)) }
+        Text(text, style = MaterialTheme.typography.labelLarge, color = Color.White)
+        icon?.let {
+            Icon(it, contentDescription = iconDescription, tint = Color.White,
+                 modifier = Modifier.size(16.dp))
         }
     }
 }
@@ -578,61 +882,207 @@ private fun StatusCard(
 // ------------------------------------------------------------- safe zone
 
 @Composable
-private fun ZoneCard(
-    zone: SafeZone,
-    editing: SafeZone?,
-    watching: Boolean,
-    onEdit: () -> Unit,
+private fun ZoneEditor(
     onSave: () -> Unit,
     onCancel: () -> Unit,
     onReset: () -> Unit,
+    configured: Boolean,
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        SectionHeader("Safe zone")
-        OutlinedBox(modifier = Modifier.fillMaxWidth()) {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text(
-                    when {
-                        editing != null ->
-                            "Drag the corners over the cot, then save."
-                        zone.configured ->
-                            "Set over the cot. The baby leaving it is an urgent alert."
-                        else ->
-                            "Using the default inner 70% of the frame. That is a " +
-                                "frame edge, not a cot edge -- drag it over the cot " +
-                                "rails to make it mean something."
-                    },
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+    NilaCard(modifier = Modifier.fillMaxWidth(), tone = Tone.TEAL) {
+        Text("Drag the corners over the cot rails, then save.",
+             style = MaterialTheme.typography.bodyMedium)
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            PillButton("Save", onSave, Modifier.weight(1f), icon = Icons.Outlined.Check)
+            OutlinePillButton("Cancel", onCancel, Modifier.weight(1f))
+        }
+        if (configured) {
+            TextButton(onClick = onReset) { Text("Reset to the default zone") }
+        }
+    }
+}
+
+/**
+ * The safe zone, explained on a real frame.
+ *
+ * While the watch is off this shows a still from the demo clip with the zone
+ * drawn on it, because "the inner 70% of the frame" means nothing until you see
+ * it; while it is on, the zone is on the live view above and this is only the
+ * sentence that says what the current one is.
+ */
+@Composable
+private fun SafeZoneSection(
+    zone: SafeZone,
+    poster: android.graphics.Bitmap?,
+    active: Boolean,
+    onEdit: () -> Unit,
+) {
+    var help by remember { mutableStateOf(false) }
+    val scheme = MaterialTheme.colorScheme
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("Safe zone", style = MaterialTheme.typography.titleLarge,
+                 fontWeight = FontWeight.Bold)
+            IconButton(onClick = { help = !help }, modifier = Modifier.size(40.dp)) {
+                Icon(Icons.AutoMirrored.Outlined.HelpOutline,
+                     contentDescription = "What the safe zone is",
+                     tint = scheme.onSurfaceVariant)
+            }
+        }
+        Text(
+            "The area of the camera view the baby should stay inside. Leaving it " +
+                "is an urgent alert.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = scheme.onSurfaceVariant,
+        )
+        AnimatedVisibility(visible = help) {
+            InfoNote(
+                "Movement and posture are read across the whole frame. The zone only " +
+                    "decides one thing: whether the baby has left the cot. Draw it over " +
+                    "the rails, not the mattress, so a roll to the edge is not an alert.",
+                icon = Icons.Outlined.Lightbulb,
+                tone = Tone.TEAL,
+            )
+        }
+        if (!active && poster != null) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .aspectRatio(4f / 3f)
+                    .clip(RoundedCornerShape(20.dp)),
+            ) {
+                Image(
+                    bitmap = poster.asImageBitmap(),
+                    contentDescription = "An example camera view with the safe zone drawn on it",
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop,
                 )
-                if (editing != null) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Button(onClick = onSave, modifier = Modifier.weight(1f)) {
-                            Text("Save")
-                        }
-                        OutlinedButton(onClick = onCancel, modifier = Modifier.weight(1f)) {
-                            Text("Cancel")
-                        }
-                    }
-                } else {
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedButton(
-                            onClick = onEdit,
-                            enabled = watching,
-                            modifier = Modifier.weight(1f),
-                        ) { Text(if (zone.configured) "Adjust" else "Set it over the cot") }
-                        if (zone.configured) {
-                            TextButton(onClick = onReset) { Text("Reset") }
-                        }
-                    }
-                    if (!watching) {
-                        Text(
-                            "Start the watch first, so you can see what you are drawing on.",
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
+                ZoneOverlay(zone = zone, pose = null, editing = false, onChange = {},
+                            modifier = Modifier.fillMaxSize(), handles = true)
+                OverlayPill(zoneLabel(zone), modifier = Modifier.align(Alignment.BottomCenter)
+                    .padding(bottom = 14.dp))
+            }
+        }
+        if (!active) {
+            InfoNote("Start the watch, then tap the zone label on the camera view to drag " +
+                         "it over the cot rails.", icon = Icons.Outlined.Edit)
+        } else {
+            InfoNote(
+                if (zone.configured) "Set over the cot. The baby leaving it is an urgent alert."
+                else "Using the default zone: the middle of the frame, not the cot. Tap the " +
+                    "zone label on the view to drag it over the cot rails.",
+            )
+        }
+    }
+}
+
+private fun zoneLabel(zone: SafeZone): String =
+    if (zone.configured) "Safe zone"
+    else "Default zone"
+
+// ------------------------------------------------------------- guidance
+
+@Composable
+private fun PlacementCard() {
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Text("Where to put the phone", style = MaterialTheme.typography.titleLarge,
+             fontWeight = FontWeight.Bold)
+        NilaCard(modifier = Modifier.fillMaxWidth(), contentPadding = PaddingValues(14.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(14.dp),
+                verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.weight(0.9f).aspectRatio(0.82f)) { PhonePlacementArt() }
+                Column(modifier = Modifier.weight(1.1f),
+                       verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                    Step(1, "At the side of the cot, not at the head or the foot.")
+                    Step(2, "So the baby lies across the picture, not up and down it.")
+                    Step(3, "Steady, and a little above the rail.")
                 }
+            }
+            Text(
+                "A camera looking along the length of the cot sees a lying baby the " +
+                    "same way it sees a standing one, and no single view can separate those.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+@Composable
+private fun Step(n: Int, text: String) {
+    val colors = toneColors(Tone.TEAL)
+    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        Box(
+            Modifier.size(26.dp).clip(CircleShape).background(colors.container),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text("$n", style = MaterialTheme.typography.labelLarge, color = colors.ink,
+                 fontWeight = FontWeight.Bold)
+        }
+        Text(text, style = MaterialTheme.typography.bodyMedium)
+    }
+}
+
+@Composable
+private fun TipsRow() {
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Text("Tips for the best view", style = MaterialTheme.typography.titleLarge,
+             fontWeight = FontWeight.Bold)
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp),
+            modifier = Modifier.height(IntrinsicSize.Max)) {
+            Tip(Icons.Outlined.LightMode, "Some light",
+                "A dark room pauses the watch. A night light helps.",
+                Modifier.weight(1f).fillMaxHeight())
+            Tip(Icons.Outlined.PhoneAndroid, "Keep it still",
+                "A knocked phone pauses it until it settles.",
+                Modifier.weight(1f).fillMaxHeight())
+            Tip(Icons.Outlined.CropFree, "Whole cot",
+                "Keep all four rails in the picture.",
+                Modifier.weight(1f).fillMaxHeight())
+        }
+    }
+}
+
+@Composable
+private fun Tip(icon: ImageVector, title: String, body: String, modifier: Modifier) {
+    NilaCard(modifier = modifier, contentPadding = PaddingValues(12.dp), verticalSpacing = 8.dp) {
+        IconBadge(icon, Tone.TEAL, size = 44.dp, modifier = Modifier.align(Alignment.CenterHorizontally))
+        Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold,
+             textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+        Text(body, style = MaterialTheme.typography.labelMedium,
+             color = MaterialTheme.colorScheme.onSurfaceVariant,
+             textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+    }
+}
+
+/** The limits, in the caution colour, as a list somebody can actually read. */
+@Composable
+private fun LimitsCard() {
+    val colors = severityColors(Severity.ATTENTION)
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(CardShape)
+            .background(colors.container)
+            .padding(18.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            Icon(Icons.Outlined.WarningAmber, contentDescription = null, tint = colors.accent)
+            Text("What this watch can and cannot do", style = MaterialTheme.typography.titleSmall,
+                 fontWeight = FontWeight.Bold, color = colors.accent)
+        }
+        listOf(
+            "Reads coarse posture, movement across the frame, and distance relative " +
+                "to where the baby started.",
+            "Is not a breathing or vital-signs monitor.",
+            "Cannot tell a baby who has left the room from one hidden under a blanket.",
+            "Pauses, rather than guessing, in a dark room or after the phone is knocked.",
+        ).forEach {
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Box(Modifier.padding(top = 8.dp).size(5.dp).clip(CircleShape)
+                        .background(colors.accent))
+                Text(it, style = MaterialTheme.typography.bodyMedium, color = colors.onContainer)
             }
         }
     }
@@ -652,12 +1102,13 @@ private fun ZoneOverlay(
     editing: Boolean,
     onChange: (SafeZone) -> Unit,
     modifier: Modifier = Modifier,
+    handles: Boolean = editing,
 ) {
     val outside = pose?.zoneOvershoot?.let { it > 0f } == true
     val line = when {
         outside -> SeverityUrgent
         editing -> Color.White
-        else -> SeverityCalm
+        else -> ZoneLine
     }
 
     androidx.compose.foundation.Canvas(
@@ -691,18 +1142,36 @@ private fun ZoneOverlay(
         val r = zone.right * size.width
         val b = zone.bottom * size.height
 
+        // The outside of the zone dimmed, so the zone reads as the lit area
+        // rather than as a thin line laid over the picture.
+        val shade = Color.Black.copy(alpha = if (editing) 0.38f else 0.22f)
+        drawRect(shade, topLeft = Offset(0f, 0f),
+                 size = androidx.compose.ui.geometry.Size(size.width, t))
+        drawRect(shade, topLeft = Offset(0f, b),
+                 size = androidx.compose.ui.geometry.Size(size.width, size.height - b))
+        drawRect(shade, topLeft = Offset(0f, t),
+                 size = androidx.compose.ui.geometry.Size(l, b - t))
+        drawRect(shade, topLeft = Offset(r, t),
+                 size = androidx.compose.ui.geometry.Size(size.width - r, b - t))
+        drawRect(line.copy(alpha = 0.10f), topLeft = Offset(l, t),
+                 size = androidx.compose.ui.geometry.Size(r - l, b - t))
+
         drawRect(
             color = line,
             topLeft = Offset(l, t),
             size = androidx.compose.ui.geometry.Size(r - l, b - t),
-            style = Stroke(width = if (editing) 4f else 3f),
+            style = Stroke(
+                width = if (editing) 4f else 5f,
+                pathEffect = if (outside) androidx.compose.ui.graphics.PathEffect
+                    .dashPathEffect(floatArrayOf(22f, 14f)) else null,
+            ),
         )
 
-        if (editing) {
+        if (handles || outside) {
+            val radius = if (editing) 20f else 13f
             listOf(l to t, r to t, l to b, r to b).forEach { (x, y) ->
-                drawCircle(color = Color.White, radius = 18f, center = Offset(x, y))
-                drawCircle(color = line, radius = 18f, center = Offset(x, y),
-                           style = Stroke(width = 3f))
+                drawCircle(color = line, radius = radius, center = Offset(x, y))
+                drawCircle(color = Color.White, radius = radius * 0.45f, center = Offset(x, y))
             }
         }
     }
@@ -728,7 +1197,7 @@ private fun nearestCorner(
 }
 
 private fun posture(posture: Posture?): String = when (posture) {
-    null, Posture.UNKNOWN -> "-"
+    null, Posture.UNKNOWN -> "Not sure"
     Posture.ON_BACK -> "On back"
     Posture.ON_FRONT -> "On front"
     Posture.ON_SIDE -> "On side"
