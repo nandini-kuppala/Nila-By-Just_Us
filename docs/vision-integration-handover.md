@@ -528,8 +528,8 @@ not admin). Once she does:
 3. Re-run the failed **Release** run for **`v2.5.1`** (not `v2.5.0` -- see §10.6).
    Write access is enough for this.
 
-The workflow publishes with `--generate-notes`. The written notes for 2.5.0 are
-kept at `C:\Users\visha\Desktop\nila-2.5.0-release-notes.md`; put them over the
+The workflow publishes with `--generate-notes`. The written notes for 2.5.1 are
+kept at `C:\Users\visha\Desktop\nila-2.5.1-release-notes.md`; put them over the
 generated ones once the release exists.
 
 After that, every tag publishes itself.
