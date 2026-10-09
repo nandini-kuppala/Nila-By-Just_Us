@@ -318,10 +318,11 @@ fun WatchScreen(state: AppState) {
 
     val active = live.running || demo
 
+    val scroll = rememberScrollState()
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .verticalScroll(rememberScrollState())
+            .verticalScroll(scroll)
             .padding(start = 20.dp, end = 20.dp, top = 4.dp, bottom = 28.dp),
         verticalArrangement = Arrangement.spacedBy(20.dp),
     ) {
@@ -338,7 +339,7 @@ fun WatchScreen(state: AppState) {
                 onDemo = { demo = true },
             )
             live.fault?.let { WarningBox("Camera unavailable", it, Modifier.fillMaxWidth()) }
-            GuardModesCard(options, running = false)
+            GuardModesCard(options, running = false, onStarted = { scope.launch { scroll.animateScrollTo(0) } })
         } else {
             Box(
                 modifier = Modifier

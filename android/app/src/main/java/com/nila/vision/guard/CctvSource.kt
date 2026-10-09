@@ -19,12 +19,12 @@ import java.util.concurrent.Executor
 /**
  * A CCTV / IP camera as the video source, over RTSP. Ported from Baby Guard CCTV. The built-in demo
  * ([DEMO_URL], a looped recording of the Baby Guard simulation bundled in the app) plays through the same path,
- * so the demo needs no laptop or network.
+ * so the demo runs on the phone alone.
  * Media3 ExoPlayer decodes
  * the stream (H.264 / H.265) into a TextureView on the Watch screen; about 10 times a second a frame is
  * copied out and handed to the watch service, which runs the same pipeline as for the phone camera.
  *
- *  - RTP over TCP (more reliable over Wi-Fi, and needed through `adb reverse` for the laptop simulation).
+ *  - RTP over TCP (more reliable over Wi-Fi, and the usual choice for home cameras).
  *  - Reconnects by itself after an error (Wi-Fi drop, camera reboot), every 3 s, and when the stream ends.
  *  - [feedAgeMs] tells the caller how long no new picture has arrived ("camera feed lost").
  */
@@ -160,8 +160,5 @@ class CctvSource(
         private const val GRAB_MS = 100L
         /** The bundled demo recording (the Baby Guard simulation), played on a loop. */
         const val DEMO_URL = "asset:///cctv_demo.mp4"
-
-        /** The laptop simulation (`sim/start_cctv_sim.sh` in baby-guard-cctv, through `adb reverse`). */
-        const val LAPTOP_SIM_URL = "rtsp://127.0.0.1:8554/cam"
     }
 }

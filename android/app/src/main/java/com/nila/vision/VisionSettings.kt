@@ -53,7 +53,6 @@ class VisionSettings(private val context: Context) {
         private val CCTV_URL = stringPreferencesKey("guard_cctv_address") // default = the built-in demo video
 
         const val DEMO_CCTV_URL = com.nila.vision.guard.CctvSource.DEMO_URL
-        const val LAPTOP_SIM_URL = com.nila.vision.guard.CctvSource.LAPTOP_SIM_URL
     }
 
     /** Where the frames come from: this phone's camera, or a CCTV / IP camera over RTSP. */

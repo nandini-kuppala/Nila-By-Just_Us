@@ -92,7 +92,7 @@ import java.util.concurrent.Executors
 /** The three modes, the alert switches, night vision and the video source. */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-internal fun GuardModesCard(values: VisionSettings.Values, running: Boolean) {
+internal fun GuardModesCard(values: VisionSettings.Values, running: Boolean, onStarted: () -> Unit = {}) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val settings = remember { VisionSettings(context) }
@@ -201,29 +201,50 @@ internal fun GuardModesCard(values: VisionSettings.Values, running: Boolean) {
                            label = { Text("Ultra-wide (whole cot)") })
             }
         } else {
-            var url by remember(values.cctvUrl) { mutableStateOf(values.cctvUrl) }
-            val demo = url == VisionSettings.DEMO_CCTV_URL
-            OutlinedTextField(
-                value = if (demo) "Built-in demo video" else url,
-                onValueChange = { url = it },
-                label = { Text("RTSP address") },
-                placeholder = { Text("rtsp://user:pass@192.168.1.20:554/stream1") },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
-            )
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                TextButton(onClick = { scope.launch { settings.setCctvUrl(url.trim()) } },
-                           enabled = !demo && url.isNotBlank() && url != values.cctvUrl) {
-                    Text("Use this address")
+            val isDemo = values.cctvUrl == VisionSettings.DEMO_CCTV_URL
+            var myCamera by remember(isDemo) { mutableStateOf(!isDemo) }
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                FilterChip(selected = !myCamera,
+                           onClick = {
+                               myCamera = false
+                               scope.launch { settings.setCctvUrl(VisionSettings.DEMO_CCTV_URL) }
+                           },
+                           label = { Text("Demo video") })
+                FilterChip(selected = myCamera,
+                           onClick = { myCamera = true },
+                           label = { Text("My camera") })
+            }
+            if (!myCamera) {
+                Text("A recorded baby room built into the app, played on a loop like a live camera. " +
+                         "No camera, laptop or Wi-Fi needed.",
+                     style = MaterialTheme.typography.bodySmall, color = scheme.onSurfaceVariant)
+                if (!running) {
+                    PillButton("Start CCTV demo", onClick = {
+                        scope.launch {
+                            settings.setSource(VisionSettings.Source.CCTV)
+                            settings.setCctvUrl(VisionSettings.DEMO_CCTV_URL)
+                            WatchService.start(context)
+                            onStarted()
+                        }
+                    }, Modifier.fillMaxWidth(), icon = Icons.Outlined.Videocam)
+                } else if (isDemo) {
+                    Text("Playing the demo video.", style = MaterialTheme.typography.bodySmall,
+                         fontWeight = FontWeight.SemiBold)
                 }
-                TextButton(onClick = {
-                    url = VisionSettings.DEMO_CCTV_URL
-                    scope.launch { settings.setCctvUrl(VisionSettings.DEMO_CCTV_URL) }
-                }, enabled = values.cctvUrl != VisionSettings.DEMO_CCTV_URL) { Text("Demo video") }
-                TextButton(onClick = {
-                    url = VisionSettings.LAPTOP_SIM_URL
-                    scope.launch { settings.setCctvUrl(VisionSettings.LAPTOP_SIM_URL) }
-                }, enabled = values.cctvUrl != VisionSettings.LAPTOP_SIM_URL) { Text("Laptop stream") }
+            } else {
+                var url by remember(values.cctvUrl) { mutableStateOf(if (isDemo) "" else values.cctvUrl) }
+                OutlinedTextField(
+                    value = url,
+                    onValueChange = { url = it },
+                    label = { Text("Camera RTSP address") },
+                    placeholder = { Text("rtsp://user:pass@192.168.1.20:554/stream1") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                TextButton(onClick = { scope.launch { settings.setCctvUrl(url.trim()) } },
+                           enabled = url.isNotBlank() && url.trim() != values.cctvUrl) {
+                    Text("Connect")
+                }
             }
             Text("The phone stays with you; the camera watches the baby. Alerts here are a notification, a " +
                      "chime and vibration. The picture comes in while this screen is open.",
