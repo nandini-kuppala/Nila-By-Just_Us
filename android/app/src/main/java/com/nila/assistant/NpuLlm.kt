@@ -15,6 +15,7 @@ import com.geniex.sdk.bean.ModelConfig
 import com.geniex.sdk.bean.ModelPullInput
 import com.geniex.sdk.bean.ModelType
 import com.geniex.sdk.bean.SamplerConfig
+import com.nila.npu.NpuArbiter
 import kotlinx.coroutines.ExecutorCoroutineDispatcher
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.flow.collect
@@ -94,6 +95,21 @@ class NpuLlm(private val context: Context) : Closeable {
         /** `ComputeUnitValue.NPU.value`, which the SDK declares as nullable. */
         private val COMPUTE_UNIT: String = ComputeUnitValue.NPU.value ?: "npu"
 
+        /**
+         * Where this model goes when the camera has the NPU.
+         *
+         * There is one Hexagon block and two tenants -- this and the scene model
+         * the safety watch asks about the cot -- and they cannot both pin their
+         * weights into it. The camera wins, because a parent waiting a little
+         * longer for an answer is a worse outcome than a baby reaching for a
+         * socket unobserved. See [NpuArbiter] for the whole rule.
+         *
+         * The cost of losing is real but bounded: on this phone the same model
+         * prefills about seven times slower on the CPU and generates about a
+         * third slower. An answer still arrives, which is the point.
+         */
+        private val CPU_UNIT: String = ComputeUnitValue.CPU.value ?: "cpu"
+
         /** GGUF is read by the llama.cpp plugin; `qairt` reads compiled bundles. */
         private const val RUNTIME = GenieXSdk.PLUGIN_ID_LLAMA_CPP
     }
@@ -113,6 +129,11 @@ class NpuLlm(private val context: Context) : Closeable {
         private set
 
     private var llm: LlmWrapper? = null
+
+    /** Which processor this engine was actually built on, for the status line. */
+    @Volatile
+    var computeUnitInUse: String = COMPUTE_UNIT
+        private set
 
     /**
      * One thread, for the whole engine.
@@ -171,6 +192,13 @@ class NpuLlm(private val context: Context) : Closeable {
         update(State.Loading, onStep)
         val started = System.currentTimeMillis()
 
+        // Ask the referee before building anything. If the camera lane is in the
+        // middle of looking at the cot, this engine goes to the CPU for now and
+        // moves back the next time it is rebuilt with the NPU quiet.
+        computeUnitInUse = if (NpuArbiter.chatMayUseNpu()) COMPUTE_UNIT else CPU_UNIT
+        NpuArbiter.chatComputeUnit(computeUnitInUse == COMPUTE_UNIT)
+        Log.i(TAG, "building on $computeUnitInUse")
+
         // The GGUF is already on this device, in this app's own storage, so
         // hand its path to the runtime and be done. Registering it through
         // ModelManagerWrapper instead makes GenieX copy it into its own cache,
@@ -192,7 +220,7 @@ class NpuLlm(private val context: Context) : Closeable {
             }
         }
         llm = wrapper
-        update(State.Ready(System.currentTimeMillis() - started, COMPUTE_UNIT), onStep)
+        update(State.Ready(System.currentTimeMillis() - started, computeUnitInUse), onStep)
         return true
     }
 
@@ -266,7 +294,7 @@ class NpuLlm(private val context: Context) : Closeable {
                     enable_thinking = false,
                 ),
                 runtime_id = runtime,
-                compute_unit = COMPUTE_UNIT,
+                compute_unit = computeUnitInUse,
             )
         )
         .dispatcher(worker)
@@ -324,15 +352,24 @@ class NpuLlm(private val context: Context) : Closeable {
         var profile: com.geniex.sdk.bean.ProfilingData? = null
         var failure: Throwable? = null
 
-        active.generateStreamFlow(prompt, config).collect { result ->
-            when (result) {
-                is LlmStreamResult.Token -> {
-                    out.append(result.text)
-                    onToken(result.text)
+        // Tell the referee a reply is in flight. The camera lane will wait for
+        // this rather than interrupt it: a half-written answer disappearing
+        // mid-sentence is worse for the reader than a look happening a few
+        // seconds later.
+        NpuArbiter.chatGenerationStarted()
+        try {
+            active.generateStreamFlow(prompt, config).collect { result ->
+                when (result) {
+                    is LlmStreamResult.Token -> {
+                        out.append(result.text)
+                        onToken(result.text)
+                    }
+                    is LlmStreamResult.Completed -> profile = result.profile
+                    is LlmStreamResult.Error -> failure = result.throwable
                 }
-                is LlmStreamResult.Completed -> profile = result.profile
-                is LlmStreamResult.Error -> failure = result.throwable
             }
+        } finally {
+            NpuArbiter.chatGenerationFinished()
         }
 
         failure?.let {
