@@ -31,7 +31,7 @@ the breastfeeding mother — without a single network request.
   <img alt="Android" src="https://img.shields.io/badge/Android-8.1%2B-3DDC84?logo=android&logoColor=white">
   <img alt="Kotlin" src="https://img.shields.io/badge/Kotlin-2.0-7F52FF?logo=kotlin&logoColor=white">
   <a href="https://github.com/nandini-kuppala/Nila/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/nandini-kuppala/Nila/actions/workflows/ci.yml/badge.svg"></a>
-  <img alt="Tests" src="https://img.shields.io/badge/tests-352%20passing-2ea44f">
+  <img alt="Tests" src="https://img.shields.io/badge/tests-386%20passing-2ea44f">
   <img alt="Network" src="https://img.shields.io/badge/network%20calls-0-0F6B60">
   <img alt="Licence" src="https://img.shields.io/badge/licence-MIT-blue">
 </p>
@@ -171,6 +171,30 @@ with separate severities, instead of one "can't see the face". The
 accelerometer and the light sensor stop the camera making claims it is not
 entitled to: a knocked phone or a dark room suppresses the vision verdict
 rather than reporting the baby as missing. Not breathing, not vitals, not SIDS.
+
+**Sees what is in the cot, not only how the baby is lying.** Pose can say
+*prone and moving*; it has no word for a cable. **Intern3.5-VL-2B on the Hexagon
+NPU** is asked, occasionally, what the frame actually contains -- and its answer
+goes through guard rails before anybody is woken, because the failure mode of a
+small vision model is confident alarm, not silence. On eighteen photographs of
+real babies the model's own verdict was right 11 times; a four-field prompt took
+it to 14; the guard rails took it to **17 of 18, with no false alarms**. A
+confirmed hazard notifies, and can also play the sound that already settles this
+baby and light the ring -- for the seconds it takes a parent to cross the room.
+
+**Works in the dark, and decides for itself when it is dark.** The torch and a
+lamp wake the baby, so the picture is lifted in software instead: a temporal
+average takes out the sensor noise, auto levels and gamma open up what is left,
+and the colour survives, because the model can only say "a red cable" if red
+does. The light sensor and the frame itself are both consulted -- each can be
+fooled alone -- and a twenty-second dwell stops the mode flapping.
+
+**Does not run the model it does not need.** A sleeping infant produces almost
+no frame difference, and that is most of the night; the cheap lane already knows
+it. So the model is a second opinion on an event -- a cry, a posture change,
+motion rising past its own baseline -- and otherwise asked on a cadence that
+stretches to a quarter of an hour, capped at thirty looks an hour. A monitor
+that is flat at 5am is not a monitor.
 
 **Runs both lanes at once.** Microphone and camera, two services, and the
 camera one subscribes to the audio one — because a baby who rolls over in their
@@ -474,7 +498,8 @@ the file directly gives you.
 | `knowledge.json` | 46 sourced entries + 5 cause entries | 47 KB | In the APK |
 | **Qwen3.5-2B Q4_0** | **Answering in your own words, on the NPU** | **1.16 GB** | **Optional, one tap** |
 | Qwen2.5-0.5B | Shortening answers | 547 MB | Optional, one tap |
-| FastVLM-0.5B | Describing the cot | 1.1 GB | Optional, one tap |
+| **Intern3.5-VL-2B** | **Describing the cot, on the NPU** | **2.7 GB** | **Optional, one tap** |
+| FastVLM-0.5B | Describing the cot, as a fallback | 1.1 GB | Optional, one tap |
 
 The optional models change nothing about correctness. Every branch of the
 assistant has a complete, sourced answer before a model is asked for anything,
@@ -496,6 +521,9 @@ android/            The app
     monitor/        Foreground service and the escalation ladder
     assistant/      Retrieval, routing, guardrails, OCR
     vision/         Camera watch, pose, activity rules, safe zone, sensors
+                    day/night, night vision, the scene model and its guard rails
+    npu/            Which of the two models gets the accelerator
+    actions/        Ring light and the distraction a hazard can trigger
     ml/             TFLite runner, RandomForest evaluator
   app/src/test/     120 JVM tests
   app/src/androidTest/  62 instrumented tests
