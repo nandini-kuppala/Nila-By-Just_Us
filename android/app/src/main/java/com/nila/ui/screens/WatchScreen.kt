@@ -58,6 +58,7 @@ import com.nila.ui.theme.SeverityAttention
 import com.nila.ui.theme.SeverityCalm
 import com.nila.ui.theme.SeverityUrgent
 import com.nila.vision.ActivityRules
+import com.nila.vision.LightMode
 import com.nila.vision.CameraWatch
 import com.nila.vision.DemoFootage
 import com.nila.vision.FaceWatcher
@@ -103,6 +104,9 @@ fun WatchScreen(state: AppState) {
 
     val live by WatchService.state.collectAsState()
     val monitor by state.monitor.collectAsState()
+    // The lifted picture of a dark room. Null in daylight and null when the
+    // service is not running, so the preview below is unaffected either way.
+    val nightFrame by WatchService.nightFrame.collectAsState()
 
     var previewView by remember { mutableStateOf<PreviewView?>(null) }
     var editingZone by remember { mutableStateOf<SafeZone?>(null) }
@@ -273,6 +277,18 @@ fun WatchScreen(state: AppState) {
                         contentScale = ContentScale.Crop,
                     )
                 }
+                // And the night view over the top of the live preview, for the
+                // same reason: in an unlit nursery the raw preview is black, and
+                // a black rectangle tells a parent nothing about whether the
+                // watch is working.
+                nightFrame?.takeIf { !demo && live.running }?.let { frame ->
+                    Image(
+                        bitmap = frame.asImageBitmap(),
+                        contentDescription = "Night view of the cot",
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop,
+                    )
+                }
                 ZoneOverlay(
                     zone = editingZone ?: shownState.zone,
                     pose = shownState.assessment,
@@ -289,6 +305,12 @@ fun WatchScreen(state: AppState) {
             onStop = { WatchService.stop(context) },
             demo = demo,
             onDemo = { demo = it },
+        )
+
+        SceneCard(
+            state = shownState,
+            onLook = { WatchService.lookNow(context) },
+            onDistract = { WatchService.distractNow(context) },
         )
 
         ZoneCard(
@@ -325,6 +347,110 @@ fun WatchScreen(state: AppState) {
                 "vital-signs monitor, and it cannot tell a baby who has left " +
                 "the room from one hidden under a blanket."
         )
+    }
+}
+
+// ----------------------------------------------------------- the scene model
+
+/**
+ * What the model saw, and when it will look again.
+ *
+ * Separate from [StatusCard] on purpose. That card is the always-on lane --
+ * face, posture, movement, five frames a second -- and this one is a model that
+ * is asked occasionally and can be wrong in a way the cheap lane cannot: it
+ * produces sentences. Keeping them apart means a parent can see which of the two
+ * said what, and the hedge below belongs to this one alone.
+ */
+@Composable
+private fun SceneCard(
+    state: WatchState,
+    onLook: () -> Unit,
+    onDistract: () -> Unit,
+) {
+    if (!state.running) return
+    val hazard = state.hazard
+    OutlinedBox(modifier = Modifier.fillMaxWidth()) {
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                Text(
+                    "What the model sees",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.weight(1f),
+                )
+                CalmChip(if (state.lightMode == LightMode.NIGHT) "Night vision" else "Daylight")
+            }
+
+            // A confirmed hazard is the one thing in this card that is allowed
+            // to shout, and it has been seen twice before it gets here.
+            if (hazard != null && hazard.isDanger) {
+                WarningBox(
+                    hazard.headline,
+                    listOfNotNull(
+                        state.observation?.doing?.takeIf { it.isNotBlank() },
+                        hazard.hazard.takeIf { it.isNotBlank() },
+                    ).joinToString(" - "),
+                    Modifier.fillMaxWidth(),
+                )
+            }
+
+            state.observation?.let { seen ->
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(seen.summary, style = MaterialTheme.typography.bodyLarge)
+                    if (seen.doing.isNotBlank()) {
+                        Text(
+                            seen.doing,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            }
+
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                when {
+                    state.looking -> CalmChip("Looking")
+                    state.asleep -> CalmChip("Settled - model idle")
+                    else -> CalmChip("Watching")
+                }
+                if (state.visionBackend != "none") CalmChip(state.visionBackend)
+                if (!state.visionModelInstalled) CalmChip("No model installed")
+            }
+
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                // Disabled rather than silently doing nothing: with no model on
+                // the phone a look has nothing to ask, and a button that answers
+                // with nothing reads as a broken one.
+                Button(
+                    onClick = onLook,
+                    enabled = !state.looking && state.visionModelInstalled,
+                ) { Text("Look now") }
+                OutlinedButton(onClick = onDistract) { Text("Distract") }
+            }
+
+            Text(
+                if (!state.visionModelInstalled) {
+                    "No scene model is installed, so this card stays empty and " +
+                        "\"Look now\" is off. The watch above is unaffected - posture, " +
+                        "movement and the safe zone do not use it."
+                } else if (state.observation == null) {
+                    "The model is asked when something changes - a cry, a posture " +
+                        "event, or the baby waking - and otherwise left alone. It " +
+                        "loads on the first look, not when the watch starts."
+                } else {
+                    "Asked occasionally rather than every frame: a settled baby costs " +
+                        "no inference at all. It reports what is visible, and the " +
+                        "hazard line is checked against a list before it is allowed " +
+                        "to wake anybody."
+                },
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
     }
 }
 

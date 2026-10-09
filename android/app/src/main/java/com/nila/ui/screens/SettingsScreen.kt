@@ -22,7 +22,11 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import com.nila.vision.DayNight
+import com.nila.vision.VisionSettings
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -77,6 +81,8 @@ fun SettingsScreen(state: AppState) {
         Appearance()
 
         CryRecordings(state)
+
+        SceneWatchSettings()
 
         // Shown the moment an unknown sticker is tapped, wherever the user is.
         if (pendingTag != null) {
@@ -849,6 +855,150 @@ private fun Appearance() {
  * parent leaving it on deserves to know exactly what is kept, for how long, and
  * where it can and cannot go.
  */
+/**
+ * The switches for the camera lane's scene model, night vision and distraction.
+ *
+ * Each default is the cautious one, and each is here because it is a judgement
+ * rather than a setting: whether a model may run at all, whether the phone may
+ * act at a baby rather than only report, and whether it may point a torch into a
+ * cot. The last of those is off even when distraction is on.
+ *
+ * Reads its own store rather than going through [AppState], the way the clip
+ * policy above does: four preferences belonging to a service, with nothing in
+ * the view model to hold.
+ */
+@Composable
+private fun SceneWatchSettings() {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val settings = remember { VisionSettings(context) }
+    val values by settings.values.collectAsState(initial = VisionSettings.Values())
+    val scheme = MaterialTheme.colorScheme
+
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        SectionHeader("What the camera may do")
+        OutlinedBox(modifier = Modifier.fillMaxWidth()) {
+            Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Describe what it sees", style = MaterialTheme.typography.titleSmall,
+                             fontWeight = FontWeight.SemiBold)
+                        Text(
+                            if (values.modelEnabled) {
+                                "On - a vision model is asked when something changes, and " +
+                                    "left alone while the baby is settled"
+                            } else {
+                                "Off - only face, posture and movement"
+                            },
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = scheme.onSurfaceVariant,
+                        )
+                    }
+                    Switch(
+                        checked = values.modelEnabled,
+                        onCheckedChange = { scope.launch { settings.setModelEnabled(it) } },
+                    )
+                }
+
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text("Night vision", style = MaterialTheme.typography.titleSmall,
+                         fontWeight = FontWeight.SemiBold)
+                    Text(
+                        "A dark nursery is mostly sensor noise until the picture is " +
+                            "lifted. Automatic follows the light sensor and the picture " +
+                            "itself; the overrides are for rooms that fool them.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = scheme.onSurfaceVariant,
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        NightChoice("Automatic", DayNight.Preference.AUTO, values.nightPreference) {
+                            scope.launch { settings.setNightPreference(it) }
+                        }
+                        NightChoice("Always on", DayNight.Preference.ALWAYS_NIGHT, values.nightPreference) {
+                            scope.launch { settings.setNightPreference(it) }
+                        }
+                        NightChoice("Off", DayNight.Preference.ALWAYS_DAY, values.nightPreference) {
+                            scope.launch { settings.setNightPreference(it) }
+                        }
+                    }
+                }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Try to distract the baby", style = MaterialTheme.typography.titleSmall,
+                             fontWeight = FontWeight.SemiBold)
+                        Text(
+                            if (values.distractionEnabled) {
+                                "On - when a hazard is confirmed the phone plays the sound " +
+                                    "that settles your baby and lights the ring, to buy you " +
+                                    "the seconds it takes to cross the room"
+                            } else {
+                                "Off - a confirmed hazard only notifies you"
+                            },
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = scheme.onSurfaceVariant,
+                        )
+                    }
+                    Switch(
+                        checked = values.distractionEnabled,
+                        onCheckedChange = { scope.launch { settings.setDistractionEnabled(it) } },
+                    )
+                }
+
+                if (values.distractionEnabled) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("Use the flash as well", style = MaterialTheme.typography.titleSmall,
+                                 fontWeight = FontWeight.SemiBold)
+                            Text(
+                                "A bright light into the cot. Right for a crawler reaching " +
+                                    "for a socket in daylight, wrong for a drowsy baby at 3am.",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = scheme.onSurfaceVariant,
+                            )
+                        }
+                        Switch(
+                            checked = values.torchEnabled,
+                            onCheckedChange = { scope.launch { settings.setTorchEnabled(it) } },
+                        )
+                    }
+                }
+
+                Text(
+                    "Nothing here reaches the network. The model runs on this phone's " +
+                        "NPU when its bundle is installed, and the watch keeps working " +
+                        "without it.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = scheme.onSurfaceVariant,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun NightChoice(
+    label: String,
+    value: DayNight.Preference,
+    current: DayNight.Preference,
+    onPick: (DayNight.Preference) -> Unit,
+) {
+    if (value == current) {
+        Button(onClick = { onPick(value) }) { Text(label) }
+    } else {
+        OutlinedButton(onClick = { onPick(value) }) { Text(label) }
+    }
+}
+
 @Composable
 private fun CryRecordings(state: AppState) {
     val enabled by com.nila.data.ClipPolicy.enabled.collectAsState()

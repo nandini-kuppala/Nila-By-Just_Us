@@ -37,6 +37,38 @@ data class WatchState(
     val simulated: Boolean = false,
     /** The last thing that was worth a notification, for the screen. */
     val lastAlert: String? = null,
+
+    // ---- the scene model lane
+    //
+    // Everything below is about the model that is asked, occasionally, what the
+    // cot actually contains. The fields above are the cheap always-on lane and
+    // are unchanged: a phone with no model installed shows exactly what it did
+    // before, because every one of these has a default that means "nothing yet".
+
+    /** Daylight or dark, as [DayNight] decided from the sensor and the frame. */
+    val lightMode: LightMode = LightMode.DAY,
+    /** Mean brightness of the last analysed frame, 0..255. */
+    val frameLuma: Float = 0f,
+    /** The baby has been still long enough that the model can idle. */
+    val asleep: Boolean = false,
+    /** The last thing the scene model said, or null if it has not been asked. */
+    val observation: SceneDescriber.Observation? = null,
+    /** What the guard rails made of it, once two looks agreed. */
+    val hazard: HazardRules.Verdict? = null,
+    /** True while a look is running, so the screen can say so and the policy can wait. */
+    val looking: Boolean = false,
+    /** Which engine answered, for the settings screen and the technical record. */
+    val visionBackend: String = "none",
+    /**
+     * Whether a scene model is installed. False means the camera lane above is
+     * running normally and only the model's second opinion is missing.
+     */
+    val visionModelInstalled: Boolean = false,
+    /** When the last look happened, and when the next is due. */
+    val lastLookAt: Long = 0,
+    val nextLookAt: Long = 0,
+    /** What the phone last played or lit to hold the baby's attention. */
+    val distraction: String? = null,
 ) {
 
     /**
