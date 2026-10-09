@@ -1,7 +1,7 @@
 # Vision integration — status, test record and handover
 
-**Date:** 2026-10-04 · **Branch state:** everything below is uncommitted working-tree
-change, by instruction. Nothing has been committed or pushed.
+**Written:** 2026-10-04 · **Updated:** 2026-10-09 · **Released in:** `v2.5.0` (commits
+`4f61aff`..`264ddf7` on `main`). The GitHub Release itself is still pending -- see §9.
 
 This is the handover for the camera-lane upgrade. It says what was built, how it
 plugs into the app, what has actually been run and passed, what has **not** been
@@ -22,11 +22,15 @@ file is the status and test record. Where the two disagree, this one is newer.
 | Device tests | **6 pass** on an Android 35 emulator. |
 | Hazard rules, offline eval | **17/18**, 0 false alarms. |
 | Emulator run-through | No crash in any screen or transition. |
-| **NPU vision model** | **Never executed since integration.** Needs the phone. |
-| **Ring light, torch, soother, full hazard chain** | **Never executed.** Needs the phone. |
+| Phone | Debug build installed on the iQOO 15 `10BFAU1X7Z000XR`, all four models in place and checksum-verified (§6.3). |
+| **NPU vision model** | **Runs on the phone.** Loads in 5 s, ~1.2 s a look, inside the watch. Needed GenieX 0.4.0 (§10). |
+| **NPU shared with Ask** | **Works, after a crash was found and fixed** (§10): one model on the NPU at a time. |
+| **Ring light, soother** | **Work on the phone** (ring light needed a fix, §10). |
+| **Torch strobe, full hazard chain, overnight** | Not run yet. §5 is the list. |
 
-The honest summary: *the logic is built and tested, the hardware half is built
-and unproven.* Section 5 is the work that remains.
+The honest summary, as of 2026-10-09: *the NPU half now runs on the phone, and
+getting it there found three bugs no emulator could have shown* (§10). Section 5
+is what remains.
 
 ---
 
@@ -197,12 +201,12 @@ APK contains 11 native libraries (TFLite, MediaPipe, ONNX, LiteRT-LM, ML Kit) an
 
 | # | Untested | Why it matters | How to test it |
 |---|---|---|---|
-| 1 | **`NpuVlm` — Intern3.5-VL-2B on the NPU** | The core of the request; never executed since integration | §6.3 |
-| 2 | **The load-retry loop** (`RETRY_WAITS_MS`, 8 attempts) | Was reliable in the babytest app; unproven against Nila's memory footprint, which is larger because Ask is resident | §6.3 |
-| 3 | **`NpuArbiter` under real contention** | Unit-tested as pure logic; a chat generation and a vision look have never actually competed | §6.4 |
-| 4 | **`VivoRingLight`** | Reflection into `vivo_light_service`; the API only exists on the vivo/iQOO build | §6.5 |
+| 1 | ~~`NpuVlm` — Intern3.5-VL-2B on the NPU~~ | **Done 2026-10-09.** Failed on GenieX 0.3.5, runs on 0.4.0 | §10 |
+| 2 | ~~The load-retry loop~~ | **Done.** 3 attempts with Qwen resident; 1 attempt once Qwen steps off first | §10 |
+| 3 | ~~`NpuArbiter` under real contention~~ | **Done, and it crashed the app first.** Fixed with the residency rule | §10 |
+| 4 | ~~`VivoRingLight`~~ | **Done.** Was unreachable until the hidden-API exemption was restored | §10 |
 | 5 | **Torch strobe during distraction** | Emulator has no flash unit; the phone rejects strobes faster than ~300 ms | §6.5 |
-| 6 | **Soother playback through `Distraction`** | Never played | §6.5 |
+| 6 | ~~Soother playback through `Distraction`~~ | **Done.** Played (media volume muted for the test) | §10 |
 | 7 | **The full hazard chain** | Each link is tested; look → rules → confirmer → notify → `HAZARD_SEEN` → distract has never run end to end, because it needs a model to start it | §6.6 |
 | 8 | **`NightVision.enhance()` on a real dark nursery** | Only ever seen synthetic emulator frames and the unit fixtures | §6.2 |
 | 9 | **Duty-cycle battery claim over a night** | The whole justification for `WatchPolicy`; unmeasured | §6.7 |
@@ -215,12 +219,21 @@ APK contains 11 native libraries (TFLite, MediaPipe, ONNX, LiteRT-LM, ML Kit) an
 ### 6.1 Setup
 
 Device: iQOO 15 (I2501), Snapdragon 8 Elite Gen 5 (SM8850), Hexagon NPU v81,
-Android 16, serial `10BFAX1BU20010U`.
+Android 16, 1440x3168, serial `10BFAU1X7Z000XR`.
+
+> **This is not the phone the experiments ran on.** Those used another iQOO 15,
+> serial `10BFAX1BU20010U`. Same model and chip, so the findings should carry over,
+> but nothing measured on that unit has been re-measured on this one yet.
+
+Install the **debug** build. It is not minified, so a crash gives a readable stack
+trace, and it is debuggable, which is what lets `run-as` copy the models in
+(§6.3). The release build built on this laptop is signed with the same key, so
+switching to it later is an ordinary update that keeps the data.
 
 ```bash
 export MSYS_NO_PATHCONV=1              # Git Bash: stops path mangling in adb
 export ANDROID_HOME="C:\\Users\\visha\\AppData\\Local\\Android\\Sdk"
-adb devices                            # expect 10BFAX1BU20010U
+adb devices                            # expect 10BFAU1X7Z000XR
 
 cd android && ./gradlew assembleDebug
 adb install -r app/build/outputs/apk/debug/app-arm64-v8a-debug.apk
@@ -238,16 +251,91 @@ if it smears a moving baby, lower it.
 
 ### 6.3 The NPU model — the first thing to do
 
-Place the ~2.7 GB bundle (AI Hub `GENIEX_QAIRT`, w4a16, 4096 ctx) at **either**:
+**Done on 2026-10-09 and verified byte-for-byte.** This is the procedure that
+worked; repeat it after any reinstall that clears the app's data.
+
+The bundle is AI Hub's `GENIEX_QAIRT` export of Intern3.5-VL-2B, w4a16, 4096
+context, built for this exact chip. On this laptop it is at:
 
 ```
-/sdcard/Android/data/com.nila/files/models/intern-vl/      (external, preferred)
-<app>/files/local/intern-vl/                               (internal)
+C:\Users\visha\Desktop\babytest\models\intern35vl2b\extracted\
+    intern3_5_vl_2b-geniex_qairt-w4a16-qualcomm_snapdragon_8_elite_gen5\
 ```
 
-> **Android 16 gotcha:** files pushed by adb into `Android/data` are sometimes
-> invisible to the app. If the app says no bundle, copy it with a file manager on
-> the phone, or push to the internal path via `run-as`.
+24 files, 2.75 GB. `NpuVlm.isInstalled()` looks for five of them:
+`metadata.json`, `vision_encoder.bin`, `part1_of_4.bin`, `part4_of_4.bin`,
+`tokenizer.json`.
+
+```bash
+B=$(cygpath -w "/c/Users/visha/Desktop/babytest/models/intern35vl2b/extracted/intern3_5_vl_2b-geniex_qairt-w4a16-qualcomm_snapdragon_8_elite_gen5")
+adb shell mkdir -p /data/local/tmp/intern-vl
+adb push "$B\\." /data/local/tmp/intern-vl/          # ~77 s at 34 MB/s
+adb shell am force-stop com.nila
+adb shell "run-as com.nila sh -c 'mkdir -p files/local/intern-vl && cp -r /data/local/tmp/intern-vl/. files/local/intern-vl/'"
+```
+
+Verify, don't assume. The checksums of all eight large files on the phone matched
+the laptop's exactly:
+
+| File | SHA-256 |
+|---|---|
+| `vision_encoder.bin` | `13030883c3b0…` |
+| `part1_of_4.bin` | `6a6360c190d8…` |
+| `part2_of_4.bin` | `c629acad572a…` |
+| `part3_of_4.bin` | `40788bfba236…` |
+| `part4_of_4.bin` | `36573322203d…` |
+| `embedding_weights.raw` | `62369bc01dfb…` |
+| `tokenizer.json` | `6581c44164d2…` |
+| `metadata.json` | `90c31029f000…` |
+
+```bash
+adb shell "run-as com.nila sh -c 'cd files/local/intern-vl && sha256sum *.bin *.raw'"
+```
+
+Three things that will waste time if forgotten:
+
+- **Why internal and not `Android/data`.** On Android 16, files adb pushes into
+  `/sdcard/Android/data/com.nila/` can be invisible to the app. `run-as` writes as
+  the app itself, so there is no doubt.
+- **Never create an empty `Android/data/com.nila/files/models/intern-vl/`.**
+  `bundleDir()` prefers that folder whenever it *exists*, before checking it has
+  anything in it, and the app would then report the model missing while the
+  complete internal copy sits unused.
+- **`run-as` needs the debug build.** The release build is not debuggable.
+
+The staging copy in `/data/local/tmp/intern-vl` can be deleted once the first look
+has worked: `adb shell rm -rf /data/local/tmp/intern-vl`.
+
+### The other three models
+
+All on the phone as of 2026-10-09, each checked against Hugging Face's own SHA-256
+(the `X-Linked-ETag` header), on the laptop after download and again on the phone.
+
+| Model | For | Where on the phone | SHA-256 |
+|---|---|---|---|
+| `Qwen3.5-2B-Q4_0.gguf`, 1,214,873,856 B | Ask, on the NPU | `files/local/` (internal, via `run-as`) | `cd70221bebae…` |
+| `fastvlm-0.5b.litertlm`, 1,156,342,768 B | Vision fallback | `Android/data/com.nila/files/models/` | `ccba1e8bfa0b…` |
+| `qwen2.5-0.5b-instruct.task`, 546,660,344 B | "Shorter answers" | `Android/data/com.nila/files/models/` | `e608953f169a…` |
+
+Laptop copies are in `C:\Users\visha\Desktop\babytest\models\`.
+
+The two in `Android/data` cannot go in with `run-as`: on this phone the app's
+`run-as` shell does not see `/sdcard` at all. A plain `adb shell cp` into that
+folder works, and the app reads the result -- Settings shows "Shorter answers:
+Installed".
+
+```bash
+adb push Qwen3.5-2B-Q4_0.gguf /data/local/tmp/
+adb shell "run-as com.nila sh -c 'mkdir -p files/local && cp /data/local/tmp/Qwen3.5-2B-Q4_0.gguf files/local/'"
+adb push fastvlm-0.5b.litertlm qwen2.5-0.5b-instruct.task /data/local/tmp/
+adb shell "cp /data/local/tmp/fastvlm-0.5b.litertlm /data/local/tmp/qwen2.5-0.5b-instruct.task /sdcard/Android/data/com.nila/files/models/"
+adb shell rm -f /data/local/tmp/*.gguf /data/local/tmp/*.litertlm /data/local/tmp/*.task
+```
+
+A download straight from Hugging Face can stop partway (it did, at 152 MB, with
+`curl: (56)`) and still leave a file behind. Compare the size and the hash, never
+just the exit code.
+
 
 Then start the watch and tap **Look now**.
 
@@ -398,13 +486,136 @@ transcript.
 
 ## 8. First five minutes of the next session
 
-1. `adb devices` — confirm `10BFAX1BU20010U`.
-2. `export ANDROID_HOME=...`, `cd android && ./gradlew assembleDebug`, install the
-   **arm64-v8a** split.
-3. Put the Intern-VL bundle in place (§6.3) and confirm the "No model installed"
-   chip has gone.
+1. `adb devices` — confirm `10BFAU1X7Z000XR`.
+2. 2.5.0 debug is already installed, and so are both models (§6.3). Rebuild and
+   reinstall only if the code has changed since `264ddf7`.
+3. Unlock the phone, open **Watch**, start the watch, and confirm the "No model
+   installed" chip has gone.
 4. Tap **Look now** with `adb logcat -s NpuVlm:V SceneDescriber:V` running. That one
    tap settles items 1 and 2 of §5.
 5. Work down §6.4 → §6.7.
 
-Still uncommitted: 23 paths. Commit only when asked.
+Commit to this repo as **Vishal-AS-0407**. It is set in the repo's local git
+config; this laptop's global identity is a different, unlinked one.
+
+---
+
+## 9. Releasing — why v2.5.0 has a tag and no GitHub Release yet
+
+`v2.5.0` is pushed and CI on `main` passed. Pushing the tag also starts
+`.github/workflows/release.yml`, which builds the three APKs and publishes them. It
+failed at **"Restore the signing key"**: the repository secret
+`ANDROID_DEBUG_KEYSTORE_BASE64` has never been set. It failed the same way for
+`v2.3.0` and `v2.4.0`, which is why those were published by hand.
+
+The key matters more than it looks. Every release so far is signed with **one
+particular debug keystore** (SHA-256 `628f29acd2f4…`), and Android will not install
+an update signed with any other key. A user would have to uninstall first, which
+deletes the care log, the health documents and the recordings. The workflow knows
+this: it pins `EXPECTED: 628f29…` and refuses to publish anything else. This
+laptop's debug key is `0328e754…`, so **an APK built here must never be published as
+a release.**
+
+`v2.4.0` was published by `nandini-kuppala`, so the original keystore is on her
+machine. Adding an Actions secret needs the repo owner (Vishal-AS-0407 has write,
+not admin). Once she does:
+
+1. On the machine that built 2.4.0, copy the key as base64:
+   - Windows: `[Convert]::ToBase64String([IO.File]::ReadAllBytes("$env:USERPROFILE\.android\debug.keystore")) | Set-Clipboard`
+   - macOS: `base64 -i ~/.android/debug.keystore | pbcopy`
+2. Repo → **Settings → Secrets and variables → Actions → New repository secret**,
+   named `ANDROID_DEBUG_KEYSTORE_BASE64`.
+3. Re-run the failed **Release** run for **`v2.5.1`** (not `v2.5.0` -- see §10.6).
+   Write access is enough for this.
+
+The workflow publishes with `--generate-notes`. The written notes for 2.5.0 are
+kept at `C:\Users\visha\Desktop\nila-2.5.0-release-notes.md`; put them over the
+generated ones once the release exists.
+
+After that, every tag publishes itself.
+
+---
+
+## 10. On the phone, 2026-10-09 — what it found
+
+The first run on real hardware. Three bugs, all in the integration, none visible on
+an emulator, all fixed and re-run on the phone.
+
+### 10.1 The vision model could not load at all — GenieX 0.3.5
+
+Every attempt failed in ~3 ms, which is too fast to be the NPU. The native log:
+
+```
+dispatch: no VLM factory matches model_id 'intern3_5_vl_2b'
+```
+
+The integration kept Nila on **GenieX 0.3.5** because that version already has
+`VlmWrapper`, and that was taken to mean it could run this model. It cannot: the
+QAIRT plugin in 0.3.5 has VLM pipelines for `qwen2_vl`, `qwen2_5_vl` and `qwen3_vl`
+only. **0.4.0 adds `intern3_5_vl` and `internvl`** -- confirmed by reading both
+`libgeniex_plugin_qairt.so` binaries. The babytest app that ran this model was on
+0.4.0.
+
+0.4.0 changed four call sites: `LlmCreateInput` and `VlmCreateInput` lost
+`model_name`, and `ModelConfig` lost `max_tokens` and `enable_thinking`. Both were
+duplicates in Nila: the reply cap is set per call in `GenerationConfig.maxTokens`,
+and reasoning is switched off in `applyChatTemplate(…, null, false)`, whose
+signature did not change. Checked on the phone: Ask's answers carry no reasoning
+trace.
+
+### 10.2 Two models on the NPU crashed the app
+
+With Qwen on the phone, opening the app built it on the NPU; starting the watch
+then loaded the vision model on top, and the process died:
+
+```
+signal 11 (SIGSEGV), fault addr 0x8 in tid nila-npu-vlm
+#00 libQnnHtpV81Stub.so … #12 libgeniex_core.so (QnnApi::createDevice()+384)
+#15 libgeniex_vlm.so (geniex::intern3_5_vl::makeModel …)
+```
+
+`NpuArbiter` as first written decided where the chat model *builds* and when the
+camera may *look*, but nothing ever took the chat model *off* the NPU. The design
+said it would; the code did not; the unit tests only checked flags. Fixed with a
+residency rule -- see `vision-npu-night.md` §6. Six new tests pin it, and the exact
+crash sequence was re-run on the phone: Qwen on the NPU, watch started, Qwen
+stepped off, vision loaded first time, looks ran, a question was answered on the
+CPU. Same process, no crash.
+
+### 10.3 The ring light was unreachable — a dropped line
+
+`no vivo ring light on this phone: …VivoLightManager.getInstance []` -- on an iQOO,
+which has one. The method exists (read out of `vivo-framework.jar` on the phone);
+the `NoSuchMethodException` is Android's hidden-API restriction for an app
+targeting SDK 35. The babytest app gets through with LSPosed's HiddenApiBypass,
+exempting exactly `Lvivo/app/vivolight/` and `Lcom/vivo/framework/vivolight/`. The
+port to Nila dropped that line. Restored, scoped the same way. On the phone:
+`ring light started, id=10`.
+
+### 10.4 Measured
+
+| | |
+|---|---|
+| Vision model load, NPU clear | **5.1 s, 1 attempt** |
+| Vision model load, Qwen resident (before the fix) | 15.9 s, 3 attempts -- then the crash |
+| A look, model loaded | **~1.15-1.2 s** |
+| Qwen on the NPU | built in 1.2 s |
+| Qwen rebuilt on the CPU after eviction | 3.9 s |
+| Night-time cadence, scene not settled | one look a minute, as designed |
+| Unit tests | **392 pass** |
+
+### 10.5 Two things seen and not yet acted on
+
+- **"Night vision" in a 115 lx room.** Day needs both the light sensor and the
+  frame to agree; the camera was facing something dark, so the frame said night.
+  Working as designed, but worth re-checking with the camera on a real cot.
+- **The vision model's format drifts.** One reply came back as `- Position: … |
+  - Face: …` instead of `POSITION: …`. The parser coped -- it was read as the same
+  answer -- but it is the kind of drift the eval set should include.
+
+### 10.6 v2.5.0 should not be published
+
+The `v2.5.0` tag predates all three fixes: on a phone its vision model never loads,
+its ring light is dark, and once Ask's model is installed it can crash. These fixes
+ship as **2.5.1**; when the signing secret is in place (§9), re-run the release for
+`v2.5.1`, not `v2.5.0`.

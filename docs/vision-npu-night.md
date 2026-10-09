@@ -216,22 +216,36 @@ Every number above is in `WatchPolicy.Config` and covered by
 ## 6. Sharing the NPU with Ask
 
 There is one Hexagon block and two tenants: this model and the 2B chat model
-behind Ask. They cannot both pin their weights into it — each takes a DSP session,
-and the second one to arrive fails rather than queues.
+behind Ask. **They cannot both be resident in it.** This was first written as "the
+second one to arrive fails rather than queues", and the phone proved that wrong in
+the worst way: with Qwen built on the NPU, creating the vision model **segfaulted**
+inside Qualcomm's HTP stub (`QnnApi::createDevice` → `libQnnHtpV81Stub.so`, null
+dereference, 2026-10-09). A native crash takes the whole app down, watch and all,
+and cannot be caught from Kotlin. So the rule is enforced before anything reaches
+the driver: **one model on the NPU at a time.**
 
 **Vision wins.** A parent asking a question is holding the phone and can wait a
 little longer; a baby reaching for a cable cannot. `NpuArbiter` implements exactly
 that:
 
-- the camera takes the NPU for a look, and the chat model builds on the **CPU**
-  while it does
-- a reply already being generated is **never cut off** — the camera skips that
-  look and asks again at the next frame, seconds later
-- the chat model does not take the NPU back the instant a look ends. It waits
-  **45 seconds** of quiet, because looks come in runs and reloading a 2B model
-  between them costs more than the CPU does
+- before the vision model loads, it **claims** the NPU, and every chat engine is
+  asked to step off it. The chat engine closes itself on its own thread, under its
+  own lock, so it is never closed halfway through a sentence or a build
+- a reply already being generated is **never cut off**: the chat engine refuses,
+  the vision load is deferred, and the next look tries again seconds later
+- while the vision model is resident, the chat model is only ever built on the
+  **CPU**. The next question after an eviction rebuilds it there, about 4 s, and
+  Ask carries on answering in its own words
+- once the watch stops and the vision model closes, the chat model waits **45
+  seconds** of quiet and moves back onto the NPU at its next question
 - the settings screen reports which processor is answering, rather than claiming
   the NPU and being quietly wrong
+
+Measured on the phone with both models installed: Qwen built on the NPU in 1.2 s;
+the watch started; Qwen stepped off in under a second; the vision model loaded in
+5.1 s on its **first** attempt (with Qwen still resident it had needed three, and
+then crashed); looks ran at ~1.2 s; a question asked during the watch rebuilt Qwen
+on the CPU in 3.9 s and answered. One process throughout.
 
 The cost of losing is real and bounded: the same chat model prefills about seven
 times slower on the CPU and generates about a third slower. An answer still
