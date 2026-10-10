@@ -25,6 +25,8 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
+import androidx.compose.material.icons.outlined.CameraAlt
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.MenuBook
 import androidx.compose.material.icons.automirrored.outlined.Send
@@ -105,7 +107,7 @@ private val SUGGESTIONS = listOf(
  * bottom so the next question does not mean starting over.
  */
 @Composable
-fun AskScreen(state: AppState) {
+fun AskScreen(state: AppState, onOpenScan: () -> Unit = {}) {
     val question by state.draftQuestion.collectAsState()
     val answer by state.answer.collectAsState()
     val thinking by state.thinking.collectAsState()
@@ -165,6 +167,7 @@ fun AskScreen(state: AppState) {
             )
 
             SectionTitle("Try one of these")
+            ScanCard(onOpenScan)
             SUGGESTIONS.chunked(2).forEach { pair ->
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -274,6 +277,39 @@ private fun SuggestionCard(s: Suggestion, modifier: Modifier, onClick: () -> Uni
             IconBadge(s.icon, s.tone, size = 36.dp, iconSize = 20.dp)
             Text(s.text, style = MaterialTheme.typography.bodySmall,
                  fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
+        }
+    }
+}
+
+/**
+ * The medicine checker, reached from here rather than from its own tab.
+ *
+ * Checking a tablet strip is a question too -- "can she take this?" -- asked
+ * with the camera instead of the keyboard. Full width and with a chevron, so it
+ * reads as a page to open, not one more question to send.
+ */
+@Composable
+private fun ScanCard(onClick: () -> Unit) {
+    NilaCard(
+        modifier = Modifier.fillMaxWidth(),
+        tone = Tone.TEAL,
+        onClick = onClick,
+        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 12.dp),
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            IconBadge(Icons.Outlined.CameraAlt, Tone.TEAL, size = 40.dp, iconSize = 22.dp)
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text("Scan a tablet sheet", style = MaterialTheme.typography.titleSmall,
+                     fontWeight = FontWeight.SemiBold)
+                Text("Photograph a medicine strip and check it is safe with what you take",
+                     style = MaterialTheme.typography.bodySmall,
+                     color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            Icon(Icons.AutoMirrored.Outlined.KeyboardArrowRight, contentDescription = null,
+                 tint = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }

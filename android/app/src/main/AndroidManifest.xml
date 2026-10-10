@@ -21,6 +21,9 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CAMERA" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <!-- Doctor-visit medicine reminders ring on time when the parent allows
+         exact alarms; without it they fall back to a ten-minute window. -->
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
     <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.NFC" />
     <!-- For the opt-in laptop dashboard only. The app makes no outbound
@@ -165,5 +168,10 @@
                 <action android:name="com.nila.REMIND" />
             </intent-filter>
         </receiver>
+
+        <!-- Medicine, vaccine and next-visit reminders from a doctor visit. -->
+        <receiver
+            android:name=".visit.remind.ReminderReceiver"
+            android:exported="false" />
     </application>
 </manifest>

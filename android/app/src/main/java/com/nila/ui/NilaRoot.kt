@@ -10,7 +10,6 @@ import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.Assessment
 import androidx.compose.material.icons.outlined.DarkMode
 import androidx.compose.material.icons.outlined.LightMode
-import androidx.compose.material.icons.outlined.CameraAlt
 import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material.icons.outlined.Hearing
 import androidx.compose.material.icons.outlined.QuestionAnswer
@@ -63,26 +62,38 @@ import com.nila.ui.screens.ScanScreen
 import com.nila.ui.screens.SettingsScreen
 import com.nila.ui.screens.TimelineScreen
 import com.nila.ui.screens.WatchScreen
+import com.nila.ui.screens.VisitScreen
+import com.nila.ui.screens.VisitNotesScreen
+import com.nila.ui.screens.VisitCalendarScreen
+import com.nila.ui.components.NilaIcons
+import com.nila.visit.VisitViewModel
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.ui.platform.LocalView
 import com.nila.ui.theme.Appearance
 import com.nila.ui.theme.LocalNilaDarkTheme
 
 /**
  * Five destinations, which is Material's ceiling for a bottom bar and also the
  * point past which labels start wrapping on a 1080px screen. Settings is not a
- * destination people move between -- it lives in the top bar.
+ * destination people move between -- it lives in the top bar, and the medicine
+ * scanner is a page off Ask.
  */
 private enum class Tab(val route: String, val label: String, val icon: ImageVector) {
     HOME("home", "Monitor", Icons.Outlined.Hearing),
-    HEALTH("health", "Health", Icons.Outlined.FolderShared),
-    WATCH("watch", "Watch", Icons.Outlined.Visibility),
     ASK("ask", "Ask", Icons.Outlined.QuestionAnswer),
-    SCAN("scan", "Scan", Icons.Outlined.CameraAlt),
+    WATCH("watch", "Watch", Icons.Outlined.Visibility),
+    HEALTH("health", "Health", Icons.Outlined.FolderShared),
+    DOCTOR("doctor", "Doctor", NilaIcons.Stethoscope),
 }
 
 private const val SETTINGS_ROUTE = "settings"
 private const val SETTINGS_PAGE_ROUTE = "settings/{page}"
 private const val LEARN_ROUTE = "learn"
 private const val TIMELINE_ROUTE = "timeline"
+private const val SCAN_ROUTE = "ask/scan"
+private const val VISIT_ROUTE = "doctor/visit/{id}"
+private const val VISIT_CALENDAR_ROUTE = "doctor/calendar"
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -97,6 +108,18 @@ fun NilaRoot(
     }
 
     val navController = rememberNavController()
+    val visits: VisitViewModel = viewModel()
+
+    // Recording a visit or writing its notes keeps the screen on: vivo freezes
+    // a backgrounded app within seconds, mid-generation. Held here rather than
+    // on the Doctor tab so it holds while the parent looks at another tab.
+    val visitPhase by visits.phase.collectAsState()
+    val view = LocalView.current
+    val busy = visitPhase is VisitViewModel.Phase.Recording || visitPhase is VisitViewModel.Phase.Working
+    DisposableEffect(busy) {
+        view.keepScreenOn = busy
+        onDispose { view.keepScreenOn = false }
+    }
     val backStack by navController.currentBackStackEntryAsState()
     val current = backStack?.destination
 
@@ -106,7 +129,10 @@ fun NilaRoot(
         ?.let(SettingsPage::fromKey)
     val onLearn = current?.route == LEARN_ROUTE
     val onTimeline = current?.route == TIMELINE_ROUTE
-    val nested = onSettings || onSettingsPage || onLearn || onTimeline
+    val onScan = current?.route == SCAN_ROUTE
+    val onVisit = current?.route == VISIT_ROUTE
+    val onVisitCalendar = current?.route == VISIT_CALENDAR_ROUTE
+    val nested = onSettings || onSettingsPage || onLearn || onTimeline || onScan || onVisit || onVisitCalendar
 
     // The tab a pushed page was opened from stays lit, so the bottom bar never
     // shows nothing selected -- that reads as being nowhere in the app.
@@ -131,6 +157,9 @@ fun NilaRoot(
                             onSettingsPage -> settingsPage?.title ?: "Settings"
                             onLearn -> "Insights"
                             onTimeline -> "Timeline"
+                            onScan -> "Scan a medicine"
+                            onVisit -> "Visit notes"
+                            onVisitCalendar -> "Calendar"
                             else -> Tab.entries
                                 .firstOrNull { it.route == current?.route }
                                 ?.label ?: "Nila"
@@ -236,9 +265,24 @@ fun NilaRoot(
             }
             composable(Tab.HEALTH.route) { HealthScreen(state) }
             composable(TIMELINE_ROUTE) { TimelineScreen(state) }
-            composable(Tab.ASK.route) { AskScreen(state) }
+            composable(Tab.ASK.route) {
+                AskScreen(state, onOpenScan = { navController.navigate(SCAN_ROUTE) })
+            }
+            composable(SCAN_ROUTE) { ScanScreen(state) }
             composable(Tab.WATCH.route) { WatchScreen(state) }
-            composable(Tab.SCAN.route) { ScanScreen(state) }
+            composable(Tab.DOCTOR.route) {
+                VisitScreen(
+                    visits,
+                    onOpenVisit = { id -> navController.navigate("doctor/visit/$id") },
+                    onOpenCalendar = { navController.navigate(VISIT_CALENDAR_ROUTE) },
+                    onOpenSettings = { navController.navigate("settings/${SettingsPage.APP_DATA.key}") },
+                )
+            }
+            composable(VISIT_ROUTE) { entry ->
+                val id = entry.arguments?.getString("id").orEmpty()
+                VisitNotesScreen(visits, id, onClose = { navController.popBackStack() })
+            }
+            composable(VISIT_CALENDAR_ROUTE) { VisitCalendarScreen(visits) }
             composable(LEARN_ROUTE) { LearnScreen(state) }
             composable(SETTINGS_ROUTE) {
                 SettingsScreen(state, onOpen = { page ->

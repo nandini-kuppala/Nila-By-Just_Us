@@ -77,6 +77,21 @@ class ModelInstaller(
             approxBytes = 1_214_873_856L,
             title = "Answers in your own words",
         ),
+
+        /**
+         * Whisper Large-v3 Turbo for the doctor visit, as Qualcomm AI Hub
+         * compiles it for this chip: v0.62.0, built with QAIRT 2.45 -- the
+         * runtime GenieX 0.4.0 ships. A zip; VisitModels unpacks it.
+         */
+        LISTENING(
+            fileName = "whisper-turbo.zip",
+            url = "https://qaihub-public-assets.s3.us-west-2.amazonaws.com/qai-hub-models/" +
+                "models/whisper_large_v3_turbo_quantized/releases/v0.62.0/" +
+                "whisper_large_v3_turbo_quantized-precompiled_qnn_onnx-w8a16-" +
+                "qualcomm_snapdragon_8_elite_gen5_for_galaxy.zip",
+            approxBytes = 861L * 1024 * 1024,
+            title = "Doctor visit listening",
+        ),
     }
 
     companion object {

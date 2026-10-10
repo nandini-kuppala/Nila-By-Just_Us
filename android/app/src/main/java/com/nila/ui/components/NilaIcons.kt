@@ -82,4 +82,45 @@ object NilaIcons {
             }
         }.build()
     }
+
+    /**
+     * A stethoscope, for the doctor visit: two earpieces, the U of the ear
+     * tubes, and the tubing curving round to the chest piece.
+     */
+    val Stethoscope: ImageVector by lazy {
+        ImageVector.Builder(
+            name = "Stethoscope", defaultWidth = 24.dp, defaultHeight = 24.dp,
+            viewportWidth = 24f, viewportHeight = 24f,
+        ).apply {
+            path(
+                stroke = SolidColor(androidx.compose.ui.graphics.Color.Black),
+                strokeLineWidth = 1.8f,
+                strokeLineCap = StrokeCap.Round,
+                strokeLineJoin = StrokeJoin.Round,
+            ) {
+                // Earpieces.
+                moveTo(5.5f, 3f)
+                lineTo(7.5f, 3f)
+                moveTo(12.5f, 3f)
+                lineTo(14.5f, 3f)
+                // Ear tubes, meeting at the bottom of the U.
+                moveTo(6.5f, 3f)
+                lineTo(6.5f, 8f)
+                curveTo(6.5f, 11f, 8f, 12.8f, 10f, 12.8f)
+                curveTo(12f, 12.8f, 13.5f, 11f, 13.5f, 8f)
+                lineTo(13.5f, 3f)
+                // Tubing down and round to the chest piece.
+                moveTo(10f, 12.8f)
+                lineTo(10f, 16f)
+                curveTo(10f, 19f, 12f, 20.8f, 14.5f, 20.8f)
+                curveTo(17f, 20.8f, 18.5f, 19f, 18.5f, 16.8f)
+                lineTo(18.5f, 15.6f)
+                // Chest piece.
+                moveTo(20.6f, 13.5f)
+                arcTo(2.1f, 2.1f, 0f, isMoreThanHalf = true, isPositiveArc = true, 16.4f, 13.5f)
+                arcTo(2.1f, 2.1f, 0f, isMoreThanHalf = true, isPositiveArc = true, 20.6f, 13.5f)
+                close()
+            }
+        }.build()
+    }
 }

@@ -455,3 +455,48 @@ fun SettingsArt(modifier: Modifier = Modifier) {
         face(g, 80f, 76f, 11f, awake = true, ears = false)
     }
 }
+
+/** A clipboard of notes with a stethoscope across it. Doctor visit. */
+@Composable
+fun DoctorVisitArt(modifier: Modifier = Modifier) {
+    val groundColor = illustrationGround()
+    Canvas(modifier.fillMaxSize()) {
+        val g = Grid(this)
+        ground(g, groundColor)
+        // Clipboard and its page.
+        drawRoundRect(IllWood, topLeft = g.p(22f, 20f), size = Size(g.d(46f), g.d(64f)),
+                      cornerRadius = CornerRadius(g.d(6f)))
+        drawRoundRect(Color.White, topLeft = g.p(27f, 28f), size = Size(g.d(36f), g.d(51f)),
+                      cornerRadius = CornerRadius(g.d(3f)))
+        drawRoundRect(IllWoodShade, topLeft = g.p(36f, 15f), size = Size(g.d(18f), g.d(10f)),
+                      cornerRadius = CornerRadius(g.d(3f)))
+        // Lines of notes, the first one ticked.
+        drawLine(IllSpark, g.p(32f, 38f), g.p(35f, 41f), g.d(2.2f), StrokeCap.Round)
+        drawLine(IllSpark, g.p(35f, 41f), g.p(40f, 35f), g.d(2.2f), StrokeCap.Round)
+        drawLine(IllWoodShade, g.p(44f, 38f), g.p(57f, 38f), g.d(2.2f), StrokeCap.Round)
+        listOf(49f, 58f, 67f).forEachIndexed { i, y ->
+            drawLine(IllWoodShade, g.p(32f, y), g.p(if (i == 1) 50f else 57f, y), g.d(2.2f),
+                     StrokeCap.Round)
+        }
+        // Stethoscope: ear tubes, tubing, chest piece.
+        val tube = Color(0xFF3F5FB8)
+        val stroke = Stroke(g.d(2.6f), cap = StrokeCap.Round)
+        val path = Path().apply {
+            moveTo(g.p(62f, 30f).x, g.p(62f, 30f).y)
+            lineTo(g.p(62f, 42f).x, g.p(62f, 42f).y)
+            cubicTo(g.p(62f, 50f).x, g.p(62f, 50f).y, g.p(78f, 50f).x, g.p(78f, 50f).y,
+                    g.p(78f, 42f).x, g.p(78f, 42f).y)
+            lineTo(g.p(78f, 30f).x, g.p(78f, 30f).y)
+            moveTo(g.p(70f, 48f).x, g.p(70f, 48f).y)
+            cubicTo(g.p(70f, 66f).x, g.p(70f, 66f).y, g.p(84f, 70f).x, g.p(84f, 70f).y,
+                    g.p(84f, 62f).x, g.p(84f, 62f).y)
+        }
+        drawPath(path, tube, style = stroke)
+        drawCircle(tube, g.d(2.4f), g.p(62f, 29f))
+        drawCircle(tube, g.d(2.4f), g.p(78f, 29f))
+        drawCircle(Color(0xFFAFC3F5), g.d(6.5f), g.p(84f, 57f))
+        drawCircle(tube, g.d(6.5f), g.p(84f, 57f), style = Stroke(g.d(2.4f)))
+        heart(g, 16f, 30f, 5f)
+        sparks(g, 86f, 12f)
+    }
+}

@@ -84,3 +84,8 @@
 # Its ToolManager reflects over tool functions with kotlin-reflect, which this
 # app does not ship: Nila never registers a tool, so that path is never reached.
 -dontwarn kotlin.reflect.full.**
+
+# JTransforms (Whisper's mel spectrogram) brings JLargeArrays, which frees its
+# off-heap buffers through sun.misc.Cleaner when it exists. Not on Android, and
+# never reached: Whisper's arrays are small enough to stay on the heap.
+-dontwarn sun.misc.Cleaner

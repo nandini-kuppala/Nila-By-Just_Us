@@ -1,0 +1,373 @@
+{
+ "_about": "Synthetic doctor monologues for testing and demos. Every name, date and instruction is invented. 'expected' is what a correct extraction contains; relative times are stated relative to visit_date. Medicine amounts are whatever the doctor said, recorded as said, never suggested by the app.",
+ "visits": [
+  {
+   "id": "en-well-baby-4m",
+   "language": "en",
+   "voice": "Rishi",
+   "visit_date": "2026-10-10",
+   "baby_birth_date": "2026-06-08",
+   "transcript": "Okay, so Meera is four months now and she is growing well, weight is six point four kilos, that is fine. Today we have given the third dose of the pentavalent vaccine and the polio drops. She may get a mild fever tonight, that is normal. If the temperature goes above one hundred, give paracetamol drops, zero point six ml, only if there is fever, not more than four times in a day. Continue the vitamin D drops, one ml every morning, every day, do not stop. Keep her only on breast milk, no water, no gripe water, no honey, nothing else till six months. Give her tummy time when she is awake, at least three or four times a day. Watch the injection site, if there is swelling bigger than a coin or it becomes red and hot, come and show me. The next vaccine is at six months, so come back on the eighth of December. Bring the vaccination card every time.",
+   "expected": {
+    "medicines": [
+     {
+      "name": "paracetamol drops",
+      "amount": "0.6 ml",
+      "when": "if temperature above 100",
+      "as_needed": true,
+      "duration_days": null
+     },
+     {
+      "name": "vitamin D drops",
+      "amount": "1 ml",
+      "when": "every morning",
+      "as_needed": false,
+      "times": [
+       "morning"
+      ],
+      "duration_days": null
+     }
+    ],
+    "vaccines": [
+     {
+      "name": "pentavalent dose 3 and polio drops",
+      "given_today": true
+     },
+     {
+      "name": "six-month vaccines",
+      "date": "2026-12-08"
+     }
+    ],
+    "appointments": [
+     {
+      "what": "vaccination visit",
+      "date": "2026-12-08"
+     }
+    ],
+    "watch_for": [
+     "mild fever tonight is normal",
+     "injection site swelling bigger than a coin, red or hot"
+    ],
+    "dos": [
+     "only breast milk till six months",
+     "tummy time three or four times a day when awake",
+     "bring the vaccination card every time"
+    ],
+    "donts": [
+     "no water",
+     "no gripe water",
+     "no honey"
+    ],
+    "tests": []
+   },
+   "title": "4-month check-up"
+  },
+  {
+   "id": "en-cold-cough",
+   "language": "en",
+   "voice": "Aman",
+   "visit_date": "2026-10-10",
+   "baby_birth_date": "2026-03-02",
+   "transcript": "It is a viral cold, the chest is clear, nothing to worry about. For the blocked nose, put saline nasal drops, two drops in each nostril, three times a day, for five days. Before feeds is best. For the cough, give the syrup I am writing, two point five ml at night only, for three days. Keep feeding her, small and frequent feeds are fine. Do not use any vapour rub on her face. Do not give cough syrups from the medical shop on your own. Watch her breathing. If she is breathing very fast, or the chest is pulling in, or she is not feeding at all, or the fever goes above one hundred and two, bring her immediately, do not wait. Otherwise come for review after three days.",
+   "expected": {
+    "medicines": [
+     {
+      "name": "saline nasal drops",
+      "amount": "2 drops each nostril",
+      "when": "three times a day, before feeds",
+      "times_per_day": 3,
+      "duration_days": 5,
+      "as_needed": false
+     },
+     {
+      "name": "cough syrup",
+      "amount": "2.5 ml",
+      "when": "at night only",
+      "times": [
+       "night"
+      ],
+      "duration_days": 3,
+      "as_needed": false
+     }
+    ],
+    "vaccines": [],
+    "appointments": [
+     {
+      "what": "review",
+      "in_days": 3
+     }
+    ],
+    "watch_for": [
+     "very fast breathing",
+     "chest pulling in",
+     "not feeding at all",
+     "fever above 102"
+    ],
+    "dos": [
+     "keep feeding, small frequent feeds"
+    ],
+    "donts": [
+     "no vapour rub on the face",
+     "no cough syrups from the shop on your own"
+    ],
+    "tests": []
+   },
+   "title": "Cold and cough"
+  },
+  {
+   "id": "en-loose-motions",
+   "language": "en",
+   "voice": "Aman",
+   "visit_date": "2026-10-10",
+   "baby_birth_date": "2025-12-20",
+   "transcript": "She has loose motions, but she is not dehydrated, the tongue is wet and she is passing urine. Give ORS after every loose stool, about half a cup, small sips with a spoon. Give zinc syrup, five ml once a day after lunch, for fourteen days, complete the full course even if the motions stop. Continue breastfeeding and her normal food, rice, dal, curd, banana is good. Avoid fruit juices and biscuits for now. Look at the stools, if you see blood in the stool, or she is vomiting everything, or she stops passing urine for six hours, come immediately. Before coming next time, collect a stool sample in the morning in the container from the lab. Come back on Monday.",
+   "expected": {
+    "medicines": [
+     {
+      "name": "ORS",
+      "amount": "about half a cup, small sips",
+      "when": "after every loose stool",
+      "as_needed": true
+     },
+     {
+      "name": "zinc syrup",
+      "amount": "5 ml",
+      "when": "once a day after lunch",
+      "times": [
+       "afternoon"
+      ],
+      "duration_days": 14,
+      "as_needed": false
+     }
+    ],
+    "vaccines": [],
+    "appointments": [
+     {
+      "what": "follow-up",
+      "weekday": "Monday"
+     }
+    ],
+    "watch_for": [
+     "blood in the stool",
+     "vomiting everything",
+     "no urine for six hours"
+    ],
+    "dos": [
+     "continue breastfeeding and normal food",
+     "rice, dal, curd, banana are good"
+    ],
+    "donts": [
+     "avoid fruit juices",
+     "avoid biscuits"
+    ],
+    "tests": [
+     "morning stool sample in the lab container before next visit"
+    ]
+   },
+   "title": "Loose motions"
+  },
+  {
+   "id": "en-mother-postnatal",
+   "language": "en",
+   "voice": "Tara",
+   "visit_date": "2026-10-10",
+   "baby_birth_date": "2026-08-29",
+   "transcript": "Your stitches have healed well. Your haemoglobin is a little low, nine point eight, so take the iron tablet once a day after lunch for three months, and the calcium tablet at night after dinner. Do not take iron and calcium together, keep a gap. Drink plenty of water and eat green leafy vegetables, dates and jaggery. Avoid lifting anything heavy for another four weeks. If you have heavy bleeding, fever, or pain in the calf, come immediately. We will repeat the haemoglobin test after six weeks, so come back for a blood test then.",
+   "expected": {
+    "medicines": [
+     {
+      "name": "iron tablet",
+      "when": "once a day after lunch",
+      "times": [
+       "afternoon"
+      ],
+      "duration_days": 90,
+      "as_needed": false
+     },
+     {
+      "name": "calcium tablet",
+      "when": "at night after dinner",
+      "times": [
+       "night"
+      ],
+      "as_needed": false
+     }
+    ],
+    "vaccines": [],
+    "appointments": [
+     {
+      "what": "blood test, repeat haemoglobin",
+      "in_days": 42
+     }
+    ],
+    "watch_for": [
+     "heavy bleeding",
+     "fever",
+     "pain in the calf"
+    ],
+    "dos": [
+     "drink plenty of water",
+     "green leafy vegetables, dates and jaggery"
+    ],
+    "donts": [
+     "do not take iron and calcium together",
+     "no heavy lifting for four weeks"
+    ],
+    "tests": [
+     "repeat haemoglobin in six weeks"
+    ]
+   },
+   "title": "Mother's postnatal check"
+  },
+  {
+   "id": "hi-fever",
+   "language": "hi",
+   "voice": "Lekha",
+   "visit_date": "2026-10-10",
+   "baby_birth_date": "2026-01-15",
+   "transcript": "बच्चे को वायरल बुखार है, घबराने की कोई बात नहीं है। बुखार सौ से ऊपर जाए तो पैरासिटामोल सिरप ढाई एमएल दीजिए, दिन में चार बार से ज़्यादा नहीं। गुनगुने पानी से शरीर पोंछिए। दूध पिलाते रहिए। अगर बच्चा बहुत सुस्त हो जाए, या दौरा पड़े, या शरीर पर लाल दाने दिखें, तो तुरंत आइए। दो दिन बाद दिखाने आइए।",
+   "expected": {
+    "medicines": [
+     {
+      "name": "paracetamol syrup",
+      "amount": "2.5 ml",
+      "when": "if fever above 100, not more than four times a day",
+      "as_needed": true
+     }
+    ],
+    "vaccines": [],
+    "appointments": [
+     {
+      "what": "review",
+      "in_days": 2
+     }
+    ],
+    "watch_for": [
+     "very drowsy",
+     "fit or seizure",
+     "red rash on the body"
+    ],
+    "dos": [
+     "sponge with lukewarm water",
+     "keep feeding"
+    ],
+    "donts": [],
+    "tests": []
+   },
+   "title": "Viral fever"
+  },
+  {
+   "id": "ta-vaccine",
+   "language": "ta",
+   "voice": "Vani",
+   "visit_date": "2026-10-10",
+   "baby_birth_date": "2026-08-29",
+   "transcript": "இன்று குழந்தைக்கு ஆறு வார தடுப்பூசி போட்டோம். இரவு லேசான காய்ச்சல் வரலாம். காய்ச்சல் இருந்தால் மட்டும் பாராசிட்டமால் சொட்டு மருந்து கொடுங்கள். ஊசி போட்ட இடத்தில் எதுவும் தேய்க்க வேண்டாம். அடுத்த தடுப்பூசி நான்கு வாரம் கழித்து, நவம்பர் ஏழாம் தேதி வாருங்கள்.",
+   "expected": {
+    "medicines": [
+     {
+      "name": "paracetamol drops",
+      "when": "only if fever",
+      "as_needed": true
+     }
+    ],
+    "vaccines": [
+     {
+      "name": "six-week vaccines",
+      "given_today": true
+     },
+     {
+      "name": "next vaccines",
+      "date": "2026-11-07"
+     }
+    ],
+    "appointments": [
+     {
+      "what": "vaccination visit",
+      "date": "2026-11-07"
+     }
+    ],
+    "watch_for": [
+     "mild fever tonight"
+    ],
+    "dos": [],
+    "donts": [
+     "do not rub anything on the injection site"
+    ],
+    "tests": []
+   },
+   "title": "6-week vaccines"
+  },
+  {
+   "id": "te-feeding",
+   "language": "te",
+   "voice": "Geeta",
+   "visit_date": "2026-10-10",
+   "baby_birth_date": "2026-04-05",
+   "transcript": "బాబు బరువు బాగా పెరుగుతున్నాడు. ఆరు నెలలు నిండాయి కాబట్టి ఇప్పుడు ఘన ఆహారం మొదలుపెట్టవచ్చు. మొదట మెత్తని అన్నం, పప్పు, అరటిపండు గుజ్జు రోజుకు రెండు సార్లు ఇవ్వండి. తేనె, ఉప్పు, చక్కెర ఒక సంవత్సరం వరకు ఇవ్వకండి. ఐరన్ సిరప్ రోజుకు ఒకసారి ఉదయం ఇవ్వండి. ఒక నెల తర్వాత మళ్ళీ రండి.",
+   "expected": {
+    "medicines": [
+     {
+      "name": "iron syrup",
+      "when": "once a day in the morning",
+      "times": [
+       "morning"
+      ],
+      "as_needed": false
+     }
+    ],
+    "vaccines": [],
+    "appointments": [
+     {
+      "what": "follow-up",
+      "in_days": 30
+     }
+    ],
+    "watch_for": [],
+    "dos": [
+     "start solids: soft rice, dal, mashed banana twice a day"
+    ],
+    "donts": [
+     "no honey, salt or sugar until one year"
+    ],
+    "tests": []
+   },
+   "title": "Starting solids"
+  },
+  {
+   "id": "en-hinglish-jaundice",
+   "language": "en",
+   "voice": "Rishi",
+   "visit_date": "2026-10-10",
+   "baby_birth_date": "2026-10-03",
+   "transcript": "Baby ko halka sa jaundice hai, the yellow colour is only on the face and chest, that is okay for one week old. Feed every two to three hours, even at night, wake her up for feeds. Keep her in morning sunlight is not needed, that is an old belief, don't do that. Check the colour of the poop. If the potty becomes pale or white like chalk, or the urine is dark yellow, come the same day. We will do a bilirubin test the day after tomorrow, come at nine in the morning.",
+   "expected": {
+    "medicines": [],
+    "vaccines": [],
+    "appointments": [
+     {
+      "what": "bilirubin test",
+      "in_days": 2,
+      "time": "09:00"
+     }
+    ],
+    "watch_for": [
+     "pale or chalk-white poop",
+     "dark yellow urine",
+     "yellow colour spreading beyond face and chest"
+    ],
+    "dos": [
+     "feed every two to three hours, wake her at night for feeds",
+     "check the colour of the poop"
+    ],
+    "donts": [
+     "do not put her in sunlight for jaundice"
+    ],
+    "tests": [
+     "bilirubin test the day after tomorrow at 9 am"
+    ]
+   },
+   "title": "Newborn jaundice"
+  }
+ ]
+}

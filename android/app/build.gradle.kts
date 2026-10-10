@@ -17,8 +17,8 @@ android {
         // which is what the README has always claimed anyway.
         minSdk = 27
         targetSdk = 35
-        versionCode = 14
-        versionName = "2.5.3"
+        versionCode = 15
+        versionName = "2.6.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
     }
@@ -100,6 +100,9 @@ android {
         // directory, which needs it unpacked on disk rather than page-mapped
         // out of the archive.
         jniLibs.useLegacyPackaging = true
+        // GenieX and qnn-runtime both ship the QAIRT 2.45 libraries -- the same
+        // version on purpose -- so either copy will do.
+        jniLibs.pickFirsts += setOf("**/libQnn*.so", "**/libSnpe*.so", "**/libc++_shared.so")
         resources.excludes += setOf(
             "/META-INF/{AL2.0,LGPL2.1}",
             "META-INF/DEPENDENCY_INFO",
@@ -161,7 +164,17 @@ dependencies {
     implementation(libs.play.services.wearable)
     implementation(libs.mlkit.text.recognition)
     implementation(libs.mlkit.text.devanagari)
-    implementation(libs.onnxruntime.android)
+    // ONNX Runtime with the QNN execution provider: the OCR and interaction
+    // models run on its CPU provider as before, and the doctor-visit Whisper
+    // runs on its HTP provider. The QNN runtime is pinned to 2.45 -- the
+    // version AI Hub's v0.62 Whisper was compiled with and the one GenieX
+    // 0.4.0 ships -- so one set of Hexagon libraries serves every model.
+    implementation(libs.onnxruntime.android.qnn) {
+        exclude(group = "com.qualcomm.qti", module = "qnn-runtime")
+    }
+    implementation(libs.qnn.runtime)
+    // FFT for Whisper's mel spectrogram (n_fft = 400, not a power of two).
+    implementation(libs.jtransforms)
     implementation(libs.litertlm)
     // Qualcomm's runtime, and the only one in this app whose Backend enum has
     // an NPU in it. Ships llama.cpp's Hexagon backend inside the AAR.

@@ -14,7 +14,9 @@ tfliteGpu = "2.16.1"
 mediapipeVision = "0.10.18"
 mediapipeGenai = "0.10.35"
 mlkitText = "16.0.1"
-onnxruntime = "1.20.0"
+onnxruntime = "1.27.0"
+qnnRuntime = "2.45.0"
+jtransforms = "3.1"
 litertlm = "0.12.0"
 geniex = "0.4.0"
 hiddenapibypass = "6.1"
@@ -67,7 +69,9 @@ mediapipe-vision = { module = "com.google.mediapipe:tasks-vision", version.ref =
 mediapipe-genai = { module = "com.google.mediapipe:tasks-genai", version.ref = "mediapipeGenai" }
 mlkit-text-recognition = { module = "com.google.mlkit:text-recognition", version.ref = "mlkitText" }
 mlkit-text-devanagari = { module = "com.google.mlkit:text-recognition-devanagari", version.ref = "mlkitText" }
-onnxruntime-android = { module = "com.microsoft.onnxruntime:onnxruntime-android", version.ref = "onnxruntime" }
+onnxruntime-android-qnn = { module = "com.microsoft.onnxruntime:onnxruntime-android-qnn", version.ref = "onnxruntime" }
+qnn-runtime = { module = "com.qualcomm.qti:qnn-runtime", version.ref = "qnnRuntime" }
+jtransforms = { module = "com.github.wendykierp:JTransforms", version.ref = "jtransforms" }
 litertlm = { module = "com.google.ai.edge.litertlm:litertlm-android", version.ref = "litertlm" }
 
 kotlinx-coroutines-android = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-android", version.ref = "coroutines" }

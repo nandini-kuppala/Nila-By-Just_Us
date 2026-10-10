@@ -151,6 +151,19 @@ object NpuArbiter {
         return true
     }
 
+    /**
+     * The doctor visit takes the NPU the way a vision load does.
+     *
+     * Its two models -- Whisper, then the visit's own Qwen engine -- run one
+     * after the other and never beside anything else, so the chat engine is
+     * moved to the CPU first and Ask stays there until [visitDone]. False while
+     * a chat reply is still being written; the caller waits and asks again.
+     */
+    suspend fun claimForVisit(): Boolean = claimForVisionLoad()
+
+    /** The doctor visit has let go of the NPU. */
+    fun visitDone(now: Long = System.currentTimeMillis()) = visionUnloaded(now)
+
     /** The vision model is off the NPU -- closed, or it never got on. */
     fun visionUnloaded(now: Long = System.currentTimeMillis()) = synchronized(lock) {
         visionClaim = false
