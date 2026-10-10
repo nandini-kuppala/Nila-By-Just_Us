@@ -69,6 +69,37 @@ object HomeCamera {
         }.getOrDefault(false)
     }
 
+    /**
+     * The camera stopped answering at its saved address: it may have come back with a new one (the router or
+     * hotspot handed out another IP after a restart). Looks for cameras on the Wi-Fi and returns the saved
+     * address moved to the camera whose stream answers with the same path (and key), or null.
+     */
+    suspend fun relocate(context: Context, url: String): String? {
+        val old = host(url) ?: return null
+        for (f in discover(context)) {
+            if (f.host == old) continue
+            val moved = url.replaceFirst("@$old", "@${f.host}").replaceFirst("//$old", "//${f.host}")
+            if (moved != url && streamAnswers(moved)) return moved
+        }
+        return null
+    }
+
+    /** RTSP DESCRIBE on the full address answers 200 (or asks for the login it already carries): the stream is there. */
+    private suspend fun streamAnswers(url: String): Boolean = withContext(Dispatchers.IO) {
+        runCatching {
+            val u = URI(url)
+            val port = if (u.port > 0) u.port else 554
+            Socket().use { s ->
+                s.connect(InetSocketAddress(u.host, port), 2_000)
+                s.soTimeout = 3_000
+                val bare = url.replace(Regex("//[^/@]*@"), "//")
+                s.getOutputStream().write("DESCRIBE $bare RTSP/1.0\r\nCSeq: 2\r\nAccept: application/sdp\r\nUser-Agent: Nila\r\n\r\n".toByteArray())
+                val line = s.getInputStream().bufferedReader().readLine() ?: ""
+                line.contains(" 200") || (line.contains(" 401") && url.contains('@'))
+            }
+        }.getOrDefault(false)
+    }
+
     /** ONVIF cameras on the Wi-Fi (WS-Discovery, multicast UDP 3702). Empty if none answered in [waitMs]. */
     suspend fun discover(context: Context, waitMs: Long = 3_000): List<Found> = withContext(Dispatchers.IO) {
         val wifi = context.applicationContext.getSystemService(WifiManager::class.java)

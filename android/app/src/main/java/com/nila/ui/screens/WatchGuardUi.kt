@@ -297,14 +297,28 @@ private fun OnlineDot(online: Boolean?) {
     Box(Modifier.size(10.dp).clip(CircleShape).background(color))
 }
 
-/** Asks the home camera every few seconds whether it is there. Null until the first answer, or when not set up. */
+/**
+ * Asks the home camera every few seconds whether it is there. Null until the first answer, or when not set up.
+ * When it stops answering, looks for it on the Wi-Fi under a new address (at most every 20 s) and, if found,
+ * saves that: the watch then reconnects to it by itself.
+ */
 @Composable
 private fun rememberHomeOnline(url: String): Boolean? {
+    val context = LocalContext.current
     val online by produceState<Boolean?>(initialValue = null, url) {
         value = null
         if (url.isBlank()) return@produceState
+        var lastSearch = 0L
         while (true) {
             value = HomeCamera.isOnline(url)
+            if (value == false && System.currentTimeMillis() - lastSearch > 20_000) {
+                lastSearch = System.currentTimeMillis()
+                HomeCamera.relocate(context, url)?.let { moved ->
+                    android.util.Log.i("NilaGuard", "HOME camera moved to ${HomeCamera.host(moved)}")
+                    VisionSettings(context).setHomeUrl(moved) // a new url restarts this loop
+                    return@produceState
+                }
+            }
             delay(if (value == true) 5_000 else 3_000)
         }
     }
