@@ -51,12 +51,21 @@ class VisionSettings(private val context: Context) {
         private val SOURCE = stringPreferencesKey("guard_source")
         private val LENS = stringPreferencesKey("guard_lens")
         private val CCTV_URL = stringPreferencesKey("guard_cctv_address") // default = the built-in demo video
+        private val HOME_URL = stringPreferencesKey("guard_home_camera") // the family's own camera, set up once
 
         const val DEMO_CCTV_URL = com.nila.vision.guard.CctvSource.DEMO_URL
     }
 
-    /** Where the frames come from: this phone's camera, or a CCTV / IP camera over RTSP. */
-    enum class Source { PHONE, CCTV }
+    /**
+     * Where the frames come from: this phone's camera, the CCTV option (the built-in demo video or any RTSP
+     * address), or the home camera (the family's own camera on the Wi-Fi, found and set up once).
+     */
+    enum class Source {
+        PHONE, CCTV, HOME;
+
+        /** The picture comes from a stream played on the Watch screen, not this phone's camera. */
+        val remote: Boolean get() = this != PHONE
+    }
 
     /** The phone's main lens, or its ultra-wide lens (which vivo hides from CameraX). */
     enum class Lens { MAIN, WIDE }
@@ -83,7 +92,16 @@ class VisionSettings(private val context: Context) {
         val source: Source = Source.PHONE,
         val lens: Lens = Lens.MAIN,
         val cctvUrl: String = DEMO_CCTV_URL,
+        /** The home camera's RTSP address; empty until it is set up. */
+        val homeUrl: String = "",
     ) {
+        /** The stream the chosen source plays: the CCTV address or the home camera; empty for the phone. */
+        val streamUrl: String get() = when (source) {
+            Source.CCTV -> cctvUrl
+            Source.HOME -> homeUrl
+            Source.PHONE -> ""
+        }
+
         /** Nothing is switched on: the watch has nothing to do. */
         val noMode: Boolean get() = !baseOn && !vlmOn && !zoneOn
     }
@@ -103,6 +121,7 @@ class VisionSettings(private val context: Context) {
             source = prefs[SOURCE]?.let { runCatching { Source.valueOf(it) }.getOrNull() } ?: Source.PHONE,
             lens = prefs[LENS]?.let { runCatching { Lens.valueOf(it) }.getOrNull() } ?: Lens.MAIN,
             cctvUrl = prefs[CCTV_URL]?.takeIf { it.isNotBlank() } ?: DEMO_CCTV_URL,
+            homeUrl = prefs[HOME_URL] ?: "",
         )
     }
 
@@ -128,6 +147,10 @@ class VisionSettings(private val context: Context) {
 
     suspend fun setCctvUrl(url: String) {
         context.visionStore.edit { it[CCTV_URL] = url.trim() }
+    }
+
+    suspend fun setHomeUrl(url: String) {
+        context.visionStore.edit { it[HOME_URL] = url.trim() }
     }
 
     /**

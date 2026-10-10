@@ -23,6 +23,9 @@ class SafeZoneStore(private val context: Context, keyName: String = "zone") {
     companion object {
         /** The CCTV camera sees a different room from the phone, so it keeps its own zone. */
         const val CCTV = "zone_cctv"
+
+        /** The home camera sees its own room again. */
+        const val HOME = "zone_home"
     }
 
     private val KEY = stringPreferencesKey(keyName)

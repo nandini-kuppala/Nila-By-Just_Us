@@ -18,12 +18,15 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.outlined.CropFree
 import androidx.compose.material.icons.outlined.DarkMode
 import androidx.compose.material.icons.outlined.Face
+import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.MusicNote
 import androidx.compose.material.icons.outlined.NotificationsActive
 import androidx.compose.material.icons.outlined.Shield
@@ -43,6 +46,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
@@ -57,6 +61,8 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -78,6 +84,7 @@ import com.nila.vision.DayNight
 import com.nila.vision.VisionSettings
 import com.nila.vision.guard.CctvSource
 import com.nila.vision.guard.GuardStatus
+import com.nila.vision.guard.HomeCamera
 import com.nila.vision.guard.NormBox
 import com.nila.vision.guard.Verdict
 import com.nila.vision.guard.VlmStatus
@@ -182,6 +189,7 @@ internal fun GuardModesCard(values: VisionSettings.Values, running: Boolean, onS
         }
 
         Text("Camera", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+        val homeOnline = rememberHomeOnline(values.homeUrl)
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             FilterChip(selected = values.source == VisionSettings.Source.PHONE,
                        onClick = { scope.launch { settings.setSource(VisionSettings.Source.PHONE) } },
@@ -190,6 +198,25 @@ internal fun GuardModesCard(values: VisionSettings.Values, running: Boolean, onS
                        onClick = { scope.launch { settings.setSource(VisionSettings.Source.CCTV) } },
                        label = { Text("CCTV camera") },
                        leadingIcon = { Icon(Icons.Outlined.Videocam, null, Modifier.size(18.dp)) })
+            // The family's own camera: the dot says whether it is on the Wi-Fi right now; one tap watches it.
+            FilterChip(selected = values.source == VisionSettings.Source.HOME,
+                       onClick = {
+                           scope.launch {
+                               settings.setSource(VisionSettings.Source.HOME)
+                               if (values.homeUrl.isNotBlank() && !running) {
+                                   WatchService.start(context)
+                                   onStarted()
+                               }
+                           }
+                       },
+                       label = { Text("Home") },
+                       leadingIcon = {
+                           Row(verticalAlignment = Alignment.CenterVertically,
+                               horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                               Icon(Icons.Outlined.Home, null, Modifier.size(18.dp))
+                               OnlineDot(if (values.homeUrl.isBlank()) null else homeOnline)
+                           }
+                       })
         }
         if (values.source == VisionSettings.Source.PHONE) {
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -200,6 +227,8 @@ internal fun GuardModesCard(values: VisionSettings.Values, running: Boolean, onS
                            onClick = { scope.launch { settings.setLens(VisionSettings.Lens.WIDE) } },
                            label = { Text("Ultra-wide (whole cot)") })
             }
+        } else if (values.source == VisionSettings.Source.HOME) {
+            HomeCameraSection(values, running, homeOnline, onStarted)
         } else {
             val isDemo = values.cctvUrl == VisionSettings.DEMO_CCTV_URL
             var myCamera by remember(isDemo) { mutableStateOf(!isDemo) }
@@ -253,6 +282,183 @@ internal fun GuardModesCard(values: VisionSettings.Values, running: Boolean, onS
         if (!running) {
             Text("Changes apply at once, even while watching.", style = MaterialTheme.typography.bodySmall,
                  color = scheme.onSurfaceVariant)
+        }
+    }
+}
+
+/** Green = the home camera answers on the Wi-Fi, red = it does not, grey = not set up or still checking. */
+@Composable
+private fun OnlineDot(online: Boolean?) {
+    val color = when (online) {
+        true -> Color(0xFF2E9E5B)
+        false -> Color(0xFFD64545)
+        null -> Color(0xFF9AA3AF)
+    }
+    Box(Modifier.size(10.dp).clip(CircleShape).background(color))
+}
+
+/** Asks the home camera every few seconds whether it is there. Null until the first answer, or when not set up. */
+@Composable
+private fun rememberHomeOnline(url: String): Boolean? {
+    val online by produceState<Boolean?>(initialValue = null, url) {
+        value = null
+        if (url.isBlank()) return@produceState
+        while (true) {
+            value = HomeCamera.isOnline(url)
+            delay(if (value == true) 5_000 else 3_000)
+        }
+    }
+    return online
+}
+
+/** "Home" chosen: the camera's state, one button to watch it, and the setup. */
+@Composable
+private fun HomeCameraSection(values: VisionSettings.Values, running: Boolean, online: Boolean?, onStarted: () -> Unit) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val settings = remember { VisionSettings(context) }
+    val scheme = MaterialTheme.colorScheme
+    val setUp = values.homeUrl.isNotBlank()
+    var setupOpen by remember(setUp) { mutableStateOf(!setUp) }
+
+    if (setUp) {
+        val host = HomeCamera.host(values.homeUrl) ?: "camera"
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            OnlineDot(online)
+            Text(when (online) {
+                     true -> "Home camera online · $host"
+                     false -> "Home camera offline · $host"
+                     null -> "Checking the home camera · $host"
+                 },
+                 style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+        }
+        if (online == false) {
+            Text("Check that the camera has power and that this phone is on the same Wi-Fi as the camera.",
+                 style = MaterialTheme.typography.bodySmall, color = scheme.onSurfaceVariant)
+        }
+        if (!running) {
+            PillButton("Watch home camera", onClick = {
+                scope.launch {
+                    settings.setSource(VisionSettings.Source.HOME)
+                    WatchService.start(context)
+                    onStarted()
+                }
+            }, Modifier.fillMaxWidth(), icon = Icons.Outlined.Home)
+        } else {
+            Text("Watching the home camera.", style = MaterialTheme.typography.bodySmall,
+                 fontWeight = FontWeight.SemiBold)
+        }
+        TextButton(onClick = { setupOpen = !setupOpen }) { Text(if (setupOpen) "Close setup" else "Change camera") }
+    }
+    if (setupOpen) {
+        HomeCameraSetup(onSaved = { url ->
+            scope.launch {
+                settings.setHomeUrl(url)
+                settings.setSource(VisionSettings.Source.HOME)
+                if (!running) {
+                    WatchService.start(context)
+                    onStarted()
+                }
+            }
+            setupOpen = false
+        })
+    }
+    Text("The phone stays with you; the home camera watches the baby. Alerts here are a notification, a chime " +
+             "and vibration. The picture comes in while this screen is open.",
+         style = MaterialTheme.typography.bodySmall, color = scheme.onSurfaceVariant)
+}
+
+/**
+ * One-time setup: find the camera on the Wi-Fi, log in once over ONVIF, keep its stream address. The password
+ * is only used for that and is not saved (unless the camera's stream itself asks for it).
+ */
+@Composable
+@OptIn(ExperimentalLayoutApi::class)
+private fun HomeCameraSetup(onSaved: (String) -> Unit) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val scheme = MaterialTheme.colorScheme
+    var found by remember { mutableStateOf<List<HomeCamera.Found>>(emptyList()) }
+    var searching by remember { mutableStateOf(false) }
+    var host by remember { mutableStateOf("") }
+    var onvifUrl by remember { mutableStateOf<String?>(null) }
+    var user by remember { mutableStateOf("admin") }
+    var password by remember { mutableStateOf("") }
+    var busy by remember { mutableStateOf(false) }
+    var message by remember { mutableStateOf<String?>(null) }
+    var manual by remember { mutableStateOf(false) }
+    var rtsp by remember { mutableStateOf("") }
+
+    fun search() {
+        searching = true
+        message = null
+        scope.launch {
+            found = runCatching { HomeCamera.discover(context) }.getOrDefault(emptyList())
+            searching = false
+            when {
+                found.isEmpty() -> message = "No camera answered on this Wi-Fi. Type its address below."
+                found.size == 1 -> {
+                    host = found[0].host
+                    onvifUrl = found[0].onvifUrl
+                }
+            }
+        }
+    }
+    // Look straight away: most homes have one camera, so its address fills itself in.
+    LaunchedEffect(Unit) { search() }
+
+    Text("Set up the home camera", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+    Text("Put this phone on the camera's Wi-Fi. CP Plus (ezyKam+): open the camera, then Settings, Onvif, switch " +
+             "it on and set a password. Other cameras: switch on ONVIF in their app.",
+         style = MaterialTheme.typography.bodySmall, color = scheme.onSurfaceVariant)
+    OutlinePillButton(if (searching) "Looking on the Wi-Fi..." else "Find camera", onClick = { search() },
+                      Modifier.fillMaxWidth(), icon = Icons.Outlined.Videocam, enabled = !searching)
+    if (found.isNotEmpty()) {
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            found.forEach { f ->
+                FilterChip(selected = host == f.host,
+                           onClick = { host = f.host; onvifUrl = f.onvifUrl },
+                           label = { Text("${f.name} · ${f.host}") })
+            }
+        }
+    }
+    OutlinedTextField(value = host, onValueChange = { host = it.trim(); onvifUrl = null },
+                      label = { Text("Camera address") }, placeholder = { Text("192.168.1.20") },
+                      singleLine = true, modifier = Modifier.fillMaxWidth(),
+                      keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri))
+    OutlinedTextField(value = user, onValueChange = { user = it }, label = { Text("User name") },
+                      singleLine = true, modifier = Modifier.fillMaxWidth())
+    OutlinedTextField(value = password, onValueChange = { password = it }, label = { Text("Camera password") },
+                      singleLine = true, modifier = Modifier.fillMaxWidth(),
+                      visualTransformation = PasswordVisualTransformation(),
+                      keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password))
+    PillButton(if (busy) "Connecting..." else "Connect", onClick = {
+        busy = true
+        message = null
+        scope.launch {
+            try {
+                val s = HomeCamera.findStream(onvifUrl ?: HomeCamera.onvifUrlFor(host), user.trim(), password)
+                android.util.Log.i("NilaGuard", "HOME camera stream ${s.width}x${s.height} ${s.encoding}")
+                password = ""
+                onSaved(s.url)
+            } catch (e: HomeCamera.SetupError) {
+                message = e.message
+            } catch (e: Exception) {
+                message = "Could not reach the camera (${e.javaClass.simpleName}). Check the address and the Wi-Fi."
+            } finally {
+                busy = false
+            }
+        }
+    }, Modifier.fillMaxWidth(), icon = Icons.Outlined.Home, enabled = !busy && host.isNotBlank())
+    message?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = scheme.error) }
+    TextButton(onClick = { manual = !manual }) { Text(if (manual) "Hide RTSP address" else "Or paste an RTSP address") }
+    if (manual) {
+        OutlinedTextField(value = rtsp, onValueChange = { rtsp = it }, label = { Text("Camera RTSP address") },
+                          placeholder = { Text("rtsp://user:pass@192.168.1.20:554/stream1") },
+                          singleLine = true, modifier = Modifier.fillMaxWidth())
+        TextButton(onClick = { onSaved(rtsp.trim()) },
+                   enabled = rtsp.trim().startsWith("rtsp://", ignoreCase = true)) {
+            Text("Use this address")
         }
     }
 }
@@ -517,7 +723,7 @@ internal fun CctvPreview(url: String, modifier: Modifier = Modifier) {
     }
     DisposableEffect(Unit) {
         onDispose {
-            source?.stop()
+            source?.release()
             WatchService.reportCctv(false, 0, 0)
             executor.shutdown()
         }

@@ -217,6 +217,7 @@ class WatchService : LifecycleService() {
     private lateinit var db: NilaDatabase
     private lateinit var zones: SafeZoneStore
     private lateinit var cctvZones: SafeZoneStore
+    private lateinit var homeZones: SafeZoneStore
     private lateinit var sensors: RoomSensors
     private lateinit var settings: VisionSettings
     private lateinit var alarm: AlarmController
@@ -234,7 +235,12 @@ class WatchService : LifecycleService() {
     @Volatile private var options = VisionSettings.Values()
     @Volatile private var phoneZone: SafeZone = SafeZone.DEFAULT
     @Volatile private var cctvZone: SafeZone = SafeZone.DEFAULT
-    private val zone: SafeZone get() = if (options.source == VisionSettings.Source.CCTV) cctvZone else phoneZone
+    @Volatile private var homeZone: SafeZone = SafeZone.DEFAULT
+    private val zone: SafeZone get() = when (options.source) {
+        VisionSettings.Source.CCTV -> cctvZone
+        VisionSettings.Source.HOME -> homeZone
+        VisionSettings.Source.PHONE -> phoneZone
+    }
 
     // ---- camera sources
     private var provider: ProcessCameraProvider? = null
@@ -324,6 +330,7 @@ class WatchService : LifecycleService() {
         db = NilaDatabase.get(this)
         zones = SafeZoneStore(this)
         cctvZones = SafeZoneStore(this, SafeZoneStore.CCTV)
+        homeZones = SafeZoneStore(this, SafeZoneStore.HOME)
         sensors = RoomSensors(this)
         settings = VisionSettings(this)
         alarm = AlarmController(this, ::log).apply { onAutoStop = { main.post { stopAlert(byParent = false) } } }
@@ -336,6 +343,7 @@ class WatchService : LifecycleService() {
         options = runCatching { settings.current }.getOrDefault(VisionSettings.Values())
         phoneZone = runCatching { zones.current }.getOrDefault(SafeZone.DEFAULT)
         cctvZone = runCatching { cctvZones.current }.getOrDefault(SafeZone.DEFAULT)
+        homeZone = runCatching { homeZones.current }.getOrDefault(SafeZone.DEFAULT)
         lifecycleScope.launch {
             settings.values.collect { chosen ->
                 val before = options
@@ -356,6 +364,7 @@ class WatchService : LifecycleService() {
         }
         lifecycleScope.launch { zones.zone.collect { z -> phoneZone = z; publishZone() } }
         lifecycleScope.launch { cctvZones.zone.collect { z -> cctvZone = z; publishZone() } }
+        lifecycleScope.launch { homeZones.zone.collect { z -> homeZone = z; publishZone() } }
         publish()
     }
 
@@ -498,7 +507,7 @@ class WatchService : LifecycleService() {
 
     private fun onOptionsChanged(before: VisionSettings.Values, now: VisionSettings.Values) {
         if (before.source != now.source || before.lens != now.lens ||
-            (now.source == VisionSettings.Source.CCTV && before.cctvUrl != now.cctvUrl)
+            (now.source.remote && before.streamUrl != now.streamUrl)
         ) {
             applyCamera()
         }
@@ -567,6 +576,7 @@ class WatchService : LifecycleService() {
                 VisionSettings.Lens.entries.firstOrNull { it.name.equals(l, true) }?.let { settings.setLens(it) }
             }
             x.getString("cctv_url")?.let { settings.setCctvUrl(it) }
+            x.getString("home_url")?.let { settings.setHomeUrl(it) }
             x.getString("zonebox")?.let { spec ->
                 val v = spec.split(',').mapNotNull { it.trim().toFloatOrNull() }
                 if (v.size == 4) {
@@ -574,7 +584,11 @@ class WatchService : LifecycleService() {
                     val src = x.getString("source")?.let { s ->
                         VisionSettings.Source.entries.firstOrNull { it.name.equals(s, true) }
                     } ?: options.source
-                    if (src == VisionSettings.Source.CCTV) cctvZones.save(z) else zones.save(z)
+                    when (src) {
+                        VisionSettings.Source.CCTV -> cctvZones.save(z)
+                        VisionSettings.Source.HOME -> homeZones.save(z)
+                        VisionSettings.Source.PHONE -> zones.save(z)
+                    }
                 }
             }
             if (x.getBoolean("look")) main.postDelayed({ if (running) lookNow() }, 300)
@@ -594,11 +608,11 @@ class WatchService : LifecycleService() {
         lensNote = null
         sourceStartedAt = System.currentTimeMillis()
         when {
-            options.source == VisionSettings.Source.CCTV -> {
-                activeSource = "cctv"
+            options.source.remote -> {
+                activeSource = options.source.name.lowercase()
                 alarm.cameraTorch = null // the phone's own torch (CameraManager): the phone camera is not in use
                 cctvLastFrameAt = 0L
-                log("WATCH source=CCTV url=${options.cctvUrl} (the player runs on the Watch screen)")
+                log("WATCH source=${options.source} url=${com.nila.vision.guard.redactUrl(options.streamUrl)} (the player runs on the Watch screen)")
             }
             options.lens == VisionSettings.Lens.WIDE -> {
                 val w = WideCamera(this, ::analyzeFrameThrottled, ::log)
@@ -690,7 +704,7 @@ class WatchService : LifecycleService() {
     // ------------------------------------------------------------------ CCTV frames from the screen
 
     fun onCctvBitmap(bitmap: Bitmap) {
-        if (!running || options.source != VisionSettings.Source.CCTV) {
+        if (!running || !options.source.remote) {
             bitmap.recycle()
             return
         }
@@ -808,7 +822,7 @@ class WatchService : LifecycleService() {
      * picture counts.
      */
     private fun autoNight(): Boolean {
-        val l = if (options.source == VisionSettings.Source.CCTV) null else sensors.lux
+        val l = if (options.source.remote) null else sensors.lux
         val m = meanLuma
         nightAuto =
             if (nightAuto) {
@@ -1189,7 +1203,7 @@ class WatchService : LifecycleService() {
         if (options.alertsOn) {
             alarm.torchEnabled = options.torchEnabled
             alarm.start(reason)
-            if (options.source == VisionSettings.Source.CCTV) {
+            if (options.source.remote) {
                 parent.start(reason) // notification + chime + vibration for the parent
             } else if (options.distractionEnabled) {
                 musicWithAlert = true
@@ -1251,7 +1265,7 @@ class WatchService : LifecycleService() {
     /** The "Distract" button: the lullaby (media volume) and the ring light, for 20 s. Main thread. */
     private fun distract() {
         if (alertSource != null) return
-        if (options.source == VisionSettings.Source.CCTV) {
+        if (options.source.remote) {
             log("DISTRACT skipped: in CCTV mode this phone is with the parent, not the baby")
             _state.update { it.copy(distraction = "Not in CCTV mode: this phone is with you, not the baby") }
             return
@@ -1301,7 +1315,7 @@ class WatchService : LifecycleService() {
 
     /** CCTV: no new picture for 6 s = the camera is not reachable (or the Watch screen was closed). */
     private fun checkFeed(now: Long) {
-        if (options.source != VisionSettings.Source.CCTV) {
+        if (!options.source.remote) {
             if (feedLost) {
                 feedLost = false
                 parent.feedLost(false)
@@ -1378,7 +1392,7 @@ class WatchService : LifecycleService() {
             flashOn = o.torchEnabled,
             source = o.source,
             lens = o.lens,
-            cctvUrl = o.cctvUrl,
+            cctvUrl = o.streamUrl,
             night = nightActive,
             lux = sensors.lux,
             luma = meanLuma.toFloat(),

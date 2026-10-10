@@ -161,8 +161,12 @@ fun WatchScreen(state: AppState) {
     val visionSettings = remember { com.nila.vision.VisionSettings(context) }
     val options by visionSettings.values.collectAsState(initial = com.nila.vision.VisionSettings.Values())
     val guard = live.guard
-    val cctvSource = live.running && guard.source == com.nila.vision.VisionSettings.Source.CCTV
-    val cctvZones = remember { com.nila.vision.SafeZoneStore(context, com.nila.vision.SafeZoneStore.CCTV) }
+    val cctvSource = live.running && guard.source.remote
+    val homeSource = guard.source == com.nila.vision.VisionSettings.Source.HOME
+    // The CCTV option and the home camera each see their own room, so each keeps its own safe zone.
+    val cctvZones = remember(homeSource) {
+        com.nila.vision.SafeZoneStore(context, if (homeSource) com.nila.vision.SafeZoneStore.HOME else com.nila.vision.SafeZoneStore.CCTV)
+    }
 
     // Pictures (night view, ultra-wide frames) are only made while this screen is showing.
     DisposableEffect(Unit) {
@@ -416,9 +420,10 @@ fun WatchScreen(state: AppState) {
                 OverlayPill(
                     text = when {
                         demo -> "Demo footage"
-                        cctvSource && guard.cctvFeedLost -> "CCTV · no picture"
-                        cctvSource && !guard.cctvConnected -> "CCTV · connecting"
-                        cctvSource -> if (live.lightMode == SceneLight.NIGHT) "CCTV · night view" else "CCTV"
+                        cctvSource && guard.cctvFeedLost -> "${if (homeSource) "Home camera" else "CCTV"} · no picture"
+                        cctvSource && !guard.cctvConnected -> "${if (homeSource) "Home camera" else "CCTV"} · connecting"
+                        cctvSource -> (if (homeSource) "Home camera" else "CCTV") +
+                            if (live.lightMode == SceneLight.NIGHT) " · night view" else ""
                         live.lightMode == SceneLight.NIGHT -> "Live · night view"
                         guard.lens == com.nila.vision.VisionSettings.Lens.WIDE && guard.lensNote == null -> "Live · ultra-wide"
                         else -> "Live"

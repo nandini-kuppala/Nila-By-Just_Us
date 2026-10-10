@@ -83,7 +83,7 @@ data class GuardStatus(
     /** Width / height of the picture the zone and boxes are drawn on. */
     val aspect: Float
         get() = when {
-            source != VisionSettings.Source.CCTV -> 3f / 4f
+            !source.remote -> 3f / 4f
             cctvWidth > 0 && cctvHeight > 0 -> cctvWidth.toFloat() / cctvHeight
             else -> 16f / 9f // most CCTV cameras, until the stream says otherwise
         }
