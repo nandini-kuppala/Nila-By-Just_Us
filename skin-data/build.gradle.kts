@@ -20,6 +20,7 @@ ksp { arg("room.schemaLocation", "$projectDir/schemas") }
 dependencies {
     api(project(":skin-core"))
     implementation(libs.androidx.core.ktx)
+    implementation(libs.androidx.exif)
     api(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)
     ksp(libs.androidx.room.compiler)

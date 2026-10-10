@@ -26,6 +26,8 @@ dependencies {
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.navigation.compose)
     implementation(libs.androidx.work)
+    implementation(libs.androidx.exif)
+    implementation(libs.guava)
     implementation(libs.kotlinx.coroutines.android)
 
     implementation(platform(libs.compose.bom))

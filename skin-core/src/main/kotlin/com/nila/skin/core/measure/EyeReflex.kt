@@ -49,33 +49,41 @@ object EyeReflex {
 
     /**
      * @param pupil circle over the pupil (from face landmarks, or tapped).
+     *
+     * Read by contrast with the iris around it, the way a person reads it:
+     * a glow is a pupil clearly brighter than its iris, red when a* is high,
+     * white or yellow when it isn't. Absolute thresholds failed on real flash
+     * photos taken in bright rooms, where a healthy dark pupil is mid-grey.
      */
     fun read(photo: PixelImage, pupil: NCircle): PupilReading {
-        var n = 0; var sr = 0.0; var sg = 0.0; var sb = 0.0; var white = 0; var red = 0; var sumL = 0.0; var sumS = 0.0
-        // Inner 70%: the iris edge and lashes stay out.
-        Regions.forEachInCircle(photo, pupil.copy(r = pupil.r * 0.7), 1) { x, y ->
-            val p = photo[x, y]
+        val inner = ArrayList<Pair<Int, com.nila.skin.core.color.Lab>>()
+        Regions.forEachInCircle(photo, pupil.copy(r = pupil.r * 0.75), 1) { x, y -> val p = photo[x, y]; inner += p to ColorMath.lab(p) }
+        val ring = ArrayList<Double>()
+        // The ring can overlap a very dilated glowing pupil, or catch the white
+        // of the eye; its darker quarter is reliably iris.
+        Regions.forEachInRing(photo, pupil.copy(r = pupil.r * 1.2), 2.2 / 1.2, 1) { x, y -> ring += ColorMath.lab(photo[x, y]).l }
+        if (inner.size < 8 || ring.size < 8) return PupilReading(Reflex.UNCLEAR, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
+        val sortedRing = ring.sorted()
+        val irisL = sortedRing[(sortedRing.size * 0.25).toInt()]
+        val pupilL = Regions.med(inner.map { it.second.l }.sorted())
+        var red = 0; var white = 0; var sr = 0.0; var sg = 0.0; var sb = 0.0; var sumS = 0.0
+        for ((p, lab) in inner) {
             val r = p.red(); val g = p.green(); val b = p.blue()
-            sr += r; sg += g; sb += b; n++
+            sr += r; sg += g; sb += b
             val mx = maxOf(r, g, b); val mn = minOf(r, g, b)
-            val sat = if (mx == 0) 0.0 else (mx - mn).toDouble() / mx
-            val l = ColorMath.lab(p).l
-            sumL += l; sumS += sat
-            // Bright and not red-dominated: white, cream or yellow.
-            if (l > 68 && (r - g) < 60 && g > 150) white++
-            // Red-dominated glow.
-            if (r > 90 && r > g * 1.6 && r > b * 1.6) red++
+            sumS += if (mx == 0) 0.0 else (mx - mn).toDouble() / mx
+            if (lab.a > 25 && r > g * 1.4 && r > 70) red++
+            else if (lab.l > irisL + 12 && lab.a < 20) white++
         }
-        if (n < 8) return PupilReading(Reflex.UNCLEAR, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
-        val ws = white.toDouble() / n; val rs = red.toDouble() / n
-        val meanL = sumL / n
+        val n = inner.size.toDouble()
+        val ws = white / n; val rs = red / n
         val reflex = when {
-            ws >= 0.30 -> Reflex.WHITE
-            rs >= 0.30 -> Reflex.RED
-            meanL < 35 -> Reflex.DARK
+            rs >= 0.3 -> Reflex.RED
+            ws >= 0.3 && pupilL > irisL + 10 -> Reflex.WHITE
+            pupilL <= irisL + 8 -> Reflex.DARK
             else -> Reflex.UNCLEAR
         }
-        return PupilReading(reflex, sr / n, sg / n, sb / n, meanL, sumS / n, ws, rs)
+        return PupilReading(reflex, sr / n, sg / n, sb / n, pupilL, sumS / n, ws, rs)
     }
 
     fun readPair(photo: PixelImage, left: NCircle, right: NCircle) =

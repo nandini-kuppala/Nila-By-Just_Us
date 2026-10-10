@@ -196,3 +196,25 @@ class TrendTest {
 
     @Suppress("unused") private fun unusedFalse() = assertFalse(false)
 }
+
+class SpotFinderTest {
+    @Test fun findsAnOffCentrePatchOnLightAndDarkSkin() {
+        for (tone in listOf(Synth.TONES[0].second, Synth.TONES[4].second)) {
+            val img = Synth.skin(400, tone, listOf(Synth.Spot(0.35, 0.62, 0.1)), deltaA = Synth.rednessFor(tone, 14.0))
+            val c = com.nila.skin.core.measure.SpotFinder.suggest(img)!!
+            assertTrue("centre $c", abs(c.cx - 0.35) < 0.04 && abs(c.cy - 0.62) < 0.04)
+            assertTrue("radius ${c.r}", c.r in 0.09..0.2)
+        }
+    }
+
+    @Test fun groupsScatteredSpots() {
+        val spots = listOf(Synth.Spot(0.45, 0.45, 0.02), Synth.Spot(0.55, 0.47, 0.02), Synth.Spot(0.5, 0.56, 0.02))
+        val c = com.nila.skin.core.measure.SpotFinder.suggest(Synth.skin(400, Synth.TONES[2].second, spots, 15.0))!!
+        assertTrue("centre $c", abs(c.cx - 0.5) < 0.05 && abs(c.cy - 0.49) < 0.05)
+        assertTrue("radius ${c.r}", c.r > 0.06)
+    }
+
+    @Test fun plainSkinGivesNoSuggestion() {
+        assertEquals(null, com.nila.skin.core.measure.SpotFinder.suggest(Synth.skin(400, Synth.TONES[3].second, emptyList(), 0.0)))
+    }
+}

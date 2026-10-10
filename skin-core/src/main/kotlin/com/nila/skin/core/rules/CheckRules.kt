@@ -91,7 +91,9 @@ object StoolRules {
         val m = input.reading
         if (m != null && input.chosen.group == StoolGroup.NORMAL && m.group == StoolGroup.PALE)
             r += Reason("You picked a normal colour, but the colour-corrected photo reads pale. Compare again by a window; if unsure, ask your doctor.", Source.STOOL_CARD, Step.RECHECK)
-        return Advice.of(r, Step.WATCH, ::doNow, listOf("Say \"pale stool\" and ask whether a liver (bilirubin) blood test is needed.").takeIf { input.chosen.group == StoolGroup.PALE } ?: emptyList())
+        return Advice.of(r, Step.WATCH, ::doNow, listOf("Say \"pale stool\" and ask whether a liver (bilirubin) blood test is needed.").takeIf { input.chosen.group == StoolGroup.PALE } ?: emptyList()) { s ->
+            when (s) { Step.WATCH -> "A normal colour"; Step.RECHECK -> "Compare the next nappy in daylight"; else -> null }
+        }
     }
 
     fun doNow(step: Step): List<String> = when (step) {
@@ -126,7 +128,9 @@ object EyeRules {
             r += Reason("The two pupils glowed differently. Re-take with the baby looking straight at the phone.", Source.RED_REFLEX, Step.RECHECK)
         if (input.answers[TURN.id] == Answer.YES)
             r += Reason("An eye that turns, looks cloudy or wobbles should be checked.", Source.RED_REFLEX, Step.DOCTOR_SOON)
-        return Advice.of(r, Step.WATCH, ::doNow, listOf("Ask for a red reflex test and show the flash photos."))
+        return Advice.of(r, Step.WATCH, ::doNow, listOf("Ask for a red reflex test and show the flash photos.")) { s ->
+            when (s) { Step.RECHECK -> "Take 2-3 more photos"; Step.WATCH -> "Both eyes look as expected"; Step.DOCTOR_SOON -> "Book an eye check this week"; else -> null }
+        }
     }
 
     fun doNow(step: Step): List<String> = when (step) {

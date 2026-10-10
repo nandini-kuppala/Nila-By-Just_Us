@@ -1,0 +1,10 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108">
+    <!-- A leaf (skin) inside a soft circle: Nila teal on pale teal. -->
+    <path android:fillColor="#0F6B60"
+        android:pathData="M54,30 C70,34 76,48 72,62 C68,74 56,78 46,76 C40,64 40,46 54,30 Z" />
+    <path android:fillColor="#E3F2EE"
+        android:pathData="M50,72 C52,60 56,50 64,40 L65.5,41.5 C58,51 54,61 52.5,72.5 Z" />
+    <path android:fillColor="#F29C9C"
+        android:pathData="M38,52 m-5,0 a5,5 0 1,0 10,0 a5,5 0 1,0 -10,0" />
+</vector>

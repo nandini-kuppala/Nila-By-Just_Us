@@ -48,14 +48,19 @@ data class Advice(
     val reasons: List<Reason>,
     val doNow: List<String>,
     val askDoctor: List<String> = emptyList(),
+    /** A check-specific heading for the step, e.g. "Take 2-3 more photos". */
+    val title: String? = null,
 ) {
+    val heading: String get() = title ?: step.title
+
     val sources: List<Source> get() = reasons.mapNotNull { it.source }.distinct()
 
     companion object {
         /** The highest step any reason reached decides; every reason is kept. */
-        fun of(reasons: List<Reason>, base: Step, doNow: (Step) -> List<String>, askDoctor: List<String> = emptyList()): Advice {
+        fun of(reasons: List<Reason>, base: Step, doNow: (Step) -> List<String>, askDoctor: List<String> = emptyList(),
+               title: (Step) -> String? = { null }): Advice {
             val step = (reasons.map { it.step } + base).maxBy { it.ordinal }
-            return Advice(step, reasons.sortedByDescending { it.step.ordinal }, doNow(step), askDoctor)
+            return Advice(step, reasons.sortedByDescending { it.step.ordinal }, doNow(step), askDoctor, title(step))
         }
     }
 }

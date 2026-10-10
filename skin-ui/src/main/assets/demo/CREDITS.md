@@ -1,0 +1,29 @@
+# Demo photo credits
+
+- `skin/patch_III.jpg` (Red patch · tone III): Synthetic, made by tools/make_demo_assets.py
+- `skin/spots_V.jpg` (Small raised spots · tone V): Synthetic, made by tools/make_demo_assets.py
+- `skin/dry_IV.jpg` (Dry patch · tone IV): Synthetic, made by tools/make_demo_assets.py
+- `skin/birthmark_II.jpg` (Red birthmark · tone II): Synthetic, made by tools/make_demo_assets.py
+- `skin/nappy_VI.jpg` (Nappy-area redness · tone VI): Synthetic, made by tools/make_demo_assets.py
+- `skin/spots_I.jpg` (Small raised spots · tone I): Synthetic, made by tools/make_demo_assets.py
+- `stool/stool_7.jpg` (Yellow (normal) · daylight): Synthetic, made by tools/make_demo_assets.py
+- `stool/stool_8_warm.jpg` (Mustard (normal) · warm bulb): Synthetic, made by tools/make_demo_assets.py
+- `stool/stool_2.jpg` (Pale clay · daylight): Synthetic, made by tools/make_demo_assets.py
+- `stool/stool_5_warm.jpg` (Pale sand · warm bulb): Synthetic, made by tools/make_demo_assets.py
+- `stool/stool_G.jpg` (Dark green (normal)): Synthetic, made by tools/make_demo_assets.py
+- `yellow/eye_white_IV.jpg` (White eye · tone IV): Synthetic, made by tools/make_demo_assets.py
+- `yellow/eye_yellow_V.jpg` (Yellow eye · tone V): Synthetic, made by tools/make_demo_assets.py
+- `yellow/eye_yellow_warm_II.jpg` (Yellow eye · warm bulb): Synthetic, made by tools/make_demo_assets.py
+- `meal/vegetable_khichdi_1.jpg` (Vegetable khichdi): Vegetable Khichdi 1.jpg by Dolon Prova, CC BY-SA 4.0, via Wikimedia Commons (https://commons.wikimedia.org/wiki/File:Vegetable_Khichdi_1.jpg)
+- `meal/idli_sambar_2.jpg` (Idli with sambar): Idli sambar.2.jpg by Simranjeet Sidhu, CC BY-SA 4.0, via Wikimedia Commons (https://commons.wikimedia.org/wiki/File:Idli_sambar.2.jpg)
+- `meal/dal_bhat.jpg` (Dal, rice, vegetables): Dal bhat.jpg by Gaurav Dhwaj Khadka, CC BY-SA 4.0, via Wikimedia Commons (https://commons.wikimedia.org/wiki/File:Dal_bhat.jpg)
+- `meal/curd_rice.jpg` (Curd rice): Curd Rice.jpg by Sudharshan Shanmugasundaram, CC BY-SA 4.0, via Wikimedia Commons (https://commons.wikimedia.org/wiki/File:Curd_Rice.jpg)
+- `meal/starting_solids_homemade_baby_food_in_a_.jpg` (Baby puree in a bowl): Starting solids - homemade baby food in a bowl.jpg by MAKY.OREL, CC0, via Wikimedia Commons (https://commons.wikimedia.org/wiki/File:Starting_solids_-_homemade_baby_food_in_a_bowl.jpg)
+- `meal/berry_oatmeal_baby_food.jpg` (Oatmeal with berries): Berry Oatmeal Baby Food.JPG by ParentingPatch, CC BY-SA 3.0, via Wikimedia Commons (https://commons.wikimedia.org/wiki/File:Berry_Oatmeal_Baby_Food.JPG)
+- `eyes/coats_disease_camera_with_flash.jpg` (White glow, one eye (Coats disease)): Coats disease - camera with flash.jpg by Peter Puype, CC BY-SA 3.0, via Wikimedia Commons (https://commons.wikimedia.org/wiki/File:Coats_disease_-_camera_with_flash.jpg)
+- `eyes/a_child_with_a_white_eye_reflection_as_a.jpg` (White glow, one eye (retinoblastoma)): A child with a white eye reflection as a result of retinoblastoma.jpg by J Morley-Smith (talk), Public domain, via Wikimedia Commons (https://commons.wikimedia.org/wiki/File:A_child_with_a_white_eye_reflection_as_a_result_of_retinoblastoma.jpg)
+- `eyes/red_eye_effect_2.jpg` (Red glow, both eyes): Red eye effect 2.jpg by RexDog23, CC BY-SA 4.0, via Wikimedia Commons (https://commons.wikimedia.org/wiki/File:Red_eye_effect_2.jpg)
+- `skin/infantile_hemangioma.jpg` (Real: infantile hemangioma): Infantile hemangioma.jpg by Gstk, CC BY-SA 4.0, via Wikimedia Commons (https://commons.wikimedia.org/wiki/File:Infantile_hemangioma.jpg)
+- `skin/irritant_diaper_dermatitis.jpg` (Real: nappy rash): Irritant diaper dermatitis.jpg by Dailyboth, CC0, via Wikimedia Commons (https://commons.wikimedia.org/wiki/File:Irritant_diaper_dermatitis.jpg)
+- `skin/erytherma_toxicum_neonatorum.jpg` (Real: newborn rash): Erytherma toxicum neonatorum.jpg by Mohammad2018, CC BY-SA 4.0, via Wikimedia Commons (https://commons.wikimedia.org/wiki/File:Erytherma_toxicum_neonatorum.jpg)
+- `skin/capillary_haemangioma.jpg` (Real: strawberry mark): Capillary haemangioma.jpg by User:Zeimusu, Public domain, via Wikimedia Commons (https://commons.wikimedia.org/wiki/File:Capillary_haemangioma.jpg)
