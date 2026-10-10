@@ -59,7 +59,7 @@ object Nutrition {
      */
     fun ideas(db: FoodDb, nutrient: (Nutrients) -> Double, ageDays: Int, n: Int = 4): List<Food> =
         db.foods.filter { FoodSafety.blockedReason(it, ageDays) == null && it.groups.isNotEmpty() && FoodGroup.BREASTMILK !in it.groups }
-            .sortedByDescending { nutrient(it.nutrientsFor(it.unitGrams * 2)) }
+            .sortedByDescending { nutrient(it.nutrientsFor(it.typicalGrams)) }
             .take(n)
 }
 

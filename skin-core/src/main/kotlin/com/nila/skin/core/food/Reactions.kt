@@ -33,8 +33,10 @@ enum class Sign(val label: String, val delayed: Boolean = false, val severe: Boo
  * 48 hours (eczema flares, loose stools). For each food we count exposures and
  * how many were followed by a reaction, smooth the rate so one event cannot
  * look like certainty, and compare it with the rate after every other food.
- * Two or more followed exposures and at least twice the background rate is a
- * pattern worth showing a doctor -- never a diagnosis of allergy, which needs
+ * Two or more followed exposures, at least half of all the times it was given,
+ * and at least twice the background rate is a pattern worth showing a doctor.
+ * The "half" rule stops an everyday food (khichdi at every lunch) from looking
+ * guilty just because it was on the table when the real culprit was given -- never a diagnosis of allergy, which needs
  * a doctor and usually a test.
  */
 object ReactionPatterns {
@@ -78,7 +80,7 @@ object ReactionPatterns {
                 followed[e] == true && exposures.any { o -> o.foodId != food && o.firstTime && kotlin.math.abs(o.timeMs - e.timeMs) <= IMMEDIATE_MS }
             }
             val strength = when {
-                k >= 2 && lift >= 2.0 -> Pattern.Strength.PATTERN
+                k >= 2 && k * 2 >= n && lift >= 2.0 -> Pattern.Strength.PATTERN
                 k >= 1 -> Pattern.Strength.ONE_OFF
                 else -> Pattern.Strength.NONE
             }

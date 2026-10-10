@@ -23,14 +23,14 @@ COLS = list(NUTRIENTS.values())
 SINGLE = [
     ("rice", "Rice (cooked)", "chawal|white rice|plain rice|steamed rice", "GRAINS", "", "tbsp", 15, 169757),
     ("brown_rice", "Brown rice (cooked)", "brown rice", "GRAINS", "", "tbsp", 15, 169704),
-    ("oats", "Oats porridge (with water)", "oatmeal|porridge|oats", "GRAINS", "", "tbsp", 15, 173905),
+    ("oats", "Oats porridge (with water)", "oatmeal|oats|oats porridge|oat porridge", "GRAINS", "", "tbsp", 15, 173905),
     ("millet", "Millet (bajra/jowar, cooked)", "bajra|jowar|millet", "GRAINS", "", "tbsp", 15, 168871),
     ("quinoa", "Quinoa (cooked)", "quinoa", "GRAINS", "", "tbsp", 15, 168917),
     ("pasta", "Pasta (cooked)", "pasta|macaroni|noodles", "GRAINS", "wheat", "tbsp", 15, 169737),
     ("bread", "Whole-wheat bread", "bread|toast", "GRAINS", "wheat", "slice", 28, 172688),
     ("potato", "Potato (boiled)", "aloo|potato|mashed potato", "GRAINS", "", "tbsp", 15, 170440),
     ("corn", "Sweet corn (cooked)", "makka|corn|bhutta", "GRAINS", "", "tbsp", 15, 169999),
-    ("lentil", "Masoor dal (cooked lentils)", "masoor|red lentil|lentils", "PULSES", "", "tbsp", 15, 172421),
+    ("lentil", "Masoor dal (cooked lentils)", "masoor|red lentil", "PULSES", "", "tbsp", 15, 172421),
     ("moong", "Moong (cooked mung beans)", "moong|mung|green gram", "PULSES", "", "tbsp", 15, 174257),
     ("chana", "Chickpeas (cooked)", "chana|chole|chickpea|garbanzo|bengal gram", "PULSES", "", "tbsp", 15, 173757),
     ("toor", "Toor dal (cooked pigeon peas)", "toor|arhar|tuvar|pigeon pea", "PULSES", "", "tbsp", 15, 172437),
@@ -81,7 +81,7 @@ SINGLE = [
     ("tomato", "Tomato", "tamatar|tomato", "OTHER_FV", "", "tbsp", 15, 170457),
     ("cauliflower", "Cauliflower (cooked)", "gobi|cauliflower", "OTHER_FV", "", "tbsp", 15, 170397),
     ("broccoli", "Broccoli (cooked)", "broccoli", "OTHER_FV", "", "tbsp", 15, 169967),
-    ("coconut", "Coconut (fresh)", "nariyal|coconut", "OTHER_FV", "", "tbsp", 10, 170169),
+    ("coconut", "Coconut (fresh)", "nariyal|coconut|coconut chutney|chutney", "OTHER_FV", "", "tbsp", 10, 170169),
     ("dates", "Dates", "khajur|dates", "OTHER_FV", "", "date", 24, 168191),
     ("honey", "Honey", "shahad|honey", "", "", "tsp", 7, 169640),
     ("jaggery", "Jaggery / brown sugar", "gur|jaggery|sugar", "", "", "tsp", 4, 168833),
@@ -96,19 +96,29 @@ RAGI_DRY = {"kcal": 328, "protein_g": 7.3, "fat_g": 1.3, "carb_g": 72.0, "fibre_
 
 # id, name, aliases, groups, allergens, unit, grams, recipe [(ingredient, share)]
 RECIPES = [
-    ("khichdi", "Moong dal khichdi", "khichdi|khichri|kichdi", "GRAINS,PULSES", "milk", "tbsp", 15,
+    ("khichdi", "Moong dal khichdi", "khichdi|khichri|kichdi|rice and lentils|lentil rice|risotto", "GRAINS,PULSES", "milk", "tbsp", 15,
      [("rice", 0.49), ("moong", 0.48), ("ghee", 0.03)]),
-    ("dal", "Toor dal (thin, home-style)", "dal|daal|dal tadka|toor dal", "PULSES", "milk", "tbsp", 15,
+    ("dal", "Toor dal (thin, home-style)", "dal|daal|dal tadka|toor dal|lentils|lentil soup|lentil curry|yellow lentils", "PULSES", "milk", "tbsp", 15,
      [("toor", 0.65), ("water", 0.33), ("ghee", 0.02)]),
     ("moong_dal", "Moong dal (thin)", "moong dal|yellow dal", "PULSES", "milk", "tbsp", 15,
      [("moong", 0.65), ("water", 0.33), ("ghee", 0.02)]),
-    ("idli", "Idli", "idli|idly", "GRAINS,PULSES", "", "idli", 40, [("rice", 0.67), ("urad", 0.33)]),
+    ("idli", "Idli", "idli|idly|rice cake|rice cakes|steamed rice cake|steamed cakes|dumpling|dumplings", "GRAINS,PULSES", "", "idli", 40, [("rice", 0.67), ("urad", 0.33)]),
     ("roti", "Roti / chapati", "roti|chapati|phulka|chapathi", "GRAINS", "wheat", "roti", 30, [("wheat_flour", 0.72), ("water", 0.28)]),
     ("curd_rice", "Curd rice", "curd rice|dahi chawal|thayir sadam", "GRAINS,DAIRY", "milk", "tbsp", 15, [("rice", 0.6), ("curd", 0.4)]),
     ("ragi_porridge", "Ragi porridge (with water)", "ragi|nachni|finger millet|ragi malt|ragi kanji", "GRAINS", "", "tbsp", 15, [("ragi_dry", 0.12), ("water", 0.88)]),
     ("suji_kheer", "Suji kheer (semolina in milk)", "suji kheer|rava kheer|semolina pudding", "GRAINS,DAIRY", "milk,wheat", "tbsp", 15, [("semolina", 0.10), ("milk", 0.88), ("jaggery", 0.02)]),
     ("veg_mash", "Mixed vegetable mash (carrot, peas, potato)", "vegetable mash|veg puree|mixed veg", "VITA_FV,OTHER_FV,GRAINS", "", "tbsp", 15, [("carrot", 0.34), ("peas", 0.33), ("potato", 0.33)]),
     ("palak_dal", "Palak dal", "palak dal|dal palak|spinach dal", "PULSES,VITA_FV", "milk", "tbsp", 15, [("toor", 0.5), ("spinach", 0.25), ("water", 0.23), ("ghee", 0.02)]),
+    ("sambar", "Sambar (toor dal with vegetables)", "sambar|sambhar|vegetable stew|lentil stew|vegetable curry", "PULSES,OTHER_FV", "", "tbsp", 15,
+     [("toor", 0.45), ("veg_mix", 0.20), ("water", 0.33), ("mustard_oil", 0.02)]),
+    ("upma", "Upma (cooked semolina)", "upma|uppittu|rava upma", "GRAINS", "wheat", "tbsp", 15,
+     [("semolina", 0.25), ("water", 0.63), ("veg_mix", 0.09), ("mustard_oil", 0.03)]),
+    ("dosa", "Dosa (est. from rice and urad)", "dosa|dosai|uttapam", "GRAINS,PULSES", "", "dosa", 60,
+     [("rice", 0.62), ("urad", 0.31), ("mustard_oil", 0.04), ("water", 0.03)]),
+    ("poha", "Poha (est. as rice with peas)", "poha|aval|flattened rice|chivda", "GRAINS", "", "tbsp", 15,
+     [("rice", 0.88), ("peas", 0.08), ("mustard_oil", 0.04)]),
+    ("vada", "Medu vada (est., fried)", "vada|vadai|medu vada|wada", "PULSES", "", "vada", 35,
+     [("urad", 0.80), ("mustard_oil", 0.15), ("water", 0.05)]),
     ("egg_bhurji", "Scrambled egg (bhurji)", "bhurji|egg bhurji|scrambled egg", "EGGS", "egg,milk", "tbsp", 15, [("egg", 0.95), ("ghee", 0.05)]),
 ]
 
@@ -142,6 +152,7 @@ def main():
                     [f"USDA FDC {fdc}: {food[fdc]}"])
     per["water"] = {c: 0.0 for c in COLS}
     per["ragi_dry"] = RAGI_DRY
+    per["veg_mix"] = {c: (per["carrot"][c] + per["peas"][c] + per["beans"][c]) / 3 for c in COLS}
     for fid_, name, aliases, groups, allergens, unit, grams, parts in RECIPES:
         assert abs(sum(s for _, s in parts) - 1) < 1e-6, fid_
         v = {c: sum(per[i][c] * s for i, s in parts) for c in COLS}

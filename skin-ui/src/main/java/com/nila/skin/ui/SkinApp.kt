@@ -14,6 +14,7 @@ import com.nila.skin.ui.screens.FoodScreen
 import com.nila.skin.ui.screens.GlassTestScreen
 import com.nila.skin.ui.screens.HomeScreen
 import com.nila.skin.ui.screens.HowItWorksScreen
+import com.nila.skin.ui.screens.LearnScreen
 import com.nila.skin.ui.screens.MealScreen
 import com.nila.skin.ui.screens.ProfileScreen
 import com.nila.skin.ui.screens.ReportScreen
@@ -55,6 +56,7 @@ fun SkinApp(onExit: (() -> Unit)? = null) {
             composable("glass") { GlassTestScreen(go = { nav.navigate(it) }, back = { nav.popBackStack() }) }
             composable("report") { ReportScreen(baby, back = { nav.popBackStack() }) }
             composable("how") { HowItWorksScreen(back = { nav.popBackStack() }) }
+            composable("learn") { LearnScreen(back = { nav.popBackStack() }) }
         }
     }
 }

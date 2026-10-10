@@ -71,12 +71,19 @@ object VisionForms {
 
     // ---- plate --------------------------------------------------------------
 
-    val PLATE_PROMPT = """
-        This is a photo of a baby's or toddler's meal. List every food you can see,
-        one per line, using simple everyday names such as rice, dal, roti, idli,
-        khichdi, curd, banana, apple, carrot, egg, chicken, fish, spinach, ragi.
-        Write only the food names, nothing else.
-    """.trimIndent()
+    /**
+     * Short and open. A closed list of 30 dishes made the 2B model ramble
+     * ("what is the main point, it seems like this is a question..."), and the
+     * plain open question named idli as "bread". Short prompts with three
+     * examples work; the food table's aliases then map how a small model
+     * describes Indian dishes ("rice cakes", "lentil soup") to the dish.
+     */
+    val PLATE_PROMPT = "List the foods you can see in this photo. Reply with only food names separated by commas, for example: rice, dal, banana."
+
+    /** Every name the app shows as a choice when the AI is unavailable. */
+    val PLATE_CHOICES = listOf("rice", "dal", "sambar", "roti", "idli", "dosa", "upma", "poha", "khichdi", "curd rice", "curd",
+        "ragi porridge", "oats porridge", "banana", "apple", "papaya", "mango", "egg", "chicken", "fish",
+        "carrot", "potato", "sweet potato", "spinach", "peas", "pumpkin", "paneer", "bread", "milk")
 
     data class PlateGuess(val text: String, val food: Food?)
 
@@ -87,10 +94,17 @@ object VisionForms {
             .filter { it.isNotBlank() && it.length < 40 }
             .distinctBy { it.lowercase() }
         val seen = HashSet<String>()
-        return names.map { PlateGuess(it, db.match(it)) }
+        val guesses = names.map { PlateGuess(it, db.match(it)) }
+        // Drop fragments of other answers ("pane" next to "paneer") and junk.
+        return guesses
+            .filter { g -> g.food != null || (g.text.length >= 4 && g.text.split(' ').size <= 3 && !looksLikeChatter(g.text) &&
+                guesses.none { o -> o !== g && o.text.length > g.text.length && o.text.contains(g.text, ignoreCase = true) }) }
             .filter { g -> g.food == null || seen.add(g.food.id) }
             .take(10)
     }
+
+    private val CHATTER = Regex("\\b(i|you|it|is|this|that|question|point|answer|image|photo|picture|see|also|but|and|the)\\b", RegexOption.IGNORE_CASE)
+    private fun looksLikeChatter(t: String) = CHATTER.containsMatchIn(t)
 
     // ---- what kind of photo -------------------------------------------------
 

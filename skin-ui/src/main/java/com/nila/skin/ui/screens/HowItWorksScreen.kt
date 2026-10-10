@@ -25,7 +25,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.nila.skin.ai.VisionModel
@@ -111,7 +110,7 @@ fun HowItWorksScreen(back: () -> Unit) {
             if (status !is VisionModel.Status.Ready && status != VisionModel.Status.Absent) OutlinePillButton(if (loading) "Loading..." else "Load the model now", enabled = !loading, onClick = {
                 loading = true; scope.launch { SkinServices.vision.ensureLoaded(); loading = false }
             }, modifier = Modifier.fillMaxWidth())
-            MutedText("Face landmarks: MediaPipe Face Landmarker. Delegate in use: ${SkinServices.eyes.delegate}.")
+            MutedText("Face landmarks: MediaPipe Face Landmarker" + if (SkinServices.eyes.delegate == "none") ", loads on the first eye check." else " on the ${SkinServices.eyes.delegate}.")
         }
 
         Heading("Self-test on this phone")
@@ -126,11 +125,12 @@ fun HowItWorksScreen(back: () -> Unit) {
                     androidx.compose.material3.Icon(Icons.Outlined.Balance, null)
                     Text("Same patch, six skin tones", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
                 }
-                Text("Tone   L*   true%  found%  spots  Δa* true/found", fontFamily = FontFamily.Monospace, style = MaterialTheme.typography.labelMedium)
+                TableRow(listOf("Tone", "L*", "True size", "Found", "Spots", "Redness true → found", ""), header = true)
                 t.tones.forEach { r ->
-                    Text("%-5s %4.0f  %5.1f  %5.1f   %d     %4.1f/%4.1f  %s".format(r.name, r.l, r.trueCov * 100, r.cov * 100, r.spots, r.trueDa, r.da, if (r.pass) "✓" else "✗"),
-                        fontFamily = FontFamily.Monospace, style = MaterialTheme.typography.labelMedium)
+                    TableRow(listOf(r.name, "%.0f".format(r.l), "%.1f%%".format(r.trueCov * 100), "%.1f%%".format(r.cov * 100),
+                        "${r.spots}", "%.1f → %.1f".format(r.trueDa, r.da), if (r.pass) "✓" else "✗"))
                 }
+                MutedText("Size = share of the circle covered by the patch. Redness = Δa* against the same baby's skin; darker skin shows a smaller shift, as real redness does.")
                 RowDivider()
                 Text("Stool card under warm, daylight and cool light: ${t.stoolCorrect} of ${t.stoolTotal} in the right group", style = MaterialTheme.typography.bodyMedium)
                 Text("Eye reflex (red / white / dark): ${t.eyeCorrect} of 3", style = MaterialTheme.typography.bodyMedium)
@@ -142,6 +142,18 @@ fun HowItWorksScreen(back: () -> Unit) {
             "The AI sees one photo for one answer; the temporary copy is deleted straight after.",
             "Reports leave the phone only when you share them.",
         ))
+    }
+}
+
+@Composable
+private fun TableRow(cells: List<String>, header: Boolean = false) {
+    val weights = listOf(0.8f, 0.6f, 1.1f, 1f, 0.7f, 1.8f, 0.4f)
+    Row(Modifier.fillMaxWidth()) {
+        cells.forEachIndexed { i, c ->
+            Text(c, modifier = Modifier.weight(weights[i]), style = MaterialTheme.typography.labelMedium,
+                fontWeight = if (header) FontWeight.SemiBold else FontWeight.Normal,
+                color = if (header) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface)
+        }
     }
 }
 

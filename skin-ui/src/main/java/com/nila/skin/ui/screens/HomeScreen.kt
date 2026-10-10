@@ -122,6 +122,8 @@ fun HomeScreen(baby: BabyEntity?, go: (String) -> Unit, onExit: (() -> Unit)?) {
             ListRow("Doctor report", subtitle = "One page: photos, timeline, answers and foods. Shared only by you.", icon = Icons.Outlined.Description, tone = Tone.TEAL, onClick = { go("report") })
             RowDivider()
             ListRow("How Nila decides", subtitle = "What the AI does, what the maths does, and which guideline says what", icon = Icons.Outlined.Lightbulb, tone = Tone.BLUE, onClick = { go("how") })
+            RowDivider()
+            ListRow("Common and harmless", subtitle = "The everyday skin changes of the first year, and when they're not", icon = Icons.Outlined.Spa, tone = Tone.PINK, onClick = { go("learn") })
         }
 
         if (baby.demo) {

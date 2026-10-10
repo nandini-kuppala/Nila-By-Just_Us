@@ -105,6 +105,12 @@ class FoodTest {
         assertEquals("banana", db.match("sliced banana")?.id)
         assertEquals("ragi_porridge", db.match("ragi")?.id)
         assertNull(db.match("xyzzy plate"))
+        assertEquals("ragi_porridge", db.match("ragi porridge")?.id)
+        assertEquals("oats", db.match("oats porridge")?.id)
+        assertEquals("sambar", db.match("sambar")?.id)
+        assertEquals("curd_rice", db.match("curd rice")?.id)
+        // Every name the vision model may answer with resolves to a food.
+        com.nila.skin.core.vlm.VisionForms.PLATE_CHOICES.forEach { assertNotNull(it, db.match(it)) }
     }
 
     @Test fun plateTotalsAndDiversity() {
@@ -146,6 +152,16 @@ class ReactionTest {
         assertEquals(Step.DOCTOR_SOON, adv.step)
     }
 
+    @Test fun everydayFoodOnTheTableIsNotBlamed() {
+        // Rice every day, egg three times; hives after two of the eggs.
+        val ex = (0 until 10).map { Exposure("rice", it * d + 10 * h, it == 0) } +
+            listOf(Exposure("egg", 0 * d + 10 * h, true), Exposure("egg", 3 * d + 10 * h, false), Exposure("egg", 6 * d + 10 * h, false))
+        val re = listOf(ReactionEvent(11 * h, setOf(Sign.HIVES)), ReactionEvent(3 * d + 11 * h, setOf(Sign.HIVES)))
+        val p = ReactionPatterns.analyse(ex, re).associateBy { it.foodId }
+        assertEquals(ReactionPatterns.Pattern.Strength.PATTERN, p["egg"]!!.strength)
+        assertTrue(p["rice"]!!.strength != ReactionPatterns.Pattern.Strength.PATTERN)
+    }
+
     @Test fun swellingIsAnEmergency() {
         val adv = AllergyRules.advise(ReactionEvent(0, setOf(Sign.SWELLING)), emptyList()) { it }
         assertEquals(Step.URGENT, adv.step)
@@ -169,6 +185,12 @@ class VisionFormsTest {
     @Test fun readsAPlate() {
         val g = VisionForms.parsePlate("1. Rice\n2. Dal\n- carrot pieces\nbanana, dahi", FoodDb.bundled())
         assertEquals(listOf("rice", "dal", "carrot", "banana", "curd"), g.mapNotNull { it.food?.id })
+    }
+
+    @Test fun dropsChatterAndMapsSmallModelWords() {
+        val db = FoodDb.bundled()
+        assertTrue(VisionForms.parsePlate("what is the main point, it seems like this is a question, and also", db).isEmpty())
+        assertEquals(listOf("idli", "sambar", "coconut"), VisionForms.parsePlate("rice cakes, vegetable stew, coconut chutney", db).mapNotNull { it.food?.id })
     }
 
     @Test fun readsKind() = assertEquals(VisionForms.Kind.NAPPY, VisionForms.parseKind("Diaper"))

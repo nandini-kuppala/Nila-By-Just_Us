@@ -1,14 +1,14 @@
 id	name	aliases	groups	allergens	unit	unit_g	kcal	protein_g	fat_g	carb_g	fibre_g	calcium_mg	iron_mg	zinc_mg	vita_ug	vitc_mg	source
 rice	Rice (cooked)	chawal|white rice|plain rice|steamed rice	GRAINS		tbsp	15	130.0	2.69	0.28	28.17	0.4	10.0	0.2	0.49	0.0	0.0	USDA FDC 169757: Rice, white, long-grain, regular, unenriched, cooked without salt
 brown_rice	Brown rice (cooked)	brown rice	GRAINS		tbsp	15	123.0	2.74	0.97	25.58	1.6	3.0	0.56	0.71	0.0	0.0	USDA FDC 169704: Rice, brown, long-grain, cooked (Includes foods for USDA's Food Distribution Program)
-oats	Oats porridge (with water)	oatmeal|porridge|oats	GRAINS		tbsp	15	71.0	2.54	1.52	12.0	1.7	9.0	0.9	1.0	0.0	0.0	USDA FDC 173905: Cereals, oats, regular and quick, unenriched, cooked with water (includes boiling and microwaving), without salt
+oats	Oats porridge (with water)	oatmeal|oats|oats porridge|oat porridge	GRAINS		tbsp	15	71.0	2.54	1.52	12.0	1.7	9.0	0.9	1.0	0.0	0.0	USDA FDC 173905: Cereals, oats, regular and quick, unenriched, cooked with water (includes boiling and microwaving), without salt
 millet	Millet (bajra/jowar, cooked)	bajra|jowar|millet	GRAINS		tbsp	15	119.0	3.51	1.0	23.67	1.3	3.0	0.63	0.91	0.0	0.0	USDA FDC 168871: Millet, cooked
 quinoa	Quinoa (cooked)	quinoa	GRAINS		tbsp	15	120.0	4.4	1.92	21.3	2.8	17.0	1.49	1.09	0.0	0.0	USDA FDC 168917: Quinoa, cooked
 pasta	Pasta (cooked)	pasta|macaroni|noodles	GRAINS	wheat	tbsp	15	158.0	5.8	0.93	30.86	1.8	7.0	1.28	0.51	0.0	0.0	USDA FDC 169737: Pasta, cooked, enriched, without added salt
 bread	Whole-wheat bread	bread|toast	GRAINS	wheat	slice	28	252.0	12.45	3.5	42.71	6.0	161.0	2.47	1.77	0.0	0.0	USDA FDC 172688: Bread, whole-wheat, commercially prepared
 potato	Potato (boiled)	aloo|potato|mashed potato	GRAINS		tbsp	15	86.0	1.71	0.1	20.01	1.8	8.0	0.31	0.27	0.0	7.4	USDA FDC 170440: Potatoes, boiled, cooked without skin, flesh, without salt
 corn	Sweet corn (cooked)	makka|corn|bhutta	GRAINS		tbsp	15	96.0	3.41	1.5	20.98	2.4	3.0	0.45	0.62	13.0	5.5	USDA FDC 169999: Corn, sweet, yellow, cooked, boiled, drained, without salt
-lentil	Masoor dal (cooked lentils)	masoor|red lentil|lentils	PULSES		tbsp	15	116.0	9.02	0.38	20.13	7.9	19.0	3.33	1.27	0.0	1.5	USDA FDC 172421: Lentils, mature seeds, cooked, boiled, without salt
+lentil	Masoor dal (cooked lentils)	masoor|red lentil	PULSES		tbsp	15	116.0	9.02	0.38	20.13	7.9	19.0	3.33	1.27	0.0	1.5	USDA FDC 172421: Lentils, mature seeds, cooked, boiled, without salt
 moong	Moong (cooked mung beans)	moong|mung|green gram	PULSES		tbsp	15	105.0	7.02	0.38	19.15	7.6	27.0	1.4	0.84	1.0	1.0	USDA FDC 174257: Mung beans, mature seeds, cooked, boiled, without salt
 chana	Chickpeas (cooked)	chana|chole|chickpea|garbanzo|bengal gram	PULSES		tbsp	15	164.0	8.86	2.59	27.42	7.6	49.0	2.89	1.53	1.0	1.3	USDA FDC 173757: Chickpeas (garbanzo beans, bengal gram), mature seeds, cooked, boiled, without salt
 toor	Toor dal (cooked pigeon peas)	toor|arhar|tuvar|pigeon pea	PULSES		tbsp	15	121.0	6.76	0.38	23.25	6.7	43.0	1.11	0.9	0.0	0.0	USDA FDC 172437: Pigeon peas (red gram), mature seeds, cooked, boiled, without salt
@@ -59,21 +59,26 @@ lauki	Bottle gourd (cooked)	lauki|dudhi|bottle gourd|sorakaya	OTHER_FV		tbsp	15	
 tomato	Tomato	tamatar|tomato	OTHER_FV		tbsp	15	18.0	0.88	0.2	3.89	1.2	10.0	0.27	0.17	42.0	13.7	USDA FDC 170457: Tomatoes, red, ripe, raw, year round average
 cauliflower	Cauliflower (cooked)	gobi|cauliflower	OTHER_FV		tbsp	15	23.0	1.84	0.45	4.11	2.3	16.0	0.32	0.17	1.0	44.3	USDA FDC 170397: Cauliflower, cooked, boiled, drained, without salt
 broccoli	Broccoli (cooked)	broccoli	OTHER_FV		tbsp	15	35.0	2.38	0.41	7.18	3.3	40.0	0.67	0.45	77.0	64.9	USDA FDC 169967: Broccoli, cooked, boiled, drained, without salt
-coconut	Coconut (fresh)	nariyal|coconut	OTHER_FV		tbsp	10	354.0	3.33	33.49	15.23	9.0	14.0	2.43	1.1	0.0	3.3	USDA FDC 170169: Nuts, coconut meat, raw
+coconut	Coconut (fresh)	nariyal|coconut|coconut chutney|chutney	OTHER_FV		tbsp	10	354.0	3.33	33.49	15.23	9.0	14.0	2.43	1.1	0.0	3.3	USDA FDC 170169: Nuts, coconut meat, raw
 dates	Dates	khajur|dates	OTHER_FV		date	24	277.0	1.81	0.15	74.97	6.7	64.0	0.9	0.44	7.0	0.0	USDA FDC 168191: Dates, medjool
 honey	Honey	shahad|honey			tsp	7	304.0	0.3	0.0	82.4	0.2	6.0	0.42	0.22	0.0	0.5	USDA FDC 169640: Honey
 jaggery	Jaggery / brown sugar	gur|jaggery|sugar			tsp	4	380.0	0.12	0.0	98.09	0.0	83.0	0.71	0.03	0.0	0.0	USDA FDC 168833: Sugars, brown
 semolina	Semolina (suji/rava, dry)	suji|sooji|rava|semolina|upma	GRAINS	wheat	tbsp	10	360.0	12.68	1.05	72.83	3.9	17.0	1.23	1.05	0.0	0.0	USDA FDC 168933: Semolina, unenriched
 wheat_flour	Whole-wheat flour (atta, dry)	atta|wheat flour	GRAINS	wheat	tbsp	8	340.0	13.21	2.5	71.97	10.7	34.0	3.6	2.6	0.0	0.0	USDA FDC 168893: Wheat flour, whole-grain (Includes foods for USDA's Food Distribution Program)
 breast_milk	Breast milk	breast milk|breastfeed|breastfeeding	BREASTMILK		100 ml	100	70.0	1.03	4.38	6.89	0.0	32.0	0.03	0.17	61.0	5.0	USDA FDC 171279: Milk, human, mature, fluid
-khichdi	Moong dal khichdi	khichdi|khichri|kichdi	GRAINS,PULSES	milk	tbsp	15	140.38	4.7	3.3	23.0	3.84	17.98	0.77	0.64	25.68	0.48	Recipe from USDA foods: 49% rice + 48% moong + 3% ghee
-dal	Toor dal (thin, home-style)	dal|daal|dal tadka|toor dal	PULSES	milk	tbsp	15	96.17	4.4	2.24	15.11	4.36	28.03	0.72	0.59	16.8	0.0	Recipe from USDA foods: 65% toor + 33% water + 2% ghee
+khichdi	Moong dal khichdi	khichdi|khichri|kichdi|rice and lentils|lentil rice|risotto	GRAINS,PULSES	milk	tbsp	15	140.38	4.7	3.3	23.0	3.84	17.98	0.77	0.64	25.68	0.48	Recipe from USDA foods: 49% rice + 48% moong + 3% ghee
+dal	Toor dal (thin, home-style)	dal|daal|dal tadka|toor dal|lentils|lentil soup|lentil curry|yellow lentils	PULSES	milk	tbsp	15	96.17	4.4	2.24	15.11	4.36	28.03	0.72	0.59	16.8	0.0	Recipe from USDA foods: 65% toor + 33% water + 2% ghee
 moong_dal	Moong dal (thin)	moong dal|yellow dal	PULSES	milk	tbsp	15	85.77	4.57	2.24	12.45	4.94	17.63	0.91	0.55	17.45	0.65	Recipe from USDA foods: 65% moong + 33% water + 2% ghee
-idli	Idli	idli|idly	GRAINS,PULSES		idli	40	121.75	4.29	0.37	24.93	2.38	24.19	0.71	0.6	0.66	0.33	Recipe from USDA foods: 67% rice + 33% urad
+idli	Idli	idli|idly|rice cake|rice cakes|steamed rice cake|steamed cakes|dumpling|dumplings	GRAINS,PULSES		idli	40	121.75	4.29	0.37	24.93	2.38	24.19	0.71	0.6	0.66	0.33	Recipe from USDA foods: 67% rice + 33% urad
 roti	Roti / chapati	roti|chapati|phulka|chapathi	GRAINS	wheat	roti	30	244.8	9.51	1.8	51.82	7.7	24.48	2.59	1.87	0.0	0.0	Recipe from USDA foods: 72% wheat_flour + 28% water
 curd_rice	Curd rice	curd rice|dahi chawal|thayir sadam	GRAINS,DAIRY	milk	tbsp	15	102.4	3.0	1.47	18.77	0.24	54.4	0.14	0.53	10.8	0.2	Recipe from USDA foods: 60% rice + 40% curd
 ragi_porridge	Ragi porridge (with water)	ragi|nachni|finger millet|ragi malt|ragi kanji	GRAINS		tbsp	15	39.36	0.88	0.16	8.64	0.43	41.28	0.47	0.28	0.42	0.0	Recipe: 12% ragi_dry + 88% water (ragi: NIN Nutritive Value of Indian Foods)
 suji_kheer	Suji kheer (semolina in milk)	suji kheer|rava kheer|semolina pudding	GRAINS,DAIRY	milk,wheat	tbsp	15	97.28	4.04	2.96	13.47	0.39	102.8	0.16	0.43	40.48	0.0	Recipe from USDA foods: 10% semolina + 88% milk + 2% jaggery
 veg_mash	Mixed vegetable mash (carrot, peas, potato)	vegetable mash|veg puree|mixed veg	VITA_FV,OTHER_FV,GRAINS		tbsp	15	66.02	2.52	0.18	14.1	3.1	20.76	0.72	0.38	324.33	6.93	Recipe from USDA foods: 34% carrot + 33% peas + 33% potato
 palak_dal	Palak dal	palak dal|dal palak|spinach dal	PULSES,VITA_FV	milk	tbsp	15	83.77	4.13	2.24	12.56	3.95	55.58	1.45	0.64	147.8	2.45	Recipe from USDA foods: 50% toor + 25% spinach + 23% water + 2% ghee
+sambar	Sambar (toor dal with vegetables)	sambar|sambhar|vegetable stew|lentil stew|vegetable curry	PULSES,OTHER_FV		tbsp	15	82.0	3.56	2.22	12.49	3.73	25.88	0.67	0.48	65.93	1.55	Recipe from USDA foods: 45% toor + 20% veg_mix + 33% water + 2% mustard_oil
+upma	Upma (cooked semolina)	upma|uppittu|rava upma	GRAINS	wheat	tbsp	15	120.96	3.4	3.28	19.12	1.3	7.19	0.38	0.3	29.67	0.7	Recipe from USDA foods: 25% semolina + 63% water + 9% veg_mix + 3% mustard_oil
+dosa	Dosa (est. from rice and urad)	dosa|dosai|uttapam	GRAINS,PULSES		dosa	60	148.51	4.01	4.34	23.15	2.23	22.63	0.67	0.56	0.62	0.31	Recipe from USDA foods: 62% rice + 31% urad + 4% mustard_oil + 3% water
+poha	Poha (est. as rice with peas)	poha|aval|flattened rice|chivda	GRAINS		tbsp	15	156.0	2.78	4.27	25.93	0.71	10.72	0.3	0.48	8.4	0.79	Recipe from USDA foods: 88% rice + 8% peas + 4% mustard_oil
+vada	Medu vada (est., fried)	vada|vadai|medu vada|wada	PULSES		vada	35	216.6	6.03	15.44	14.67	5.12	42.4	1.4	0.66	1.6	0.8	Recipe from USDA foods: 80% urad + 15% mustard_oil + 5% water
 egg_bhurji	Scrambled egg (bhurji)	bhurji|egg bhurji|scrambled egg	EGGS	egg,milk	tbsp	15	191.05	11.96	15.05	1.06	0.0	47.7	1.13	1.0	183.55	0.0	Recipe from USDA foods: 95% egg + 5% ghee

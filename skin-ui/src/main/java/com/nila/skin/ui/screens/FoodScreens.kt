@@ -430,8 +430,9 @@ fun DayNutrition(items: List<PlateItem>, ageDays: Int, breastfed: Boolean, title
                 "Vitamin A" -> { n -> n.vitAUg }; "Vitamin C" -> { n -> n.vitCMg }; else -> { n -> n.proteinG }
             }
             val ideas = Nutrition.ideas(db, pick, ageDays)
-            FactCard("Ideas for more ${low.name.lowercase()}", Icons.Outlined.Lightbulb, Tone.TEAL,
-                ideas.map { "${it.name}: ${"%.1f".format(pick(it.nutrientsFor(it.unitGrams * 2)))} per ${it.portionText(it.unitGrams * 2)}" } +
+            val label = if (low.name.startsWith("Vitamin")) low.name else low.name.lowercase()
+            FactCard("Ideas for more $label", Icons.Outlined.Lightbulb, Tone.TEAL,
+                ideas.map { "${it.name}: ${"%.1f".format(pick(it.nutrientsFor(it.typicalGrams)))} ${low.unit} per ${it.portionText(it.typicalGrams)}" } +
                     if (low.name == "Iron") listOf("Pair iron foods with vitamin C (guava, orange, tomato) to help absorption.") else emptyList(),
                 footer = "Suggestions from the food table, filtered for your baby's age. ${Source.ICMR_NIN_2020.short}.")
         }

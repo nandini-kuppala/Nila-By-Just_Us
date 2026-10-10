@@ -64,6 +64,7 @@ fun ReportScreen(baby: BabyEntity?, back: () -> Unit) {
     var range by remember { mutableStateOf(1) }
     var busy by remember { mutableStateOf(false) }
     var made by remember { mutableStateOf<File?>(null) }
+    var error by remember { mutableStateOf<String?>(null) }
     val days = listOf(7, 14, 30)[range]
     SkinScaffold("Doctor report", onBack = back) {
         ScreenHero("One page for the doctor", "Photos side by side, how things changed, your checklist answers, foods before each reaction. Doctors get the history; you don't have to remember it.")
@@ -80,8 +81,14 @@ fun ReportScreen(baby: BabyEntity?, back: () -> Unit) {
         InfoNote("The PDF is made on this phone and only leaves it if you share it.", icon = Icons.Outlined.Lock, tone = Tone.SLATE)
         PillButton(if (busy) "Making the PDF..." else "Make the PDF", enabled = baby != null && !busy, icon = Icons.Outlined.Description, modifier = Modifier.fillMaxWidth(), onClick = {
             busy = true
-            scope.launch { made = withContext(Dispatchers.IO) { buildReport(context, baby!!, days) }; busy = false }
+            scope.launch {
+                error = null
+                made = runCatching { withContext(Dispatchers.IO) { buildReport(context, baby!!, days) } }
+                    .onFailure { error = "The report couldn't be made: ${it.message}" }.getOrNull()
+                busy = false
+            }
         })
+        error?.let { InfoNote(it, tone = Tone.PEACH) }
         made?.let { f ->
             MutedText("Saved: ${f.name}")
             PillButton("Share with the doctor", icon = Icons.Outlined.Share, modifier = Modifier.fillMaxWidth(), onClick = {
@@ -176,7 +183,8 @@ suspend fun buildReport(context: Context, baby: BabyEntity, days: Int): File {
         if (entries.size >= 2) p.text("Change: " + Trend.summarise(entries.map { TrendPoint(it.timeMs, it.areaMm2 ?: it.areaOfPhoto, it.areaMm2 != null, it.redness, it.spots) }).sentence)
         inRange.forEach { e ->
             val size = e.areaMm2?.let { "${it.toInt()} mm²" } ?: "%.1f%% of photo".format(e.areaOfPhoto * 100)
-            p.text("${fmtDateTime(e.timeMs)} · ${Step.valueOf(e.step).title} · spots ${e.spots} · size $size · Δa* %+.1f · ΔL* %+.1f".format(e.deltaA, e.deltaL), p.body, 2f)
+            val deltas = "Δa* %+.1f · ΔL* %+.1f".format(e.deltaA, e.deltaL)
+            p.text("${fmtDateTime(e.timeMs)} · ${Step.valueOf(e.step).title} · spots ${e.spots} · size $size · $deltas", p.body, 2f)
             val words = Codec.list(e.words).joinToString("; ")
             p.text("   Measured: $words" + (e.aiColour?.let { ". AI description: $it, ${Codec.list(e.aiSurfaces).joinToString().lowercase()}" } ?: ""), p.muted, 2f)
             val yes = Codec.answers(e.answers).filterValues { it.name != "NO" }.map { "${it.key}=${it.value.name.lowercase()}" }

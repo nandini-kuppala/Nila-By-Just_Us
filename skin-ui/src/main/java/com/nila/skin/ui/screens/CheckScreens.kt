@@ -341,11 +341,11 @@ fun EyeScreen(baby: BabyEntity?, back: () -> Unit) {
                     if (i > 0) RowDivider()
                     Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         Thumb(h.photoPath, 52)
-                        Column(Modifier.weight(1f)) {
+                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                             Text("Left: ${Reflex.valueOf(h.left).word.substringBefore(" (")} · Right: ${Reflex.valueOf(h.right).word.substringBefore(" (")}", style = MaterialTheme.typography.titleSmall)
                             MutedText(fmtDateTime(h.timeMs) + if (h.fromGallery) " · from gallery" else "")
+                            StepPill(Step.valueOf(h.step))
                         }
-                        StepPill(Step.valueOf(h.step))
                     }
                 }
             }

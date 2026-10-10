@@ -154,7 +154,7 @@ fun AdviceCard(advice: Advice, modifier: Modifier = Modifier) {
                 Text("• " + r.text, style = MaterialTheme.typography.bodyMedium, color = c.onContainer)
                 val src = r.source
                 Text(
-                    if (src != null) "Rule: ${src.short}" else "Measured by Nila from your photos",
+                    if (src != null) "Rule: ${src.short}" else "Worked out by Nila from your own photos and logs",
                     style = MaterialTheme.typography.labelMedium,
                     color = c.accent,
                     modifier = Modifier.padding(start = 12.dp).then(if (src != null) Modifier.clickable { cite = src } else Modifier),
@@ -164,6 +164,19 @@ fun AdviceCard(advice: Advice, modifier: Modifier = Modifier) {
         RowDividerOn(c.onContainer.copy(alpha = 0.15f))
         Text("What to do", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold, color = c.onContainer)
         advice.doNow.forEach { Text("• $it", style = MaterialTheme.typography.bodyMedium, color = c.onContainer) }
+        if (advice.step == Step.URGENT) {
+            val context = androidx.compose.ui.platform.LocalContext.current
+            // Opens the dialer with 112 filled in; the parent presses call.
+            androidx.compose.material3.Button(
+                onClick = { context.startActivity(android.content.Intent(android.content.Intent.ACTION_DIAL, android.net.Uri.parse("tel:112"))) },
+                colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = c.accent, contentColor = Color.White),
+                shape = CircleShape, modifier = Modifier.fillMaxWidth(),
+            ) {
+                Icon(Icons.Outlined.LocalHospital, contentDescription = null)
+                Spacer(Modifier.width(10.dp))
+                Text("Call 112", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+            }
+        }
     }
     cite?.let { s ->
         AlertDialog(

@@ -48,6 +48,9 @@ data class Food(
     val source: String,
 ) {
     fun nutrientsFor(grams: Double) = per100g * (grams / 100.0)
+
+    /** A typical baby portion: two spoons of a spoonable food, or one piece. */
+    val typicalGrams: Double get() = if (unit == "tbsp" || unit == "tsp") unitGrams * 2 else unitGrams
     fun portionText(grams: Double): String {
         val units = grams / unitGrams
         val u = if (units == units.roundToInt().toDouble()) units.roundToInt().toString() else "%.1f".format(units)

@@ -118,6 +118,7 @@ fun SkinListScreen(go: (String) -> Unit, back: () -> Unit) {
             }
         }
         if (concerns.isEmpty() && !adding) InfoNote("Nothing tracked yet. Most baby skin changes are harmless and pass; tracking just makes the change visible.")
+        OutlinePillButton("Common and harmless skin changes", onClick = { go("learn") }, modifier = Modifier.fillMaxWidth())
         if (concerns.isNotEmpty()) NilaCard(modifier = Modifier.fillMaxWidth(), verticalSpacing = 0.dp) {
             concerns.forEachIndexed { i, c ->
                 if (i > 0) RowDivider()
@@ -419,12 +420,12 @@ fun ConcernScreen(id: Long, baby: BabyEntity?, go: (String) -> Unit, back: () ->
                 if (i > 0) RowDivider()
                 Row(Modifier.fillMaxWidth().padding6(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     Thumb(e.photoPath, 60)
-                    Column(Modifier.weight(1f)) {
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         Text(fmtDateTime(e.timeMs), style = MaterialTheme.typography.titleSmall)
                         MutedText(Codec.list(e.words).take(3).joinToString(" · "))
                         e.aiColour?.let { MutedText("AI: $it${e.aiSurfaces?.let { s -> ", " + Codec.list(s).joinToString().lowercase() } ?: ""}") }
+                        StepPill(Step.valueOf(e.step))
                     }
-                    StepPill(Step.valueOf(e.step))
                 }
             }
         }
