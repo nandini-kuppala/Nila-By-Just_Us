@@ -1,0 +1,339 @@
+{
+ "findings": [
+  {
+   "id": "tv",
+   "label": "TV",
+   "category": "tip-over",
+   "status": "FIX",
+   "severity": "HIGH",
+   "score": 0.51,
+   "box": [
+    0.235,
+    0,
+    0.421,
+    0.437
+   ],
+   "why": "A large flat-screen television mounted on the wall",
+   "vlm": "OBJECT: A large flat-screen television mounted on the wall.  \nMATCH: Yes  \nPROTECTED: No  \nREACHABLE: Yes"
+  },
+  {
+   "id": "plant",
+   "label": "House plant",
+   "category": "poison",
+   "status": "FIX",
+   "severity": "URGENT",
+   "score": 0.388,
+   "box": [
+    0.048,
+    0.664,
+    0.156,
+    0.856
+   ],
+   "why": "Potted plant",
+   "vlm": "OBJECT: Potted plant  \nMATCH: Yes  \nPROTECTED: No  \nREACHABLE: Yes"
+  },
+  {
+   "id": "plant",
+   "label": "House plant",
+   "category": "poison",
+   "status": "FIX",
+   "severity": "URGENT",
+   "score": 0.296,
+   "box": [
+    0.596,
+    0.196,
+    0.676,
+    0.388
+   ],
+   "why": "Potted plant",
+   "vlm": "OBJECT: Potted plant  \nMATCH: Yes  \nPROTECTED: No  \nREACHABLE: Yes"
+  },
+  {
+   "id": "plant",
+   "label": "House plant",
+   "category": "poison",
+   "status": "FIX",
+   "severity": "URGENT",
+   "score": 0.289,
+   "box": [
+    0.525,
+    0.32,
+    0.571,
+    0.403
+   ],
+   "why": "A glass globe with plants inside",
+   "vlm": "OBJECT: A glass globe with plants inside  \nMATCH: Yes  \nPROTECTED: No  \nREACHABLE: Yes"
+  },
+  {
+   "id": "tv",
+   "label": "TV",
+   "category": "tip-over",
+   "status": "FIX",
+   "severity": "HIGH",
+   "score": 0.149,
+   "box": [
+    0.25,
+    0.45,
+    0.475,
+    0.694
+   ],
+   "why": "TV stand",
+   "vlm": "OBJECT: TV stand  \nMATCH: No  \nPROTECTED: No  \nREACHABLE: Yes"
+  },
+  {
+   "id": "blind_cord",
+   "label": "Hanging cord",
+   "category": "strangle",
+   "status": "CHECK",
+   "severity": "HIGH",
+   "score": 0,
+   "box": null,
+   "why": "Named by the room-wide look: curtain",
+   "vlm": null
+  }
+ ],
+ "candidates": [
+  {
+   "id": "tv",
+   "score": 0.51,
+   "box": [
+    0.235,
+    0,
+    0.421,
+    0.437
+   ],
+   "tile": "top-left"
+  },
+  {
+   "id": "dresser",
+   "score": 0.464,
+   "box": [
+    0.414,
+    0.4,
+    0.6,
+    0.681
+   ],
+   "tile": "bottom-left"
+  },
+  {
+   "id": "plant",
+   "score": 0.388,
+   "box": [
+    0.048,
+    0.664,
+    0.156,
+    0.856
+   ],
+   "tile": "bottom-left"
+  },
+  {
+   "id": "plant",
+   "score": 0.296,
+   "box": [
+    0.596,
+    0.196,
+    0.676,
+    0.388
+   ],
+   "tile": "top-right"
+  },
+  {
+   "id": "plant",
+   "score": 0.289,
+   "box": [
+    0.525,
+    0.32,
+    0.571,
+    0.403
+   ],
+   "tile": "top-left"
+  },
+  {
+   "id": "plant",
+   "score": 0.198,
+   "box": [
+    0.171,
+    0.764,
+    0.212,
+    0.83
+   ],
+   "tile": "bottom-left"
+  },
+  {
+   "id": "dresser",
+   "score": 0.149,
+   "box": [
+    0.25,
+    0.45,
+    0.475,
+    0.694
+   ],
+   "tile": "whole"
+  },
+  {
+   "id": "kettle",
+   "score": 0.149,
+   "box": [
+    0.503,
+    0.309,
+    0.533,
+    0.409
+   ],
+   "tile": "top-left"
+  },
+  {
+   "id": "stove",
+   "score": 0.113,
+   "box": [
+    0.423,
+    0.4,
+    0.6,
+    0.468
+   ],
+   "tile": "bottom-left"
+  }
+ ],
+ "scene": [
+  {
+   "thing": "sofa",
+   "hazard": "",
+   "where": ""
+  },
+  {
+   "thing": "table",
+   "hazard": "",
+   "where": ""
+  },
+  {
+   "thing": "chair",
+   "hazard": "",
+   "where": ""
+  },
+  {
+   "thing": "floor",
+   "hazard": "",
+   "where": ""
+  },
+  {
+   "thing": "curtain",
+   "hazard": "",
+   "where": ""
+  }
+ ],
+ "looks": [
+  {
+   "id": "stove",
+   "score": 0.113,
+   "box": [
+    0.423,
+    0.4,
+    0.6,
+    0.468
+   ],
+   "raw": "OBJECT: wooden cabinet with a glass top  \nMATCH: No  \nPROTECTED: No  \nREACHABLE: Yes"
+  },
+  {
+   "id": "tv",
+   "score": 0.51,
+   "box": [
+    0.235,
+    0,
+    0.421,
+    0.437
+   ],
+   "raw": "OBJECT: A large flat-screen television mounted on the wall.  \nMATCH: Yes  \nPROTECTED: No  \nREACHABLE: Yes"
+  },
+  {
+   "id": "dresser",
+   "score": 0.464,
+   "box": [
+    0.414,
+    0.4,
+    0.6,
+    0.681
+   ],
+   "raw": "OBJECT: wooden cabinet with a marble top  \nMATCH: no  \nPROTECTED: no  \nREACHABLE: yes"
+  },
+  {
+   "id": "plant",
+   "score": 0.388,
+   "box": [
+    0.048,
+    0.664,
+    0.156,
+    0.856
+   ],
+   "raw": "OBJECT: Potted plant  \nMATCH: Yes  \nPROTECTED: No  \nREACHABLE: Yes"
+  },
+  {
+   "id": "plant",
+   "score": 0.296,
+   "box": [
+    0.596,
+    0.196,
+    0.676,
+    0.388
+   ],
+   "raw": "OBJECT: Potted plant  \nMATCH: Yes  \nPROTECTED: No  \nREACHABLE: Yes"
+  },
+  {
+   "id": "plant",
+   "score": 0.289,
+   "box": [
+    0.525,
+    0.32,
+    0.571,
+    0.403
+   ],
+   "raw": "OBJECT: A glass globe with plants inside  \nMATCH: Yes  \nPROTECTED: No  \nREACHABLE: Yes"
+  },
+  {
+   "id": "plant",
+   "score": 0.198,
+   "box": [
+    0.171,
+    0.764,
+    0.212,
+    0.83
+   ],
+   "raw": "OBJECT: wooden tray with jars and a bottle  \nMATCH: no  \nPROTECTED: no  \nREACHABLE: yes"
+  },
+  {
+   "id": "dresser",
+   "score": 0.149,
+   "box": [
+    0.25,
+    0.45,
+    0.475,
+    0.694
+   ],
+   "raw": "OBJECT: TV stand  \nMATCH: No  \nPROTECTED: No  \nREACHABLE: Yes"
+  },
+  {
+   "id": "kettle",
+   "score": 0.149,
+   "box": [
+    0.503,
+    0.309,
+    0.533,
+    0.409
+   ],
+   "raw": "OBJECT: A glass globe with lights  \nMATCH: No  \nPROTECTED: No  \nREACHABLE: Yes"
+  }
+ ],
+ "scene_raw": "tv, sofa, table, chair, floor, curtain",
+ "ms": {
+  "detector_load": 324,
+  "detect": 591,
+  "vlm_load": 26274,
+  "looks": 8214,
+  "looks_n": 9,
+  "scene": 685
+ },
+ "notes": [
+  "detector on QNN HTP (cached)"
+ ],
+ "image": "l1.jpg",
+ "width": 1280,
+ "height": 720
+}

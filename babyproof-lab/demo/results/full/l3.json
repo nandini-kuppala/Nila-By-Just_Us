@@ -1,0 +1,356 @@
+{
+ "findings": [
+  {
+   "id": "dresser",
+   "label": "Chest of drawers",
+   "category": "tip-over",
+   "status": "FIX",
+   "severity": "HIGH",
+   "score": 0.495,
+   "box": [
+    0.678,
+    0.376,
+    0.997,
+    0.854
+   ],
+   "why": "Chest of drawers",
+   "vlm": "OBJECT: Chest of drawers  \nMATCH: Yes  \nPROTECTED: No  \nREACHABLE: Yes"
+  },
+  {
+   "id": "tv",
+   "label": "TV",
+   "category": "tip-over",
+   "status": "FIX",
+   "severity": "HIGH",
+   "score": 0.159,
+   "box": [
+    0.869,
+    0.42,
+    0.998,
+    0.608
+   ],
+   "why": "television",
+   "vlm": "OBJECT: television\nMATCH: yes\nPROTECTED: no\nREACHABLE: yes"
+  },
+  {
+   "id": "socket",
+   "label": "Wall socket",
+   "category": "electric",
+   "status": "FIX",
+   "severity": "URGENT",
+   "score": 0.156,
+   "box": [
+    0.5,
+    0.319,
+    0.521,
+    0.35
+   ],
+   "why": "Wall socket",
+   "vlm": "OBJECT: Wall socket  \nMATCH: Yes  \nPROTECTED: No  \nREACHABLE: Yes"
+  },
+  {
+   "id": "blind_cord",
+   "label": "Hanging cord",
+   "category": "strangle",
+   "status": "CHECK",
+   "severity": "HIGH",
+   "score": 0,
+   "box": null,
+   "why": "Named by the room-wide look: curtain",
+   "vlm": null
+  }
+ ],
+ "candidates": [
+  {
+   "id": "dresser",
+   "score": 0.495,
+   "box": [
+    0.678,
+    0.376,
+    0.997,
+    0.854
+   ],
+   "tile": "whole"
+  },
+  {
+   "id": "bookshelf",
+   "score": 0.381,
+   "box": [
+    0.037,
+    0.001,
+    0.31,
+    0.941
+   ],
+   "tile": "whole"
+  },
+  {
+   "id": "dresser",
+   "score": 0.273,
+   "box": [
+    0.503,
+    0.413,
+    0.555,
+    0.509
+   ],
+   "tile": "top-right"
+  },
+  {
+   "id": "tv",
+   "score": 0.267,
+   "box": [
+    0.155,
+    0.63,
+    0.255,
+    0.821
+   ],
+   "tile": "whole"
+  },
+  {
+   "id": "bookshelf",
+   "score": 0.243,
+   "box": [
+    0.611,
+    0,
+    1,
+    0.88
+   ],
+   "tile": "whole"
+  },
+  {
+   "id": "dresser",
+   "score": 0.235,
+   "box": [
+    0.064,
+    0.367,
+    0.256,
+    0.915
+   ],
+   "tile": "whole"
+  },
+  {
+   "id": "stove",
+   "score": 0.16,
+   "box": [
+    0.903,
+    0.374,
+    0.999,
+    0.431
+   ],
+   "tile": "top-right"
+  },
+  {
+   "id": "stove",
+   "score": 0.151,
+   "box": [
+    0.884,
+    0.415,
+    0.997,
+    0.441
+   ],
+   "tile": "top-right"
+  },
+  {
+   "id": "tv",
+   "score": 0.159,
+   "box": [
+    0.869,
+    0.42,
+    0.998,
+    0.608
+   ],
+   "tile": "whole"
+  },
+  {
+   "id": "socket",
+   "score": 0.156,
+   "box": [
+    0.5,
+    0.319,
+    0.521,
+    0.35
+   ],
+   "tile": "top-left"
+  },
+  {
+   "id": "dresser",
+   "score": 0.153,
+   "box": [
+    0.056,
+    0,
+    0.152,
+    0.261
+   ],
+   "tile": "top-left"
+  }
+ ],
+ "scene": [
+  {
+   "thing": "cabinet",
+   "hazard": "",
+   "where": ""
+  },
+  {
+   "thing": "curtain",
+   "hazard": "",
+   "where": ""
+  },
+  {
+   "thing": "bed",
+   "hazard": "",
+   "where": ""
+  },
+  {
+   "thing": "table",
+   "hazard": "",
+   "where": ""
+  },
+  {
+   "thing": "chair",
+   "hazard": "",
+   "where": ""
+  },
+  {
+   "thing": "door",
+   "hazard": "",
+   "where": ""
+  }
+ ],
+ "looks": [
+  {
+   "id": "stove",
+   "score": 0.16,
+   "box": [
+    0.903,
+    0.374,
+    0.999,
+    0.431
+   ],
+   "raw": "OBJECT: cabinet  \nMATCH: no  \nPROTECTED: no  \nREACHABLE: yes"
+  },
+  {
+   "id": "socket",
+   "score": 0.156,
+   "box": [
+    0.5,
+    0.319,
+    0.521,
+    0.35
+   ],
+   "raw": "OBJECT: Wall socket  \nMATCH: Yes  \nPROTECTED: No  \nREACHABLE: Yes"
+  },
+  {
+   "id": "dresser",
+   "score": 0.495,
+   "box": [
+    0.678,
+    0.376,
+    0.997,
+    0.854
+   ],
+   "raw": "OBJECT: Chest of drawers  \nMATCH: Yes  \nPROTECTED: No  \nREACHABLE: Yes"
+  },
+  {
+   "id": "bookshelf",
+   "score": 0.381,
+   "box": [
+    0.037,
+    0.001,
+    0.31,
+    0.941
+   ],
+   "raw": "OBJECT: Bed  \nMATCH: No  \nPROTECTED: No  \nREACHABLE: Yes"
+  },
+  {
+   "id": "dresser",
+   "score": 0.273,
+   "box": [
+    0.503,
+    0.413,
+    0.555,
+    0.509
+   ],
+   "raw": "OBJECT: A crib  \nMATCH: No  \nPROTECTED: No  \nREACHABLE: Yes"
+  },
+  {
+   "id": "tv",
+   "score": 0.267,
+   "box": [
+    0.155,
+    0.63,
+    0.255,
+    0.821
+   ],
+   "raw": "OBJECT: toaster oven  \nMATCH: no  \nPROTECTED: no  \nREACHABLE: yes"
+  },
+  {
+   "id": "bookshelf",
+   "score": 0.243,
+   "box": [
+    0.611,
+    0,
+    1,
+    0.88
+   ],
+   "raw": "OBJECT: A cabinet with glass doors and drawers  \nMATCH: No  \nPROTECTED: No  \nREACHABLE: Yes"
+  },
+  {
+   "id": "dresser",
+   "score": 0.235,
+   "box": [
+    0.064,
+    0.367,
+    0.256,
+    0.915
+   ],
+   "raw": "OBJECT: Bed  \nMATCH: No  \nPROTECTED: No  \nREACHABLE: Yes"
+  },
+  {
+   "id": "stove",
+   "score": 0.151,
+   "box": [
+    0.884,
+    0.415,
+    0.997,
+    0.441
+   ],
+   "raw": "OBJECT: cabinet  \nMATCH: no  \nPROTECTED: no  \nREACHABLE: yes"
+  },
+  {
+   "id": "tv",
+   "score": 0.159,
+   "box": [
+    0.869,
+    0.42,
+    0.998,
+    0.608
+   ],
+   "raw": "OBJECT: television\nMATCH: yes\nPROTECTED: no\nREACHABLE: yes"
+  },
+  {
+   "id": "dresser",
+   "score": 0.153,
+   "box": [
+    0.056,
+    0,
+    0.152,
+    0.261
+   ],
+   "raw": "OBJECT: wooden chest with decorative items  \nMATCH: no  \nPROTECTED: no  \nREACHABLE: yes"
+  }
+ ],
+ "scene_raw": "cabinet, curtain, bed, table, chair, door",
+ "ms": {
+  "detector_load": 324,
+  "detect": 512,
+  "vlm_load": 0,
+  "looks": 9385,
+  "looks_n": 11,
+  "scene": 685
+ },
+ "notes": [
+  "detector on QNN HTP (cached)"
+ ],
+ "image": "l3.jpg",
+ "width": 670,
+ "height": 447
+}
