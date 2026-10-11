@@ -87,6 +87,7 @@ import com.nila.skin.data.PhotoStore
 import com.nila.skin.data.StoolCheckEntity
 import com.nila.skin.data.YellowCheckEntity
 import com.nila.skin.ui.SkinServices
+import com.nila.skin.ui.safely
 import com.nila.skin.ui.ageDays
 import com.nila.skin.ui.ageHours
 import com.nila.skin.ui.components.AdviceCard
@@ -134,6 +135,7 @@ fun StoolScreen(baby: BabyEntity?, back: () -> Unit) {
     var chosen by remember { mutableStateOf<StoolSwatch?>(null) }
     var advice by remember { mutableStateOf<Advice?>(null) }
     var saved by remember { mutableStateOf(false) }
+    var stoolError by remember { mutableStateOf(false) }
 
     SkinScaffold("Nappy colour check", onBack = back, scrollKey = advice == null) {
         ScreenHero("The poo colour card", "Pale poo is the first visible sign of biliary atresia, a liver condition where every week counts. A daily look in the first month catches it.")
@@ -146,12 +148,12 @@ fun StoolScreen(baby: BabyEntity?, back: () -> Unit) {
         if (advice == null) {
             if (photo == null) PhotoInput("stool", onPhoto = { b, _ ->
                 photo = b; reading = null
-                scope.launch { withContext(Dispatchers.Default) { com.nila.skin.core.measure.SpotFinder.suggest(PhotoStore.toPixels(b, 600)) }?.let { markers[0] = markers[0].copy(circle = it.copy(r = it.r * 0.7)) } }
+                scope.launch { safely("stool spot") { withContext(Dispatchers.Default) { StoolCard.suggestSpot(PhotoStore.toPixels(b, 600)) } }?.let { markers[0] = markers[0].copy(circle = it) } }
             }, hint = "Photo the open nappy in daylight. The white of the nappy is used to correct the colour.")
             photo?.let { bmp ->
                 Heading("Circle the poo")
                 MarkerTabs(markers, active) { active = it }
-                MarkablePhoto(bmp, markers, active, onMove = { i, c -> markers[i] = markers[i].copy(circle = c) })
+                MarkablePhoto(bmp, markers, active, onMove = { i, c -> markers[i] = markers[i].copy(circle = c) }, dots = reading?.whitePoints ?: emptyList())
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text("I'll mark the white nappy myself", modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
                     Switch(useWhite, {
@@ -162,17 +164,23 @@ fun StoolScreen(baby: BabyEntity?, back: () -> Unit) {
                 }
                 PillButton("Read the colour", icon = Icons.Outlined.Analytics, modifier = Modifier.fillMaxWidth(), onClick = {
                     scope.launch {
-                        reading = withContext(Dispatchers.Default) {
+                        reading = safely("stool read") { withContext(Dispatchers.Default) {
                             StoolCard.read(PhotoStore.toPixels(bmp), markers[0].circle, markers.getOrNull(1)?.circle)
-                        }
+                        } }
+                        stoolError = reading == null
                         chosen = reading?.nearest
                     }
                 })
             }
+            if (stoolError) InfoNote("Couldn't read the colour. Make sure the circle is on the poo and inside the photo.", tone = Tone.PEACH)
             reading?.let { r ->
                 NilaCard(modifier = Modifier.fillMaxWidth()) {
                     Text("Closest match from the photo: ${r.nearest.id} · ${r.nearest.label}", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-                    MutedText(if (r.whiteCorrected) "Colour corrected using the white of the nappy." else "No white found to correct the colour; compare by eye in daylight.")
+                    MutedText(when {
+                        r.whiteCorrected && r.whitePoints.isNotEmpty() -> "Colour and brightness corrected using the white of the nappy (the small white dots show which pixels were used)."
+                        r.whiteCorrected -> "Colour and brightness corrected using the white you marked."
+                        else -> "No white found to correct the colour; compare by eye in daylight."
+                    })
                     if (r.paleByChroma) MutedText("Reads light and weakly coloured: the signature of the pale colours.")
                 }
             }
@@ -239,6 +247,7 @@ fun EyeScreen(baby: BabyEntity?, back: () -> Unit) {
     var photo by remember { mutableStateOf<Bitmap?>(null) }
     var finding by remember { mutableStateOf(false) }
     var faceFound by remember { mutableStateOf<Boolean?>(null) }
+    var angle by remember { mutableStateOf<com.nila.skin.core.measure.EyeAngle?>(null) }
     val markers = remember { mutableStateListOf(Marker(NCircle(0.4, 0.45, 0.03), Color(0xFF3DDBB0), "Left in photo"), Marker(NCircle(0.6, 0.45, 0.03), Color(0xFFF5C066), "Right in photo")) }
     var active by remember { mutableStateOf(0) }
     var pair by remember { mutableStateOf<EyePairReading?>(null) }
@@ -255,9 +264,10 @@ fun EyeScreen(baby: BabyEntity?, back: () -> Unit) {
     fun locate(b: Bitmap) {
         finding = true
         scope.launch {
-            val eyes = withContext(Dispatchers.Default) { SkinServices.eyes.find(b) }
+            val eyes = safely("face landmarks") { withContext(Dispatchers.Default) { SkinServices.eyes.find(b) } }
             if (eyes != null) { markers[0] = markers[0].copy(circle = eyes.left); markers[1] = markers[1].copy(circle = eyes.right) }
             faceFound = eyes != null
+            angle = eyes?.angle
             finding = false
         }
     }
@@ -298,10 +308,15 @@ fun EyeScreen(baby: BabyEntity?, back: () -> Unit) {
                     InfoNote(if (it) "Eyes found from face landmarks (${SkinServices.eyes.delegate}). Adjust the circles if they're off." else "No face found. Tap each pupil to place the circles.",
                         tone = if (it) Tone.TEAL else Tone.PEACH)
                 }
+                angle?.let { g ->
+                    InfoNote("${g.words()} (gaze ${"%+.2f".format(g.gazeLeft)} / ${"%+.2f".format(g.gazeRight)} of eye width, head turn ${"%+.2f".format(g.headTurn)})." +
+                        if (g.straight) " Good: a straight-on photo is the one to trust." else " Off-angle flash photos can glow white in healthy eyes, so a straight-on retake matters.",
+                        tone = if (g.straight) Tone.TEAL else Tone.PEACH)
+                }
                 MarkerTabs(markers, active) { active = it }
                 MarkablePhoto(bmp, markers, active, onMove = { i, c -> markers[i] = markers[i].copy(circle = c) })
                 PillButton("Read the pupils", icon = Icons.Outlined.Analytics, modifier = Modifier.fillMaxWidth(), onClick = {
-                    scope.launch { pair = withContext(Dispatchers.Default) { EyeReflex.readPair(PhotoStore.toPixels(bmp, 1600), markers[0].circle, markers[1].circle) } }
+                    scope.launch { pair = safely("eye read") { withContext(Dispatchers.Default) { EyeReflex.readPair(PhotoStore.toPixels(bmp, 1600), markers[0].circle, markers[1].circle) } } }
                 })
                 pair?.let { p ->
                     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -318,10 +333,10 @@ fun EyeScreen(baby: BabyEntity?, back: () -> Unit) {
                     PillButton("See what to do", icon = Icons.Outlined.ArrowForward, modifier = Modifier.fillMaxWidth(), onClick = {
                         val wl = history.count { it.left == Reflex.WHITE.name } + if (p.left.reflex == Reflex.WHITE) 1 else 0
                         val wr = history.count { it.right == Reflex.WHITE.name } + if (p.right.reflex == Reflex.WHITE) 1 else 0
-                        advice = EyeRules.advise(EyeRules.Input(p, wl, wr, answers.toMap()))
+                        advice = EyeRules.advise(EyeRules.Input(p, wl, wr, answers.toMap(), angle))
                     })
                 }
-                OutlinePillButton("Use another photo", onClick = { photo = null; pair = null; faceFound = null }, modifier = Modifier.fillMaxWidth())
+                OutlinePillButton("Use another photo", onClick = { photo = null; pair = null; faceFound = null; angle = null }, modifier = Modifier.fillMaxWidth())
             }
         } else {
             AdviceCard(advice!!)
@@ -371,9 +386,9 @@ private suspend fun scanGallery(context: android.content.Context): GalleryScan =
         if (!fired) continue
         flash++
         val bmp = SkinServices.photos.loadUri(u, 1600) ?: continue
-        val eyes = SkinServices.eyes.find(bmp) ?: continue
+        val eyes = runCatching { SkinServices.eyes.find(bmp) }.getOrNull() ?: continue
         faces++
-        val p = EyeReflex.readPair(PhotoStore.toPixels(bmp, 1600), eyes.left, eyes.right)
+        val p = runCatching { EyeReflex.readPair(PhotoStore.toPixels(bmp, 1600), eyes.left, eyes.right) }.getOrNull() ?: continue
         if (p.anyWhite || p.unequal) flagged += cropAround(bmp, NCircle((eyes.left.cx + eyes.right.cx) / 2, (eyes.left.cy + eyes.right.cy) / 2, kotlin.math.abs(eyes.right.cx - eyes.left.cx) * 0.9), 1.0) to p
         else if (p.left.reflex == Reflex.RED && p.right.reflex == Reflex.RED) allRed++
     }
@@ -417,6 +432,7 @@ fun YellowScreen(baby: BabyEntity?, back: () -> Unit) {
     var active by remember { mutableStateOf(0) }
     var useWhite by remember { mutableStateOf(false) }
     var reading by remember { mutableStateOf<YellowReading?>(null) }
+    var eyePlaced by remember { mutableStateOf(false) }
     val answers = remember { mutableStateMapOf<String, Answer>() }
     var advice by remember { mutableStateOf<Advice?>(null) }
     var saved by remember { mutableStateOf(false) }
@@ -441,10 +457,20 @@ fun YellowScreen(baby: BabyEntity?, back: () -> Unit) {
         if (advice == null) {
             Heading("Optional: photo of the eye white")
             MutedText("Kept as a colour-corrected record to compare day to day. It is not a bilirubin test, and the questions below decide what to do.")
-            if (photo == null) PhotoInput("yellow", onPhoto = { b, _ -> photo = b }, hint = "Put a white tissue or paper in the photo for colour correction.")
+            if (photo == null) PhotoInput("yellow", onPhoto = { b, _ ->
+                photo = b; reading = null
+                // Place the circle on the white of the eye: face landmarks for a face, colour for a close-up.
+                scope.launch {
+                    val c = safely("sclera landmarks") { withContext(Dispatchers.Default) { SkinServices.eyes.sclera(b) } }
+                        ?: safely("sclera colour") { withContext(Dispatchers.Default) { Yellowness.suggestSpot(PhotoStore.toPixels(b, 600)) } }
+                    c?.let { markers[0] = markers[0].copy(circle = it) }
+                    eyePlaced = c != null
+                }
+            }, hint = "Put a white tissue or paper in the photo for colour correction.")
+            if (photo != null && eyePlaced) InfoNote("Nila placed the circle on the white of the eye. Move it if it's off; it should sit only on the white.", tone = Tone.BLUE)
             photo?.let { bmp ->
                 MarkerTabs(markers, active) { active = it }
-                MarkablePhoto(bmp, markers, active, onMove = { i, c -> markers[i] = markers[i].copy(circle = c) })
+                MarkablePhoto(bmp, markers, active, onMove = { i, c -> markers[i] = markers[i].copy(circle = c) }, dots = reading?.whitePoints ?: emptyList())
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text("I'll mark the white paper myself", modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
                     Switch(useWhite, {
@@ -454,10 +480,11 @@ fun YellowScreen(baby: BabyEntity?, back: () -> Unit) {
                     })
                 }
                 OutlinePillButton("Read the colour", icon = Icons.Outlined.Analytics, modifier = Modifier.fillMaxWidth(), onClick = {
-                    scope.launch { reading = withContext(Dispatchers.Default) { Yellowness.read(PhotoStore.toPixels(bmp), YellowReading.Site.EYE_WHITE, markers[0].circle, markers.getOrNull(1)?.circle) } }
+                    scope.launch { reading = safely("yellow read") { withContext(Dispatchers.Default) { Yellowness.read(PhotoStore.toPixels(bmp), YellowReading.Site.EYE_WHITE, markers[0].circle, markers.getOrNull(1)?.circle) } } }
                 })
                 reading?.let { r ->
-                    FactCard("Photo reading", Icons.Outlined.Analytics, Tone.TEAL, listOf(r.looks, "Yellowness (b*, colour-corrected): ${"%.1f".format(r.yellowness)}"),
+                    FactCard("Photo reading", Icons.Outlined.Analytics, Tone.TEAL, listOfNotNull(r.looks, "Yellowness (b*, colour-corrected): ${"%.1f".format(r.yellowness)}",
+                        if (r.whiteTinted) "The white used for correction (dots) looks tinted itself. If the dots are on the eye rather than a tissue, mark the tissue yourself." else null),
                         footer = "Describes the photo only. Not a bilirubin level.")
                 }
             }
@@ -520,9 +547,9 @@ fun GlassTestScreen(go: (String) -> Unit, back: () -> Unit) {
         QuestionCard(SkinRules.GLASS, answer, { answer = it })
         answer?.let { a ->
             val adv = when (a) {
-                Answer.YES -> Advice(Step.URGENT, listOf(Reason("Spots that don't fade under a glass can be a sign of meningitis or sepsis.", Source.NHS_RASH, Step.URGENT)), SkinRules.doNow(Step.URGENT))
-                Answer.UNSURE -> Advice(Step.DOCTOR_TODAY, listOf(Reason("If you can't tell, or your baby seems unwell, treat it as not fading and get help now.", Source.NHS_RASH, Step.DOCTOR_TODAY)),
-                    listOf("If your baby is unwell, has a fever, or you're worried: call 112 or 108.", "Otherwise call your doctor now."))
+                Answer.YES -> Advice(Step.URGENT, listOf(Reason("Spots that don't fade under a glass need a doctor straight away.", Source.NHS_RASH, Step.URGENT)), SkinRules.doNow(Step.URGENT))
+                Answer.UNSURE -> Advice(Step.DOCTOR_TODAY, listOf(Reason("If you can't tell, or your baby seems unwell, treat it as not fading and see a doctor now.", Source.NHS_RASH, Step.DOCTOR_TODAY)),
+                    listOf("If your baby is unwell, has a fever, or you're worried, go to a doctor or hospital now.", "Otherwise call your doctor now."))
                 Answer.NO -> Advice(Step.WATCH, listOf(Reason("Spots that fade under pressure are reassuring, but a baby who seems very unwell still needs help.", Source.NHS_RASH, Step.WATCH)),
                     listOf("Keep checking the rash and how your baby is.", "Track it in the skin diary to see if it spreads."))
             }

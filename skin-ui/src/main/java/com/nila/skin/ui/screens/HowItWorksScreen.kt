@@ -60,6 +60,9 @@ fun HowItWorksScreen(back: () -> Unit) {
     var test by remember { mutableStateOf<SelfTest?>(null) }
     var running by remember { mutableStateOf(false) }
     var loading by remember { mutableStateOf(false) }
+    val evalRows = remember { androidx.compose.runtime.mutableStateListOf<com.nila.skin.ui.VisionEval.Row>() }
+    var evalRunning by remember { mutableStateOf(false) }
+    var evalMissing by remember { mutableStateOf(false) }
 
     SkinScaffold("How Nila decides", onBack = back) {
         ScreenHero("Four layers, one rule", "The AI describes. The maths measures. Published guidelines decide the next step. Your doctor diagnoses.")
@@ -67,13 +70,18 @@ fun HowItWorksScreen(back: () -> Unit) {
             "Intern3.5-VL-2B runs on the phone's Hexagon NPU (Qualcomm AI Hub build, GenieX runtime).",
             "It answers closed questions: colour, texture, pattern, which foods are on a plate.",
             "It is never asked what condition a baby has, and parents confirm anything it says.",
-            "MediaPipe face landmarks (GPU) find the pupils for the eye check.",
+            "MediaPipe face landmarks (GPU) find the pupils for the eye check, and where the baby was looking (the main cause of false white glows).",
+            "For a plate, each food it lists is double-checked with a yes/no question, which small models answer more reliably.",
+            "Its description is compared with the maths; when they disagree, the parent is asked to look again.",
         ))
         FactCard("2 · The maths measures", Icons.Outlined.Calculate, Tone.TEAL, listOf(
             "Colour in CIELAB: a* is redness, b* is yellowness, L* lightness.",
             "Every spot is compared with the baby's own skin in a ring around it, not a population average.",
             "Stool and eye-white colours are corrected against something white in the photo.",
-            "Colour distance by CIEDE2000; size from a coin if one is in the photo; trends need a change bigger than re-photo noise.",
+            "Uneven light is modelled: the surrounding skin is fitted with a plane (least squares, outliers trimmed), so each pixel is compared with the skin right next to it.",
+            "Stool and eye-white photos are corrected for the colour and the brightness of the light, using the white nappy or a tissue.",
+            "Colour distance by CIEDE2000; size from a coin if one is in the photo; trends use a robust line through every photo (Theil–Sen).",
+            "Food patterns: exposure windows, then Fisher's exact test, so chance alone can't make a pattern.",
         ))
         FactCard("3 · Guidelines decide", Icons.Outlined.Gavel, Tone.PEACH, listOf(
             "Only a parent's checklist answer can trigger \"get help now\"; photos can at most suggest \"show your doctor\".",
@@ -132,10 +140,36 @@ fun HowItWorksScreen(back: () -> Unit) {
                 }
                 MutedText("Size = share of the circle covered by the patch. Redness = Δa* against the same baby's skin; darker skin shows a smaller shift, as real redness does.")
                 RowDivider()
-                Text("Stool card under warm, daylight and cool light: ${t.stoolCorrect} of ${t.stoolTotal} in the right group", style = MaterialTheme.typography.bodyMedium)
+                Text("Stool card under warm, daylight, cool and dim-warm light: ${t.stoolCorrect} of ${t.stoolTotal} in the right group", style = MaterialTheme.typography.bodyMedium)
+                Text("Brown mark with light from one side, six tones: found ${t.sideLightFound} of 6 (one flat skin colour: ${t.sideLightFlat} of 6)", style = MaterialTheme.typography.bodyMedium)
                 Text("Eye reflex (red / white / dark): ${t.eyeCorrect} of 3", style = MaterialTheme.typography.bodyMedium)
                 MutedText("Ran in ${t.ms} ms on this phone's CPU.")
             }
+        }
+        Heading("Test the on-device AI")
+        MutedText("Ten real baby-food photos with hand-written answers. The AI's list alone, against the list after the three cross-checks. Precision: of the foods shown, how many are really there. Recall: of the main foods, how many were found. Takes a minute or two on the NPU.")
+        PillButton(if (evalRunning) "Testing... ${evalRows.size} of ${com.nila.skin.ui.VisionEval.truths.size}" else "Test the AI on 10 baby-food photos", enabled = !evalRunning,
+            icon = Icons.Outlined.AutoAwesome, modifier = Modifier.fillMaxWidth(), onClick = {
+                evalRunning = true; evalRows.clear(); evalMissing = false
+                scope.launch {
+                    val r = withContext(Dispatchers.Default) { com.nila.skin.ui.VisionEval.run { row -> scope.launch { evalRows.add(row) } } }
+                    if (r == null) evalMissing = true
+                    evalRunning = false
+                }
+            })
+        if (evalMissing) MutedText("The model isn't available on this phone, so there is nothing to test.")
+        if (evalRows.isNotEmpty()) NilaCard(modifier = Modifier.fillMaxWidth()) {
+            val t = com.nila.skin.ui.VisionEval.totals(evalRows)
+            Text("AI list alone: precision ${t.pct(t.listedRight, t.listed)}% (${t.listedRight}/${t.listed}), recall ${t.pct(t.coreListed, t.coreTotal)}% (${t.coreListed}/${t.coreTotal})", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+            Text("After cross-checks (pre-ticked): precision ${t.pct(t.keptRight, t.kept)}% (${t.keptRight}/${t.kept}), recall ${t.pct(t.coreKept, t.coreTotal)}% (${t.coreKept}/${t.coreTotal})", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+            Text("Main foods on screen for the parent, including colour suggestions: ${t.pct(t.coreShown, t.coreTotal)}% (${t.coreShown}/${t.coreTotal})", style = MaterialTheme.typography.bodyMedium)
+            RowDivider()
+            evalRows.forEach { r ->
+                Text(r.label, style = MaterialTheme.typography.labelLarge)
+                MutedText("AI: ${r.listed.joinToString().ifEmpty { "nothing" }} → kept: ${r.kept.joinToString().ifEmpty { "nothing" }}" +
+                    if (r.suggested.isNotEmpty()) " · colour suggests: ${r.suggested.joinToString()}" else "")
+            }
+            MutedText("Synthetic tests check the maths; this checks the AI on real photos. Ten photos is a small test, shown as it is.")
         }
         FactCard("Privacy", Icons.Outlined.Lock, Tone.SLATE, listOf(
             "Photos live in the app's private storage, never in the gallery or a cloud.",
@@ -165,7 +199,8 @@ private fun statusText(s: VisionModel.Status) = when (s) {
     is VisionModel.Status.Failed -> "Unavailable: ${s.reason}"
 }
 
-data class SelfTest(val tones: List<ToneRow>, val stoolCorrect: Int, val stoolTotal: Int, val eyeCorrect: Int, val ms: Long) {
+data class SelfTest(val tones: List<ToneRow>, val stoolCorrect: Int, val stoolTotal: Int, val eyeCorrect: Int, val ms: Long,
+                    val sideLightFound: Int = 0, val sideLightFlat: Int = 0) {
     data class ToneRow(val name: String, val l: Double, val trueCov: Double, val cov: Double, val spots: Int, val trueDa: Double, val da: Double, val pass: Boolean)
 
     companion object {
@@ -180,14 +215,20 @@ data class SelfTest(val tones: List<ToneRow>, val stoolCorrect: Int, val stoolTo
                 ToneRow(name, tone.l, trueCov, r.coverage, r.spots, dA, r.deltaA, abs(r.coverage - trueCov) < 0.06 && r.spots == 1 && abs(r.deltaA - dA) < 3)
             }
             var ok = 0; var total = 0
-            for (s in StoolCard.swatches) for (light in listOf(Synth.WARM, Synth.NEUTRAL, Synth.COOL)) {
+            for (s in StoolCard.swatches) for (light in listOf(Synth.WARM, Synth.NEUTRAL, Synth.COOL, doubleArrayOf(0.4, 0.32, 0.22))) {
                 total++
                 if (StoolCard.read(Synth.onNappy(240, s.lab, light), NCircle(0.5, 0.5, 0.15)).group == s.group) ok++
             }
             val pupil = NCircle(0.5, 0.5, 0.18)
             val eyes = listOf(Lab(45.0, 60.0, 45.0) to Reflex.RED, Lab(88.0, 2.0, 18.0) to Reflex.WHITE, Lab(10.0, 1.0, 1.0) to Reflex.DARK)
                 .count { (lab, want) -> EyeReflex.read(Synth.eye(160, lab), pupil).reflex == want }
-            return SelfTest(tones, ok, total, eyes, System.currentTimeMillis() - t0)
+            var side = 0; var sideFlat = 0
+            Synth.TONES.forEachIndexed { i, (_, tone) ->
+                val img = Synth.skin(320, tone, listOf(spot), deltaA = 1.0, deltaL = -12.0, seed = 500 + i, gradient = 0.4)
+                if (abs(SkinMeasure.measure(img, circle).coverage - trueCov) < 0.06) side++
+                if (abs(SkinMeasure.measure(img, circle, lightingModel = false).coverage - trueCov) < 0.06) sideFlat++
+            }
+            return SelfTest(tones, ok, total, eyes, System.currentTimeMillis() - t0, side, sideFlat)
         }
     }
 }

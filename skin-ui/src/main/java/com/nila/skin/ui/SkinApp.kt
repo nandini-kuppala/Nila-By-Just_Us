@@ -57,6 +57,7 @@ fun SkinApp(onExit: (() -> Unit)? = null) {
             composable("report") { ReportScreen(baby, back = { nav.popBackStack() }) }
             composable("how") { HowItWorksScreen(back = { nav.popBackStack() }) }
             composable("learn") { LearnScreen(back = { nav.popBackStack() }) }
+            composable("demo") { com.nila.skin.ui.screens.DemoLabScreen(go = { nav.navigate(it) }, back = { nav.popBackStack() }) }
         }
     }
 }

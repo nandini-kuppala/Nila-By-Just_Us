@@ -4,6 +4,7 @@ import com.nila.skin.core.color.ColorMath
 import com.nila.skin.core.color.Lab
 import com.nila.skin.core.color.WhiteBalance
 import com.nila.skin.core.image.NCircle
+import com.nila.skin.core.image.NPoint
 import com.nila.skin.core.image.PixelImage
 import com.nila.skin.core.image.Regions
 
@@ -53,6 +54,8 @@ object StoolCard {
         val whiteCorrected: Boolean,
         /** The chroma rule on its own: light and weakly coloured = pale. */
         val paleByChroma: Boolean,
+        /** Where the white reference was found, when found automatically. */
+        val whitePoints: List<NPoint> = emptyList(),
     ) {
         val group: StoolGroup get() = if (paleByChroma) StoolGroup.PALE else nearest.group
     }
@@ -60,9 +63,11 @@ object StoolCard {
     /**
      * Pale stool on the card is light AND weakly coloured: the pale swatches
      * have b* 19-39, the normal yellows 59-73. Chroma below 46 with lightness
-     * above 62 is pale whichever swatch happens to be nearest.
+     * above 62 is pale whichever swatch happens to be nearest -- unless it is
+     * reddish-brown (a* 8 or more; every pale card colour has a* below 8),
+     * which is how a well-lit brown stool looks in a real photo.
      */
-    fun isPale(lab: Lab) = lab.l >= 62 && lab.chroma < 46
+    fun isPale(lab: Lab) = lab.l >= 62 && lab.chroma < 46 && lab.a < 8
 
     fun classify(lab: Lab, whiteCorrected: Boolean): Reading {
         val ranked = swatches.map { it to ColorMath.deltaE2000(lab, it.lab) }.sortedBy { it.second }
@@ -70,18 +75,52 @@ object StoolCard {
     }
 
     /**
+     * Where is the poo? The most strongly coloured region near the middle of
+     * the photo, in poo hues (the nappy is white or a coloured cloth, the poo is
+     * red-brown-yellow-green), and the largest circle
+     * that fits inside it. Null when nothing stands out.
+     */
+    fun suggestSpot(photo: PixelImage): NCircle? {
+        val img = photo.downscaled(200)
+        val w = img.width; val h = img.height
+        val m = BooleanArray(w * h) { i -> val l = ColorMath.lab(img.argb[i])
+            // Poo runs red to brown to yellow to green, never blue or purple (a blue cloth nappy).
+            l.chroma > 22 && l.l in 18.0..92.0 && (l.hue < 150 || l.hue > 345) }
+        val comps = com.nila.skin.core.measure.SkinMeasure.components(m, w, h, maxOf(15, w * h / 400))
+        if (comps.isEmpty()) return null
+        val far = kotlin.math.hypot(w / 2.0, h / 2.0)
+        val best = comps.maxBy { c ->
+            var sx = 0.0; var sy = 0.0
+            c.forEach { sx += it % w; sy += it / w }
+            c.size * (1 - 0.7 * kotlin.math.hypot(sx / c.size - w / 2.0, sy / c.size - h / 2.0) / far)
+        }
+        val inside = BooleanArray(w * h); best.forEach { inside[it] = true }
+        val (top, d) = Regions.inscribed(inside, w, h)
+        if (d < 3) return null
+        return NCircle((top % w) / (w - 1.0), (top / w) / (h - 1.0), (d * 0.85 / minOf(w, h)).coerceAtMost(0.3))
+    }
+
+    /**
      * Read the stool colour from a photo.
+     *
+     * The white of the nappy corrects both the colour of the light and its
+     * brightness. Brightness matters most: in a dim, warm room the pale card
+     * colours read darker and more coloured, and 5 of the 6 were taken for
+     * normal yellow-brown before exposure was corrected (synthetic test, all 13
+     * right after).
      *
      * @param spot circle the parent drew on the poo.
      * @param white circle on the nappy or a tissue; found automatically when null.
      */
-    fun read(photo: PixelImage, spot: NCircle, white: NCircle? = null): Reading {
+    fun read(photo: PixelImage, spot: NCircle, white: NCircle? = null, correct: Boolean = true): Reading {
         val img = photo.downscaled(640)
+        val auto = if (correct && white == null) Regions.autoWhiteRef(img, exclude = spot, exposure = true) else null
         val wb = when {
-            white != null -> WhiteBalance.fromReference(Regions.meanLinear(img, white))
-            else -> Regions.autoWhite(img, exclude = spot)
+            !correct -> null
+            white != null -> WhiteBalance.fromReference(Regions.meanLinear(img, white), exposure = true)
+            else -> auto?.wb
         }
         val stats = Regions.circleStats(img, spot.copy(r = spot.r * 0.8), wb ?: WhiteBalance.NONE)
-        return classify(stats.median, wb != null)
+        return classify(stats.median, wb != null).copy(whitePoints = auto?.points ?: emptyList())
     }
 }

@@ -38,6 +38,20 @@ object SkinServices {
     }
 }
 
+/**
+ * Runs one piece of analysis and turns any failure into null, so an odd photo
+ * (a circle off the edge, a tiny or corrupt image) shows a message instead of
+ * closing the app. The error is logged for us, never shown as a stack trace.
+ */
+suspend fun <T> safely(what: String, block: suspend () -> T): T? = try {
+    block()
+} catch (c: kotlinx.coroutines.CancellationException) {
+    throw c
+} catch (t: Throwable) {
+    android.util.Log.w("LittleSigns", "$what failed", t)
+    null
+}
+
 /** Age helpers for the rules, which all work in days or hours. */
 fun BabyEntity.ageDays(now: Long = System.currentTimeMillis()): Int = ((now - birthMs) / 86_400_000L).toInt().coerceAtLeast(0)
 fun BabyEntity.ageHours(now: Long = System.currentTimeMillis()): Int = ((now - birthMs) / 3_600_000L).toInt().coerceAtLeast(0)

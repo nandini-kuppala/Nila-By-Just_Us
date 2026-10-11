@@ -2,6 +2,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <uses-permission android:name="android.permission.CAMERA" />
+    <!-- Only for reminders the parent asks for ("remind me in 2 hours"); silent. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <!-- Only for "scan my gallery" in the eye check, and only when the parent taps it. -->
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />

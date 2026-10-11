@@ -9,6 +9,12 @@ Two kinds of picture:
     in the open, and these let the demo show the maths doing something checkable.
   * Real, openly licensed photos from Wikimedia Commons (meals, flash eyes, a
     few skin marks), credited in demo/CREDITS.md and on screen.
+
+Since 2026-10-11 the demo strips use real photos wherever an open one exists
+(fetched with tools/fetch_commons.py; the list and credits are in
+demo/CREDITS.md). Of the synthetic pictures only the pale-stool test pattern
+(stool_5_warm.jpg) is still shipped; the self-test and the demo lab make their
+known-answer pictures in code (skin-core Synth).
 """
 import json
 import shutil

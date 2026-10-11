@@ -87,6 +87,40 @@ object Regions {
     }
 
     /**
+     * The largest circle that fits wholly inside a region: a two-pass chamfer
+     * distance transform (3-4 weights) to the region's edge, then its peak.
+     * @return the centre index and the radius in pixels.
+     */
+    fun inscribed(inside: BooleanArray, w: Int, h: Int): Pair<Int, Double> {
+        val big = 1_000_000
+        val dist = IntArray(w * h) { if (inside[it]) big else 0 }
+        for (y in 0 until h) for (x in 0 until w) {
+            val i = y * w + x; if (dist[i] == 0) continue
+            var v = dist[i]
+            if (x > 0) v = minOf(v, dist[i - 1] + 3)
+            if (y > 0) v = minOf(v, dist[i - w] + 3)
+            if (x > 0 && y > 0) v = minOf(v, dist[i - w - 1] + 4)
+            if (x < w - 1 && y > 0) v = minOf(v, dist[i - w + 1] + 4)
+            if (x == 0 || y == 0 || x == w - 1 || y == h - 1) v = minOf(v, 3)
+            dist[i] = v
+        }
+        for (y in h - 1 downTo 0) for (x in w - 1 downTo 0) {
+            val i = y * w + x; if (dist[i] == 0) continue
+            var v = dist[i]
+            if (x < w - 1) v = minOf(v, dist[i + 1] + 3)
+            if (y < h - 1) v = minOf(v, dist[i + w] + 3)
+            if (x < w - 1 && y < h - 1) v = minOf(v, dist[i + w + 1] + 4)
+            if (x > 0 && y < h - 1) v = minOf(v, dist[i + w - 1] + 4)
+            dist[i] = v
+        }
+        val top = dist.indices.maxBy { dist[it] }
+        return top to dist[top] / 3.0
+    }
+
+    /** A white reference and where in the picture it came from. */
+    data class WhiteRef(val wb: WhiteBalance, val points: List<NPoint>)
+
+    /**
      * Find something white in the picture without asking: the brightest pixels
      * that are also nearly colourless (a nappy, a tissue, paper).
      *
@@ -94,9 +128,13 @@ object Regions {
      *   is in the frame -- the caller then says "put a white tissue in the photo"
      *   rather than pretending.
      */
-    fun autoWhite(img0: PixelImage, exclude: NCircle? = null): WhiteBalance? {
+    fun autoWhite(img0: PixelImage, exclude: NCircle? = null): WhiteBalance? = autoWhiteRef(img0, exclude)?.wb
+
+    /** As [autoWhite], also returning the pixels used, so the screen can show them. */
+    fun autoWhiteRef(img0: PixelImage, exclude: NCircle? = null, exposure: Boolean = false): WhiteRef? {
         val img = img0.downscaled(320)
-        val candidates = ArrayList<Triple<Double, Double, Int>>() // L, chroma, argb
+        data class C(val l: Double, val chroma: Double, val argb: Int, val x: Int, val y: Int)
+        val candidates = ArrayList<C>()
         val ex = exclude?.let { Triple(it.cx * (img.width - 1), it.cy * (img.height - 1), it.r * minOf(img.width, img.height) * 1.2) }
         for (y in 0 until img.height step 2) for (x in 0 until img.width step 2) {
             if (ex != null) {
@@ -106,20 +144,26 @@ object Regions {
             val p = img[x, y]
             if (p.red() >= 252 && p.green() >= 252 && p.blue() >= 252) continue // clipped: no colour info
             val lab = ColorMath.lab(p)
-            candidates += Triple(lab.l, lab.chroma, p)
+            candidates += C(lab.l, lab.chroma, p, x, y)
         }
         if (candidates.size < 50) return null
-        candidates.sortByDescending { it.first }
+        candidates.sortByDescending { it.l }
         // Top 6% brightest, then keep those with modest chroma (a warm bulb can
         // tint white paper to chroma 20-30, which is exactly what we correct).
-        val top = candidates.take((candidates.size * 0.06).toInt().coerceAtLeast(20))
-            .filter { it.second < 35 && it.first > 55 }
-        if (top.size < 12) return null
+        val bright = candidates.take((candidates.size * 0.06).toInt().coerceAtLeast(20))
+            .filter { it.chroma < 35 && it.l > 55 }
+        if (bright.size < 12) return null
+        // White is the least coloured of the bright things: a yellow eye white
+        // or pale poo can be bright too, and must not be averaged into the
+        // reference. Keep the most neutral of the bright pixels.
+        val minC = bright.minOf { it.chroma }
+        val top = bright.filter { it.chroma <= minC + 8 }.let { if (it.size >= 12) it else bright.sortedBy { c -> c.chroma }.take(12) }
         var r = 0.0; var g = 0.0; var b = 0.0
         for (t in top) {
-            r += ColorMath.linear(t.third.red()); g += ColorMath.linear(t.third.green()); b += ColorMath.linear(t.third.blue())
+            r += ColorMath.linear(t.argb.red()); g += ColorMath.linear(t.argb.green()); b += ColorMath.linear(t.argb.blue())
         }
         val n = top.size.toDouble()
-        return WhiteBalance.fromReference(doubleArrayOf(r / n, g / n, b / n))
+        val pts = top.map { NPoint(it.x / (img.width - 1.0).coerceAtLeast(1.0), it.y / (img.height - 1.0).coerceAtLeast(1.0)) }
+        return WhiteRef(WhiteBalance.fromReference(doubleArrayOf(r / n, g / n, b / n), exposure), pts)
     }
 }

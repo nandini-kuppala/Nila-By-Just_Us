@@ -49,7 +49,8 @@ object VisionForms {
         val suggestsBlistersOrCrusts: Boolean get() = surfaces.any { it == Surface.BLISTERS || it == Surface.CRUSTS || it == Surface.WEEPING }
     }
 
-    private val COLOURS = listOf("dark red", "pink", "red", "purple", "brown", "yellow", "white", "skin-coloured", "skin coloured")
+    // "skin-coloured" first: it contains the letters "red".
+    private val COLOURS = listOf("skin-coloured", "skin coloured", "skin colored", "skin-colored", "dark red", "pink", "red", "purple", "brown", "yellow", "white")
     private val PATTERNS = listOf("single spot", "few spots", "many small spots", "patch", "ring", "none")
 
     fun parseSkin(raw: String): SkinDescription {
@@ -60,7 +61,7 @@ object VisionForms {
         val pattern = field("PATTERN")
         val photo = field("PHOTO") ?: ""
         return SkinDescription(
-            colour = colour?.let { c -> COLOURS.firstOrNull { c.contains(it) }?.replace("skin coloured", "skin-coloured") },
+            colour = colour?.let { c -> COLOURS.firstOrNull { c.contains(it) }?.let { if (it.startsWith("skin")) "skin-coloured" else it } },
             surfaces = Surface.entries.filter { s -> s.keys.any { surface.contains(it) } }.toSet(),
             pattern = pattern?.let { p -> PATTERNS.firstOrNull { p.contains(it) } },
             photoOk = !photo.contains("blur") && !photo.contains("not skin"),
@@ -79,6 +80,12 @@ object VisionForms {
      * describes Indian dishes ("rice cakes", "lentil soup") to the dish.
      */
     val PLATE_PROMPT = "List the foods you can see in this photo. Reply with only food names separated by commas, for example: rice, dal, banana."
+
+    /**
+     * The second, differently worded look used to cross-check the first list
+     * (self-consistency): a food named both times is more likely really there.
+     */
+    val SECOND_PROMPT = "What baby food or foods are in this photo? Reply with only the food names, separated by commas."
 
     /** Every name the app shows as a choice when the AI is unavailable. */
     val PLATE_CHOICES = listOf("rice", "dal", "sambar", "roti", "idli", "dosa", "upma", "poha", "khichdi", "curd rice", "curd",
@@ -101,6 +108,29 @@ object VisionForms {
                 guesses.none { o -> o !== g && o.text.length > g.text.length && o.text.contains(g.text, ignoreCase = true) }) }
             .filter { g -> g.food == null || seen.add(g.food.id) }
             .take(10)
+    }
+
+    /**
+     * The double-check. Small vision models name foods that are not there
+     * (object hallucination), but are noticeably better at a yes/no question
+     * about one named object. Each food from the list is asked about on its
+     * own, and dropped when the model says no.
+     */
+    fun verifyPrompt(food: String) = "Is there $food in this photo? Answer only yes or no."
+
+    private val YES = Regex("\\byes\\b")
+    private val NO = Regex("\\b(no|not)\\b")
+
+    /** Yes, no, or null when the reply is neither. */
+    fun parseYesNo(raw: String): Boolean? {
+        val t = raw.trim().lowercase()
+        return when {
+            t.startsWith("yes") -> true
+            t.startsWith("no") -> false
+            YES.containsMatchIn(t) && !NO.containsMatchIn(t) -> true
+            NO.containsMatchIn(t) && !YES.containsMatchIn(t) -> false
+            else -> null
+        }
     }
 
     private val CHATTER = Regex("\\b(i|you|it|is|this|that|question|point|answer|image|photo|picture|see|also|but|and|the)\\b", RegexOption.IGNORE_CASE)

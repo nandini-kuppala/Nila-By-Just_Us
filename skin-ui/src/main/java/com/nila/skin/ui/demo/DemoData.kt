@@ -38,14 +38,16 @@ import kotlin.random.Random
 /**
  * Demo mode for judges.
  *
- * A made-up baby with a week of history, built on the phone in a few seconds.
- * The skin photos are synthetic (see [Synth]), and every number shown for them
- * -- size, redness, spot count, the trend and the next step -- is measured and
- * decided by the same code a real photo goes through, not typed in. Three
- * stories are set up so each part of the app has something to show:
+ * A made-up baby with a week of history, built on the phone in a few seconds,
+ * from real, openly licensed photos wherever one exists (Wikimedia Commons,
+ * credited in assets/demo/CREDITS.md). Every number shown -- size, redness,
+ * stool colour, eye reflex, the trend and the next step -- is measured and
+ * decided by the same code a parent's photo goes through, not typed in.
  *
- *  - a cheek patch that is fading (calm: keep an eye on it)
- *  - tummy spots that are spreading fast (show your doctor this week)
+ *  - real photos: a strawberry mark, a Mongolian blue spot, cradle cap, two
+ *    normal stools, a flash photo with red reflexes
+ *  - one simulated series, labelled as such: tummy spots spreading over three
+ *    days (no open photo series of one baby's rash exists), to show the trend
  *  - egg followed twice by hives (a food pattern) and a new peanut check-in due
  */
 object DemoData {
@@ -66,33 +68,22 @@ object DemoData {
         val ageDays = 213
         d.saveBaby(BabyEntity(name = "Aarav (demo)", birthMs = now - ageDays * DAY, demo = true))
 
-        // ---- 1. Cheek patch, fading -------------------------------------------
-        val tone4 = Synth.TONES[3].second
-        val cheek = d.addConcern(ConcernEntity(title = "Cheek patch", kind = ConcernKind.DRY_PATCH.name, area = BodyArea.FACE.name, createdMs = now - 6 * DAY))
-        val cheekDays = listOf(6, 4, 2, 0)
-        val cheekR = listOf(0.15, 0.13, 0.10, 0.075)
-        val cheekA = listOf(9.0, 7.5, 5.5, 4.8)
-        cheekDays.forEachIndexed { i, day ->
-            val img = Synth.skin(640, tone4, listOf(Synth.Spot(0.5, 0.5, cheekR[i])), deltaA = cheekA[i], deltaL = 7.0, seed = 10 + i)
-            addEntry(cheek, ConcernKind.DRY_PATCH, BodyArea.FACE, ageDays, img, now - day * DAY - 3 * H, NCircle(0.5, 0.5, 0.25))
-        }
+        // ---- 1-3. Real photos, one check each ---------------------------------
+        realEntry("Strawberry mark on the arm", ConcernKind.BIRTHMARK, BodyArea.ARMS_HANDS, ageDays, "demo/skin/infantile_hemangioma.jpg",
+            NCircle(0.56, 0.47, 0.2), now - 9 * DAY)
+        realEntry("Blue-grey patch on the lower back", ConcernKind.BIRTHMARK, BodyArea.BACK, ageDays, "demo/skin/real_mongolian_spot.jpg",
+            NCircle(0.66, 0.43, 0.1), now - 20 * DAY)
+        realEntry("Flaky scalp", ConcernKind.DRY_PATCH, BodyArea.SCALP, ageDays, "demo/skin/real_cradle_cap.jpg",
+            NCircle(0.62, 0.55, 0.24), now - 5 * DAY)
 
-        // ---- 2. Tummy spots, spreading ----------------------------------------
+        // ---- 4. Tummy spots, spreading (simulated photos) ----------------------
         val tone3 = Synth.TONES[2].second
-        val tummy = d.addConcern(ConcernEntity(title = "Tummy spots", kind = ConcernKind.RASH.name, area = BodyArea.CHEST_BELLY.name, createdMs = now - 2 * DAY))
+        val tummy = d.addConcern(ConcernEntity(title = "Tummy spots (simulated photos)", kind = ConcernKind.RASH.name, area = BodyArea.CHEST_BELLY.name, createdMs = now - 2 * DAY))
         val rnd = Random(42)
         val all = List(16) { Synth.Spot(0.5 + (rnd.nextDouble() - 0.5) * 0.36, 0.5 + (rnd.nextDouble() - 0.5) * 0.36, 0.014 + rnd.nextDouble() * 0.012) }
         listOf(2 to 5, 1 to 10, 0 to 16).forEachIndexed { i, (day, n) ->
             val img = Synth.skin(640, tone3, all.take(n), deltaA = Synth.rednessFor(tone3, 15.0), deltaL = -3.0, seed = 20 + i)
             addEntry(tummy, ConcernKind.RASH, BodyArea.CHEST_BELLY, ageDays, img, now - day * DAY - 2 * H, NCircle(0.5, 0.5, 0.27))
-        }
-
-        // ---- 3. Birthmark, steady ---------------------------------------------
-        val tone2 = Synth.TONES[1].second
-        val mark = d.addConcern(ConcernEntity(title = "Mark on the arm", kind = ConcernKind.BIRTHMARK.name, area = BodyArea.ARMS_HANDS.name, createdMs = now - 21 * DAY))
-        listOf(21 to 0.09, 7 to 0.092).forEachIndexed { i, (day, r) ->
-            val img = Synth.skin(640, tone2, listOf(Synth.Spot(0.5, 0.5, r)), deltaA = 18.0, deltaL = -6.0, seed = 30 + i)
-            addEntry(mark, ConcernKind.BIRTHMARK, BodyArea.ARMS_HANDS, ageDays, img, now - day * DAY, NCircle(0.5, 0.5, 0.2))
         }
 
         // ---- 4. Foods and reactions -------------------------------------------
@@ -127,34 +118,41 @@ object DemoData {
         }
         log("peanut_butter", 5.0, now - 40 * 60_000L, checked = false)
 
-        // ---- 5. Nappy and eye checks ------------------------------------------
-        listOf(5 to "8", 3 to "B", 1 to "8").forEach { (day, id) ->
-            val s = StoolCard.byId(id)
-            val img = Synth.onNappy(400, s.lab, Synth.NEUTRAL, seed = day)
-            val r = StoolCard.read(img, NCircle(0.5, 0.5, 0.15))
-            val adv = StoolRules.advise(StoolRules.Input(s, r, ageDays))
-            val path = SkinServices.photos.save(PhotoStore.toBitmap(img), "stool")
-            d.addStool(StoolCheckEntity(timeMs = now - day * DAY, photoPath = path, chosen = id, measured = r.nearest.id,
+        // ---- 5. Nappy and eye checks, real photos -------------------------------
+        listOf(5 to "demo/stool/real_yellow_seedy.jpg", 2 to "demo/stool/real_brown.jpg").forEach { (day, asset) ->
+            val bmp = SkinServices.photos.loadAsset(asset) ?: return@forEach
+            val img = PhotoStore.toPixels(bmp)
+            val r = StoolCard.read(img, StoolCard.suggestSpot(img) ?: NCircle(0.5, 0.5, 0.12))
+            val adv = StoolRules.advise(StoolRules.Input(r.nearest, r, ageDays))
+            d.addStool(StoolCheckEntity(timeMs = now - day * DAY, photoPath = SkinServices.photos.save(bmp, "stool"), chosen = r.nearest.id, measured = r.nearest.id,
                 l = r.stool.l, a = r.stool.a, b = r.stool.b, whiteCorrected = r.whiteCorrected, step = adv.step.name))
         }
-        val eye = Synth.eye(300, Lab(45.0, 58.0, 44.0))
-        val pupil = NCircle(0.5, 0.5, 0.18)
-        val pair = EyeReflex.readPair(eye, pupil, pupil)
-        val eyeAdv = EyeRules.advise(EyeRules.Input(pair, 0, 0, emptyMap()))
-        d.addEye(EyeCheckEntity(timeMs = now - 4 * DAY, photoPath = SkinServices.photos.save(PhotoStore.toBitmap(eye), "eye"),
-            left = pair.left.reflex.name, right = pair.right.reflex.name, step = eyeAdv.step.name))
+        SkinServices.photos.loadAsset("demo/eyes/red_eye_effect_2.jpg")?.let { eye ->
+            val found = runCatching { SkinServices.eyes.find(eye) }.getOrNull()
+            val pair = EyeReflex.readPair(PhotoStore.toPixels(eye, 1600), found?.left ?: NCircle(0.4, 0.45, 0.03), found?.right ?: NCircle(0.6, 0.45, 0.03))
+            val eyeAdv = EyeRules.advise(EyeRules.Input(pair, 0, 0, emptyMap(), found?.angle))
+            d.addEye(EyeCheckEntity(timeMs = now - 4 * DAY, photoPath = SkinServices.photos.save(eye, "eye"),
+                left = pair.left.reflex.name, right = pair.right.reflex.name, step = eyeAdv.step.name))
+        }
+    }
+
+    /** One check of a real demo photo, measured and decided like a parent's photo. */
+    private suspend fun realEntry(title: String, kind: ConcernKind, area: BodyArea, ageDays: Int, asset: String, circle: NCircle, time: Long) {
+        val bmp = SkinServices.photos.loadAsset(asset) ?: return
+        val concern = SkinServices.dao.addConcern(ConcernEntity(title = title, kind = kind.name, area = area.name, createdMs = time))
+        addEntry(concern, kind, area, ageDays, PhotoStore.toPixels(bmp), time, circle, bmp)
     }
 
     private suspend fun addEntry(concern: Long, kind: ConcernKind, area: BodyArea, ageDays: Int,
-                                 img: com.nila.skin.core.image.PixelImage, time: Long, circle: NCircle) {
+                                 img: com.nila.skin.core.image.PixelImage, time: Long, circle: NCircle, original: android.graphics.Bitmap? = null) {
         val d = SkinServices.dao
         val r = SkinMeasure.measure(img, circle)
         val prev = d.entriesNow(concern)
         val points = prev.map { TrendPoint(it.timeMs, it.areaOfPhoto, false, it.redness, it.spots) } + TrendPoint(time, r.areaOfPhoto, false, r.rednessScore, r.spots)
         val trend = if (points.size >= 2) Trend.summarise(points) else null
         val answers = SkinRules.questions(kind).associate { it.id to Answer.NO }
-        val adv = SkinRules.advise(SkinRules.Input(kind, area, ageDays, answers, r, trend, 1, prev.isEmpty()))
-        val path = SkinServices.photos.save(PhotoStore.toBitmap(img), "skin")
+        val adv = SkinRules.advise(SkinRules.Input(kind, area, ageDays, answers, r, trend, 2, prev.isEmpty()))
+        val path = SkinServices.photos.save(original ?: PhotoStore.toBitmap(img), "skin")
         d.addEntry(SkinEntryEntity(
             concernId = concern, timeMs = time, photoPath = path, cx = circle.cx, cy = circle.cy, r = circle.r,
             coverage = r.coverage, areaOfPhoto = r.areaOfPhoto, areaMm2 = null, spots = r.spots,

@@ -164,15 +164,21 @@ class WhiteBalance private constructor(val gainR: Double, val gainG: Double, val
     companion object {
         val NONE = WhiteBalance(1.0, 1.0, 1.0)
 
+        /** Linear luminance of L* 92, a white nappy or tissue in good light. */
+        const val WHITE_Y = 0.8061
+
         /**
          * @param refLinear mean linear RGB of the white reference.
          * Keeps the reference's own brightness (green channel) so exposure is
          * not changed, only colour.
          */
-        fun fromReference(refLinear: DoubleArray): WhiteBalance {
+        fun fromReference(refLinear: DoubleArray, exposure: Boolean = false): WhiteBalance {
             val (r, g, b) = Triple(refLinear[0].coerceAtLeast(1e-3), refLinear[1].coerceAtLeast(1e-3), refLinear[2].coerceAtLeast(1e-3))
-            val target = g
-            val wb = WhiteBalance(target / r, 1.0, target / b)
+            // With [exposure], the reference is also brought to the brightness of
+            // a white nappy in good light (L* 92), within limits, so a dim photo
+            // does not make pale poo look darker and more coloured.
+            val target = if (exposure) (WHITE_Y / g).coerceIn(0.8, 2.5) * g else g
+            val wb = WhiteBalance(target / r, target / g, target / b)
             wb.castChroma = ColorMath.labLinear(r, g, b).chroma
             return wb
         }

@@ -26,7 +26,8 @@ import androidx.compose.material.icons.outlined.RadioButtonUnchecked
 import androidx.compose.material.icons.outlined.Remove
 import androidx.compose.material.icons.outlined.Restaurant
 import androidx.compose.material.icons.outlined.Search
-import androidx.compose.material.icons.outlined.Warning
+import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.LocalHospital
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -49,6 +50,12 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.nila.skin.core.food.Allergen
+import com.nila.skin.core.food.AllergenUpkeep
+import com.nila.skin.core.food.oneIn
+import com.nila.skin.ui.RemindButton
+import com.nila.skin.ui.PlateAI
+import com.nila.skin.core.food.FoodCheck
+import com.nila.skin.ui.safely
 import com.nila.skin.core.food.AllergyRules
 import com.nila.skin.core.food.DietDiversity
 import com.nila.skin.core.food.Exposure
@@ -134,6 +141,9 @@ fun FoodScreen(baby: BabyEntity?, go: (String) -> Unit, back: () -> Unit) {
                 NilaCard(modifier = Modifier.fillMaxWidth(), tone = Tone.PINK) {
                     Text("First time: ${db[f.foodId]?.name ?: f.foodId}", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                     MutedText("Given ${fmtDateTime(f.timeMs)}. Most reactions show within 2 hours; eczema flares can take up to 2 days.")
+                    if (now - f.timeMs < 2 * H) RemindButton("checkin-${f.id}", "Remind me at ${fmtDateTime(f.timeMs + 2 * H).substringAfter(", ")}",
+                        "Check-in: first ${db[f.foodId]?.name ?: f.foodId}", "Two hours since the first taste. Any rash, swelling, vomiting or breathing change? Tap to answer.",
+                        f.timeMs + 2 * H, Modifier.fillMaxWidth())
                     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         OutlinePillButton("No reaction", onClick = { scope.launch { dao.updateFood(f.copy(checkedInMs = System.currentTimeMillis())) } }, modifier = Modifier.weight(1f))
                         PillButton("Something's off", onClick = {
@@ -159,7 +169,7 @@ fun FoodScreen(baby: BabyEntity?, go: (String) -> Unit, back: () -> Unit) {
                 reactionAdvice = adv
             }
         } else if (reactionAdvice == null) {
-            OutlinePillButton("Log a reaction", onClick = { reacting = true }, icon = Icons.Outlined.Warning, modifier = Modifier.fillMaxWidth())
+            OutlinePillButton("Log a reaction", onClick = { reacting = true }, icon = Icons.Outlined.Info, modifier = Modifier.fillMaxWidth())
         }
 
         // Log food
@@ -175,19 +185,24 @@ fun FoodScreen(baby: BabyEntity?, go: (String) -> Unit, back: () -> Unit) {
         // Patterns
         Heading("Patterns")
         val strong = patterns.filter { it.strength == ReactionPatterns.Pattern.Strength.PATTERN }
+        val possible = patterns.filter { it.strength == ReactionPatterns.Pattern.Strength.POSSIBLE }
         val once = patterns.filter { it.strength == ReactionPatterns.Pattern.Strength.ONE_OFF }
         NilaCard(modifier = Modifier.fillMaxWidth()) {
-            if (strong.isEmpty() && once.isEmpty()) MutedText("No reactions logged after any food. Patterns appear here once there's something to compare.")
+            if (strong.isEmpty() && possible.isEmpty() && once.isEmpty()) MutedText("No reactions logged after any food. Patterns appear here once there's something to compare.")
             strong.forEach { p ->
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     Icon(Icons.Outlined.Insights, null, tint = toneColors(Tone.PINK).ink)
                     Column(Modifier.weight(1f)) {
                         Text("${db[p.foodId]?.name ?: p.foodId}: ${p.followed} of ${p.exposures} times followed by a reaction",
                             style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-                        MutedText("${"%.0f".format(p.lift)}× the rate after other foods. Worth showing your doctor; only a doctor (and often a test) can say if it's an allergy.")
+                        MutedText("${"%.0f".format(p.lift)}× the rate after other foods. By chance alone this would happen ${oneIn(p.chance)} (Fisher's exact test). Worth showing your doctor; only a doctor (and often a test) can say if it's an allergy.")
                         if (p.confounded > 0) MutedText("${p.confounded} of those times another new food was given too, which muddies the picture.")
                     }
                 }
+            }
+            possible.forEach { p ->
+                Text("${db[p.foodId]?.name ?: p.foodId}: possible pattern (${p.followed} of ${p.exposures} times)", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                MutedText("With this few logs it could still be chance (${oneIn(p.chance)}). Keep logging; it becomes clearer either way.")
             }
             once.take(4).forEach { p ->
                 MutedText("${db[p.foodId]?.name ?: p.foodId}: a reaction followed once (${p.exposures} times given). One event isn't a pattern.")
@@ -197,18 +212,32 @@ fun FoodScreen(baby: BabyEntity?, go: (String) -> Unit, back: () -> Unit) {
         // Allergen tracker
         Heading("Common allergens")
         val tried = logs.flatMap { db[it.foodId]?.allergens ?: emptySet() }.toSet()
+        // Paused on a pattern or possible pattern, or after a reaction to a food given only once or twice:
+        // an everyday food with one coincidence (khichdi, 1 of 11) does not pause its allergens.
+        val paused = patterns.filter { p ->
+            p.strength == ReactionPatterns.Pattern.Strength.PATTERN || p.strength == ReactionPatterns.Pattern.Strength.POSSIBLE ||
+                (p.followed > 0 && p.exposures <= 2)
+        }.flatMap { db[it.foodId]?.allergens ?: emptySet() }.toSet()
+        val upkeep = AllergenUpkeep.of(logs.map { AllergenUpkeep.Given(db[it.foodId]?.allergens ?: emptySet(), it.timeMs) }, paused, now)
+        val peanutProtein = logs.filter { now - it.timeMs in 0..7 * 24 * H && db[it.foodId]?.allergens?.contains(Allergen.PEANUT) == true }
+            .sumOf { (db[it.foodId]?.per100g?.proteinG ?: 0.0) * it.grams / 100.0 }
         NilaCard(modifier = Modifier.fillMaxWidth(), verticalSpacing = 6.dp) {
-            MutedText("Early introduction of allergens, one at a time, lowers allergy risk for many babies (LEAP trial; NIAID 2017).")
-            Allergen.entries.forEach { a ->
-                val first = logs.filter { db[it.foodId]?.allergens?.contains(a) == true }.minByOrNull { it.timeMs }
+            MutedText("Early introduction of allergens, one at a time, lowers allergy risk for many babies (LEAP trial; NIAID 2017). Once in, keeping them in the diet about twice a week matters too (ASCIA).")
+            upkeep.forEach { s ->
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Icon(if (a in tried) Icons.Outlined.CheckCircle else Icons.Outlined.RadioButtonUnchecked, null,
-                        tint = if (a in tried) toneColors(Tone.TEAL).ink else MaterialTheme.colorScheme.outline)
-                    Text(a.label, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
-                    MutedText(first?.let { "since ${fmtDate(it.timeMs)}" } ?: "not yet")
+                    Icon(if (s.tried) Icons.Outlined.CheckCircle else Icons.Outlined.RadioButtonUnchecked, null,
+                        tint = if (s.paused) toneColors(Tone.PEACH).ink else if (s.tried) toneColors(Tone.TEAL).ink else MaterialTheme.colorScheme.outline)
+                    Column(Modifier.weight(1f)) {
+                        Text(s.allergen.label, style = MaterialTheme.typography.bodyLarge)
+                        s.note(now)?.let { MutedText(it) }
+                    }
+                    MutedText(s.firstMs?.let { "since ${fmtDate(it)}" } ?: "not yet")
                 }
             }
+            if (Allergen.PEANUT in tried && Allergen.PEANUT !in paused)
+                MutedText("Peanut protein this week: ${"%.1f".format(peanutProtein)} g. NIAID suggests about 6-7 g a week over 3 or more feeds once peanut is started (about 2 tsp of peanut butter, three times a week).")
         }
+        WeekCard(logs, ageDays, now)
         val eczema = eczemaText?.let { t -> Answer.entries.firstOrNull { it.name == t } }
         QuestionCard(AllergyRules.ECZEMA_SEVERE, eczema, { a -> scope.launch { dao.putSetting(SettingEntity("eczema_severe", a.name)) } })
         AllergyRules.introductionAdvice(ageDays, eczema, tried).forEach { r ->
@@ -240,6 +269,28 @@ fun FoodScreen(baby: BabyEntity?, go: (String) -> Unit, back: () -> Unit) {
     }
 }
 
+/** The last 7 days at a glance: food-group days and average iron, the two numbers worth watching. */
+@Composable
+private fun WeekCard(logs: List<FoodLogEntity>, ageDays: Int, now: Long) {
+    if (ageDays < 182) return
+    val db = SkinServices.foods
+    val week = logs.filter { now - it.timeMs in 0..7 * 24 * H }
+    if (week.isEmpty()) return
+    val byDay = week.groupBy { (now - it.timeMs) / (24 * H) }
+    val diverseDays = byDay.values.count { day -> DietDiversity.of(day.mapNotNull { db[it.foodId] }, breastfedToday = true).meets }
+    val t = Nutrition.targets(ageDays)
+    val ironPerDay = byDay.values.map { day -> day.sumOf { (db[it.foodId]?.per100g?.ironMg ?: 0.0) * it.grams / 100.0 } }.average()
+    Heading("This week")
+    NilaCard(modifier = Modifier.fillMaxWidth()) {
+        Text("$diverseDays of ${byDay.size} logged days reached 5 of 8 food groups", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+        MutedText("WHO's minimum dietary diversity, counting breast milk as one group.")
+        if (t.ironMg > 0) {
+            Text("Iron from food: about ${"%.1f".format(ironPerDay)} of ${"%.0f".format(t.ironMg)} mg a day", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+            MutedText(if (ironPerDay >= t.ironMg * 0.8) "Close to the ICMR-NIN 2020 need." else "Iron is the nutrient most often short at this age; the meal plate screen suggests iron-rich foods from the table.")
+        }
+    }
+}
+
 @Composable
 private fun ReactionCard(onCancel: () -> Unit, onSave: (Set<Sign>, Bitmap?, String) -> Unit) {
     val signs = remember { mutableStateListOf<Sign>() }
@@ -248,7 +299,7 @@ private fun ReactionCard(onCancel: () -> Unit, onSave: (Set<Sign>, Bitmap?, Stri
     NilaCard(modifier = Modifier.fillMaxWidth()) {
         Text("What did you notice?", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
         ChipGroup(Sign.entries, { it.label }, { it in signs }, { s -> if (s in signs) signs.remove(s) else signs.add(s) })
-        if (signs.any { it.severe }) InfoNote("These can be signs of a severe allergic reaction. Call 112 or 108 now; save the log after.", icon = Icons.Outlined.Warning, tone = Tone.PINK)
+        if (signs.any { it.severe }) InfoNote("These signs need a doctor straight away. Go now; you can save the log after.", icon = Icons.Outlined.LocalHospital, tone = Tone.PLUM)
         OutlinedTextField(note, { note = it }, label = { Text("Note (optional)") }, modifier = Modifier.fillMaxWidth())
         if (photo == null) PhotoInput("skin", onPhoto = { b, _ -> photo = b }, hint = "A photo of any rash helps the doctor (optional).")
         else MutedText("Photo added.")
@@ -279,7 +330,7 @@ fun FoodPicker(ageDays: Int, onPick: (Food, Double) -> Unit) {
                 IconButton(onClick = { chosen = null }) { Icon(Icons.Outlined.Close, "Change") }
             }
             AmountStepper(f, units) { units = it }
-            FoodSafety.cautions(f, ageDays).forEach { InfoNote(it, icon = Icons.Outlined.Warning, tone = Tone.PEACH) }
+            FoodSafety.cautions(f, ageDays).forEach { InfoNote(it, icon = Icons.Outlined.Info, tone = Tone.PEACH) }
             PillButton("Log it", enabled = FoodSafety.blockedReason(f, ageDays) == null, icon = Icons.Outlined.Check, modifier = Modifier.fillMaxWidth(), onClick = {
                 onPick(f, units * f.unitGrams); chosen = null; q = ""
             })
@@ -300,7 +351,7 @@ fun AmountStepper(food: Food, units: Double, onChange: (Double) -> Unit) {
 // Meal plate
 // ---------------------------------------------------------------------------
 
-private data class PlateRow(val food: Food?, val text: String, val units: Double)
+private data class PlateRow(val food: Food?, val text: String, val units: Double, val evidence: FoodCheck.Evidence? = null, val included: Boolean = true)
 
 @Composable
 fun MealScreen(baby: BabyEntity?, back: () -> Unit) {
@@ -315,51 +366,63 @@ fun MealScreen(baby: BabyEntity?, back: () -> Unit) {
     val breastfed = breastfedText != "false"
 
     var photo by remember { mutableStateOf<Bitmap?>(null) }
-    var looking by remember { mutableStateOf(false) }
+    var stage by remember { mutableStateOf<String?>(null) }
     var aiNote by remember { mutableStateOf<String?>(null) }
     var aiRaw by remember { mutableStateOf<String?>(null) }
+    var crossCheck by remember { mutableStateOf(true) }
     val rows = remember { mutableStateListOf<PlateRow>() }
     var saved by remember { mutableStateOf(false) }
 
     SkinScaffold("Meal plate", onBack = back) {
-        ScreenHero("What's on the plate?", "Photo a meal: the on-device AI lists the foods, you confirm amounts, and Nila adds up nutrients against ICMR-NIN 2020 needs and WHO's food groups.")
+        ScreenHero("What's in the bowl?", "Photo a meal: the on-device AI suggests the foods, three independent checks test each one, you confirm, and Nila adds up nutrients against ICMR-NIN 2020 needs and WHO's food groups.")
         if (ageDays < 182) InfoNote("WHO recommends only breast milk or formula until about 6 months. You can still log foods your doctor has advised.", tone = Tone.PEACH)
 
         if (!saved) {
             if (photo == null) PhotoInput("meal", onPhoto = { b, _ ->
-                photo = b; looking = true
+                photo = b
                 scope.launch {
-                    val t0 = System.currentTimeMillis()
-                    val raw = SkinServices.vision.look(b, VisionForms.SYSTEM, VisionForms.PLATE_PROMPT)
-                    val secs = "%.1f".format((System.currentTimeMillis() - t0) / 1000.0)
-                    aiRaw = raw
-                    looking = false
-                    if (raw == null) aiNote = "The AI model isn't available, so add the foods yourself below."
-                    else {
-                        val guesses = VisionForms.parsePlate(raw, db)
-                        rows.clear()
-                        guesses.forEach { g -> rows.add(PlateRow(g.food, g.text, if (g.food?.unit == "tbsp") 3.0 else 1.0)) }
-                        aiNote = if (guesses.isEmpty()) "The AI couldn't name the foods; add them below." else "The AI saw: ${guesses.joinToString { it.text }} ($secs s on the NPU). Check and fix anything it got wrong."
-                    }
+                    val r = PlateAI.look(b, crossCheck) { stage = it }
+                    if (r == null) { aiNote = "The AI model isn't available, so add the foods yourself below."; return@launch }
+                    aiRaw = r.firstRaw + (r.secondRaw?.let { "\n[second look] $it" } ?: "")
+                    rows.clear()
+                    r.evidence.forEach { e -> rows.add(PlateRow(e.food, e.text, if (e.food?.unit == "tbsp") 3.0 else 1.0, e.takeIf { crossCheck }, !crossCheck || e.keep)) }
+                    val kept = r.evidence.count { it.keep }
+                    aiNote = if (r.evidence.isEmpty()) "The AI couldn't name the foods; add them below."
+                    else "The AI suggested ${r.evidence.size} food${if (r.evidence.size == 1) "" else "s"} in ${"%.1f".format(r.listMs / 1000.0)} s on the NPU." +
+                        (if (crossCheck) " Cross-checks took ${"%.1f".format(r.checkMs / 1000.0)} s: $kept pre-ticked where most checks agree; the rest are left for you to decide." else "") +
+                        " Untick or remove anything that isn't there."
                 }
-            }, hint = "Photo the plate from above, or skip and add foods by hand.")
-            if (looking) Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                CircularProgressIndicator(modifier = Modifier.size(22.dp), strokeWidth = 2.dp); MutedText("Intern3.5-VL is naming the foods on the NPU...")
+            }, hint = "Photo the bowl or plate from above, or skip and add foods by hand.")
+            if (photo == null) Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("Cross-check each food", style = MaterialTheme.typography.bodyLarge)
+                    MutedText("Small vision models sometimes name foods that aren't there. Each suggestion is tested three ways: does a second, differently worded look name it too; does the AI say yes when asked about that one food; and does the photo actually contain that food's colour (colour maths, no AI). About 1 s per food.")
+                }
+                Switch(crossCheck, { crossCheck = it })
             }
+            stage?.let { st -> Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                CircularProgressIndicator(modifier = Modifier.size(22.dp), strokeWidth = 2.dp); MutedText(st)
+            } }
             aiNote?.let { InfoNote(it, icon = Icons.Outlined.AutoAwesome, tone = Tone.BLUE) }
 
             if (rows.isNotEmpty()) NilaCard(modifier = Modifier.fillMaxWidth()) {
-                Text("On this plate", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                Text("In this meal", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                 rows.forEachIndexed { i, r ->
                     if (i > 0) RowDivider()
                     Row(verticalAlignment = Alignment.CenterVertically) {
+                        androidx.compose.material3.Checkbox(r.included, { rows[i] = r.copy(included = it) })
                         Column(Modifier.weight(1f)) {
                             Text(r.food?.name ?: "\"${r.text}\" (not in the food table)", style = MaterialTheme.typography.titleSmall)
-                            r.food?.let { f -> FoodSafety.cautions(f, ageDays).forEach { MutedText("⚠ $it") } }
+                            r.evidence?.let { e ->
+                                Text(if (e.fromColour) "Suggested by the colour maths" else e.verdict.label, style = MaterialTheme.typography.labelMedium,
+                                    color = toneColors(when (e.verdict) { FoodCheck.Verdict.CONFIRMED -> Tone.TEAL; FoodCheck.Verdict.LIKELY -> Tone.BLUE; else -> Tone.PEACH }).ink)
+                                MutedText(e.summary())
+                            }
+                            r.food?.let { f -> FoodSafety.cautions(f, ageDays).forEach { MutedText("Note: $it") } }
                         }
                         IconButton(onClick = { rows.removeAt(i) }) { Icon(Icons.Outlined.Close, "Remove") }
                     }
-                    r.food?.let { f -> AmountStepper(f, r.units) { u -> rows[i] = r.copy(units = u) } }
+                    if (r.included) r.food?.let { f -> AmountStepper(f, r.units) { u -> rows[i] = r.copy(units = u) } }
                 }
             }
             Heading("Add a food")
@@ -371,12 +434,12 @@ fun MealScreen(baby: BabyEntity?, back: () -> Unit) {
                 }
                 MutedText("Breast milk is one of WHO's eight food groups.")
             }
-            PillButton("Save meal", enabled = rows.any { it.food != null }, icon = Icons.Outlined.Check, modifier = Modifier.fillMaxWidth(), onClick = {
+            PillButton("Save meal", enabled = rows.any { it.food != null && it.included }, icon = Icons.Outlined.Check, modifier = Modifier.fillMaxWidth(), onClick = {
                 scope.launch {
                     val path = photo?.let { withContext(Dispatchers.IO) { SkinServices.photos.save(it, "meal") } }
                     val now = System.currentTimeMillis()
                     val mealId = dao.addMeal(MealEntity(timeMs = now, photoPath = path, aiRaw = aiRaw))
-                    rows.mapNotNull { r -> r.food?.let { it to r.units * it.unitGrams } }.forEach { (f, g) ->
+                    rows.filter { it.included }.mapNotNull { r -> r.food?.let { it to r.units * it.unitGrams } }.forEach { (f, g) ->
                         dao.addFood(FoodLogEntity(foodId = f.id, grams = g, timeMs = now, firstTime = allLogs.none { it.foodId == f.id }, mealId = mealId))
                     }
                     saved = true
@@ -384,12 +447,12 @@ fun MealScreen(baby: BabyEntity?, back: () -> Unit) {
             })
         } else {
             InfoNote("Meal saved. New foods get a check-in on the Food screen.", icon = Icons.Outlined.CheckCircle, tone = Tone.TEAL)
-            OutlinePillButton("Log another meal", onClick = { saved = false; photo = null; rows.clear(); aiNote = null }, modifier = Modifier.fillMaxWidth())
+            OutlinePillButton("Log another meal", onClick = { saved = false; photo = null; rows.clear(); aiNote = null; stage = null }, modifier = Modifier.fillMaxWidth())
         }
 
         // Today so far
         val items = todayLogs.mapNotNull { l -> db[l.foodId]?.let { PlateItem(it, l.grams) } } +
-            if (!saved) rows.mapNotNull { r -> r.food?.let { PlateItem(it, r.units * it.unitGrams) } } else emptyList()
+            if (!saved) rows.filter { it.included }.mapNotNull { r -> r.food?.let { PlateItem(it, r.units * it.unitGrams) } } else emptyList()
         DayNutrition(items, ageDays, breastfed, if (saved) "Today" else "Today, including this plate")
         NotADiagnosis()
     }

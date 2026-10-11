@@ -31,4 +31,5 @@ The feature was built standalone on Nila 2.7.1's exact versions (AGP 8.7.3, Kotl
 - The feature adds only:
   - one camera use, already declared;
   - `READ_MEDIA_IMAGES`, requested only when the parent taps "Scan my gallery";
+  - `POST_NOTIFICATIONS`, requested only when the parent taps "Remind me" (reminders are silent and run on WorkManager);
   - one FileProvider for sharing the report PDF.

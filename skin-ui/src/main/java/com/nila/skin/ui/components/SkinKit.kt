@@ -28,7 +28,6 @@ import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.LocalHospital
 import androidx.compose.material.icons.outlined.Visibility
-import androidx.compose.material.icons.outlined.Warning
 import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -111,7 +110,7 @@ fun stepIcon(step: Step): ImageVector = when (step) {
     Step.WATCH -> Icons.Outlined.CheckCircle
     Step.RECHECK -> Icons.Outlined.Schedule
     Step.DOCTOR_SOON, Step.DOCTOR_TODAY -> Icons.Outlined.LocalHospital
-    Step.URGENT -> Icons.Outlined.Warning
+    Step.URGENT -> Icons.Outlined.LocalHospital
 }
 
 /** A small pill naming a step, for lists. */
@@ -164,19 +163,6 @@ fun AdviceCard(advice: Advice, modifier: Modifier = Modifier) {
         RowDividerOn(c.onContainer.copy(alpha = 0.15f))
         Text("What to do", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold, color = c.onContainer)
         advice.doNow.forEach { Text("• $it", style = MaterialTheme.typography.bodyMedium, color = c.onContainer) }
-        if (advice.step == Step.URGENT) {
-            val context = androidx.compose.ui.platform.LocalContext.current
-            // Opens the dialer with 112 filled in; the parent presses call.
-            androidx.compose.material3.Button(
-                onClick = { context.startActivity(android.content.Intent(android.content.Intent.ACTION_DIAL, android.net.Uri.parse("tel:112"))) },
-                colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = c.accent, contentColor = Color.White),
-                shape = CircleShape, modifier = Modifier.fillMaxWidth(),
-            ) {
-                Icon(Icons.Outlined.LocalHospital, contentDescription = null)
-                Spacer(Modifier.width(10.dp))
-                Text("Call 112", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-            }
-        }
     }
     cite?.let { s ->
         AlertDialog(
@@ -193,17 +179,16 @@ private fun RowDividerOn(color: Color) {
     Box(Modifier.fillMaxWidth().height(1.dp).background(color))
 }
 
-/** The signs that change the advice at once. Shown under every result. */
+/** The signs that mean see a doctor straight away. Shown calmly under every skin result. */
 @Composable
 fun SafetyNetCard(items: List<String>, modifier: Modifier = Modifier) {
     val c = stepColors(Step.URGENT)
     NilaCard(modifier = modifier.fillMaxWidth()) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            Icon(Icons.Outlined.Warning, contentDescription = null, tint = c.accent, modifier = Modifier.size(20.dp))
-            Text("Get help now if you see", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+            Icon(Icons.Outlined.LocalHospital, contentDescription = null, tint = c.accent, modifier = Modifier.size(20.dp))
+            Text("See a doctor straight away if you notice", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
         }
         items.forEach { Text("• $it", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }
-        Text("In India: call 112 or 108.", style = MaterialTheme.typography.labelLarge, color = c.accent)
     }
 }
 

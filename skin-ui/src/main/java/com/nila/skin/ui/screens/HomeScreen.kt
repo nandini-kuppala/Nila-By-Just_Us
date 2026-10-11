@@ -78,6 +78,7 @@ fun HomeScreen(baby: BabyEntity?, go: (String) -> Unit, onExit: (() -> Unit)?) {
                 Text("Their age decides which checks apply: a fever means something different at 2 months than at 8.",
                     style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 PillButton("Add your baby", onClick = { go("profile") }, icon = Icons.Outlined.ChildCare, modifier = Modifier.fillMaxWidth())
+                OutlinePillButton("Demo lab: 11 real moments, one tap each", onClick = { go("demo") }, icon = Icons.Outlined.Science, modifier = Modifier.fillMaxWidth())
                 OutlinePillButton(if (seeding) "Loading demo..." else "Demo mode for judges", enabled = !seeding, onClick = {
                     seeding = true
                     scope.launch { DemoData.load(); seeding = false }
@@ -117,6 +118,10 @@ fun HomeScreen(baby: BabyEntity?, go: (String) -> Unit, onExit: (() -> Unit)?) {
             ListRow("Glass test", subtitle = "For a rash with fever: does it fade under a glass?", icon = Icons.Outlined.WineBar, tone = Tone.SLATE, onClick = { go("glass") })
         }
 
+        NilaCard(modifier = Modifier.fillMaxWidth(), tone = Tone.PLUM, verticalSpacing = 0.dp) {
+            ListRow("Demo lab", subtitle = "11 real-life moments, each run live: a real strawberry mark, a flash photo, a dim-light nappy, a food pattern...", icon = Icons.Outlined.Science, tone = Tone.PLUM, onClick = { go("demo") })
+        }
+
         SectionTitle("For the doctor")
         NilaCard(modifier = Modifier.fillMaxWidth(), verticalSpacing = 0.dp) {
             ListRow("Doctor report", subtitle = "One page: photos, timeline, answers and foods. Shared only by you.", icon = Icons.Outlined.Description, tone = Tone.TEAL, onClick = { go("report") })
@@ -133,7 +138,7 @@ fun HomeScreen(baby: BabyEntity?, go: (String) -> Unit, onExit: (() -> Unit)?) {
                 OutlinePillButton(if (seeding) "Resetting..." else "Reset demo", enabled = !seeding, onClick = {
                     seeding = true; scope.launch { DemoData.load(); seeding = false }
                 }, modifier = Modifier.weight(1f))
-                OutlinePillButton("Clear all", onClick = { scope.launch { DemoData.clear() } }, danger = true, modifier = Modifier.weight(1f))
+                OutlinePillButton("Clear all", onClick = { scope.launch { DemoData.clear() } }, modifier = Modifier.weight(1f))
             }
         }
         NotADiagnosis()
@@ -181,7 +186,7 @@ private fun TodayCard(baby: BabyEntity, go: (String) -> Unit) {
         }
         list.forEachIndexed { i, t ->
             if (i > 0) RowDivider()
-            ListRow(t.title, subtitle = t.subtitle, onClick = { go(t.route) }, trailing = { t.step?.let { StepPill(it) } })
+            ListRow(t.title, subtitle = t.subtitle, onClick = { go(t.route) })
         }
     }
 }

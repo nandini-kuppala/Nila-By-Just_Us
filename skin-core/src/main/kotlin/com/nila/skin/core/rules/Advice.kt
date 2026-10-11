@@ -15,13 +15,13 @@ enum class Step(val title: String, val short: String) {
     RECHECK("Check again tomorrow", "Check again tomorrow"),
     DOCTOR_SOON("Show your doctor this week", "Doctor this week"),
     DOCTOR_TODAY("Talk to a doctor today", "Doctor today"),
-    URGENT("Get medical help now", "Help now"),
+    URGENT("See a doctor now", "Doctor now"),
 }
 
 /** Where a rule comes from. Shown under every piece of advice. */
 enum class Source(val short: String, val full: String) {
     NICE_NG143("NICE NG143", "NICE guideline NG143, Fever in under 5s: traffic light system for identifying risk of serious illness (2019, updated 2021)"),
-    NHS_RASH("NHS rashes & glass test", "NHS: Rashes in babies and children; the glass (tumbler) test for meningitis and sepsis"),
+    NHS_RASH("NHS rashes & glass test", "NHS: Rashes in babies and children; the glass (tumbler) test for a rash that does not fade"),
     NICE_CG57("NICE CG57", "NICE guideline CG57, Atopic eczema in under 12s: infected eczema and eczema herpeticum"),
     WHO_IMNCI("WHO / India IMNCI", "WHO & Government of India IMNCI chart booklet, young infant 0-2 months: jaundice and skin infection"),
     NHS_JAUNDICE("NHS newborn jaundice", "NHS: Newborn jaundice symptoms; check eyes, palms, soles and gums in daylight; jaundice beyond 14 days"),
@@ -29,6 +29,7 @@ enum class Source(val short: String, val full: String) {
     NHS_POO("NHS baby poo guide", "NHS: Your baby's nappy -- after the first few days, red or black poo, or white/pale poo, needs checking by a doctor"),
     AAP_HEMANGIOMA("AAP 2019 hemangioma guideline", "American Academy of Pediatrics clinical practice guideline for infantile hemangiomas (Krowchuk et al., Pediatrics 2019)"),
     RED_REFLEX("Red reflex check", "AAP: Red reflex examination in neonates, infants and children; CRADLE white-eye study (Munson et al., Science Advances 2019)"),
+    ASCIA("ASCIA infant feeding", "Australasian Society of Clinical Immunology and Allergy: guide for introduction of foods to infants -- once a common allergen is introduced, keep giving it regularly (about twice a week)"),
     NIAID_2017("NIAID 2017 peanut addendum", "NIAID Addendum guidelines for the prevention of peanut allergy (2017), based on the LEAP trial"),
     ANAPHYLAXIS("NHS / Resus Council anaphylaxis", "NHS and Resuscitation Council UK: signs of anaphylaxis in babies -- swelling of lips/face/tongue, breathing difficulty, pale or floppy"),
     ICMR_NIN_2020("ICMR-NIN 2020", "ICMR-National Institute of Nutrition: Nutrient requirements for Indians, RDA and EAR (2020)"),
@@ -70,9 +71,7 @@ enum class Answer { YES, NO, UNSURE }
 
 data class Question(val id: String, val text: String, val help: String? = null)
 
-/** India's emergency numbers, shown with every "help now". */
+/** The calm instruction shown with "see a doctor now": one clear next step, no numbers or alarms. */
 object Emergency {
-    const val NUMBER = "112"
-    const val AMBULANCE = "108"
-    const val LINE = "Call $NUMBER or $AMBULANCE, or go to the nearest hospital emergency department."
+    const val LINE = "Go to a doctor or the nearest hospital now. Take your phone: the photos and answers are in the report."
 }

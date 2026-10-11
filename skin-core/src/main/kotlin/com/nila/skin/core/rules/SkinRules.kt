@@ -83,18 +83,18 @@ object SkinRules {
         val r = ArrayList<Reason>()
 
         // ---- red: get help now ----------------------------------------------
-        if (yes(GLASS)) r += Reason("Spots that don't fade under a glass can be a sign of meningitis or sepsis.", Source.NHS_RASH, Step.URGENT)
-        if (yes(DROWSY)) r += Reason("Floppiness, being hard to wake or a weak, high-pitched cry is a red feature.", Source.NICE_NG143, Step.URGENT)
-        if (yes(BREATHING)) r += Reason("Breathing difficulty or blue, grey or mottled skin is a red feature.", Source.NICE_NG143, Step.URGENT)
-        if (yes(SWELLING)) r += Reason("Swelling of the lips, face or tongue can be a severe allergic reaction.", Source.ANAPHYLAXIS, Step.URGENT)
-        if (yes(FEVER) && input.ageDays < 90) r += Reason("Any fever of 38°C or more in a baby under 3 months is a red feature.", Source.NICE_NG143, Step.URGENT)
+        if (yes(GLASS)) r += Reason("Spots that don't fade under a glass need a doctor straight away.", Source.NHS_RASH, Step.URGENT)
+        if (yes(DROWSY)) r += Reason("Floppiness, being hard to wake or a weak, high-pitched cry needs a doctor straight away.", Source.NICE_NG143, Step.URGENT)
+        if (yes(BREATHING)) r += Reason("Breathing difficulty or blue, grey or mottled skin needs a doctor straight away.", Source.NICE_NG143, Step.URGENT)
+        if (yes(SWELLING)) r += Reason("Swelling of the lips, face or tongue can be a strong allergic reaction and needs a doctor straight away.", Source.ANAPHYLAXIS, Step.URGENT)
+        if (yes(FEVER) && input.ageDays < 90) r += Reason("Any fever of 38°C or more in a baby under 3 months needs a doctor straight away.", Source.NICE_NG143, Step.URGENT)
         if (yes(BLISTERS) && input.ageDays < 60 && (input.reading?.spots ?: 0) >= 10)
-            r += Reason("In a baby under 2 months, 10 or more pus spots means a possible serious infection.", Source.WHO_IMNCI, Step.URGENT)
+            r += Reason("In a baby under 2 months, 10 or more pus spots need a doctor straight away.", Source.WHO_IMNCI, Step.URGENT)
 
         // ---- amber: today ---------------------------------------------------
         if (yes(FEVER) && input.ageDays >= 90) r += Reason("A rash with a fever needs a doctor to check for infection.", Source.NICE_NG143, Step.DOCTOR_TODAY)
         if (unsure(GLASS) && yes(FEVER)) r += Reason("With a fever, do the glass test again now. If you still can't tell, treat it as not fading.", Source.NHS_RASH, Step.DOCTOR_TODAY)
-        if (yes(FEEDING)) r += Reason("Feeding much less or fewer wet nappies is an amber feature.", Source.NICE_NG143, Step.DOCTOR_TODAY)
+        if (yes(FEEDING)) r += Reason("Feeding much less or fewer wet nappies should be checked today.", Source.NICE_NG143, Step.DOCTOR_TODAY)
         if (yes(BLISTERS) && input.kind != ConcernKind.BIRTHMARK && r.none { it.source == Source.WHO_IMNCI })
             r += Reason("Blisters, pus, crusts or weeping can mean the skin is infected and may need treatment.", Source.NICE_CG57, Step.DOCTOR_TODAY)
         if (yes(SORE)) r += Reason("A birthmark that is broken, bleeding or sore needs to be looked at.", Source.AAP_HEMANGIOMA, Step.DOCTOR_TODAY)
@@ -115,10 +115,10 @@ object SkinRules {
     }
 
     fun doNow(step: Step): List<String> = when (step) {
-        Step.URGENT -> listOf(Emergency.LINE, "Take your phone with you: the photos and your answers are in the doctor report.")
+        Step.URGENT -> listOf(Emergency.LINE)
         Step.DOCTOR_TODAY -> listOf("Call your doctor or visit a clinic today.", "Show them the photos: tap Doctor report to share everything in one page.")
         Step.DOCTOR_SOON -> listOf("Book a visit this week.", "Keep taking one photo a day of the same spot, so the doctor can see the change.")
-        Step.RECHECK -> listOf("Take another photo of the same spot tomorrow, in daylight, from the same distance.", "If any of the warning signs below appear, get help straight away.")
+        Step.RECHECK -> listOf("Take another photo of the same spot tomorrow, in daylight, from the same distance.", "If any of the signs below appear, see a doctor straight away.")
         Step.WATCH -> listOf("Keep following the care you've been given.", "Take a photo every few days, or sooner if it changes.")
     }
 

@@ -1,5 +1,6 @@
 package com.nila.skin.core.rules
 
+import com.nila.skin.core.measure.EyeAngle
 import com.nila.skin.core.measure.EyePairReading
 import com.nila.skin.core.measure.Reflex
 import com.nila.skin.core.measure.StoolCard
@@ -43,10 +44,10 @@ object JaundiceRules {
         val r = ArrayList<Reason>()
         val yellowSeen = input.anyYellowSeen || yes(PALMS) || yes(EYES)
 
-        if (yellowSeen && input.ageHours < 24) r += Reason("Any yellow colour in the first 24 hours after birth needs urgent checking.", Source.WHO_IMNCI, Step.URGENT)
-        if (yes(PALMS)) r += Reason("Yellow palms or soles at any age is classed as severe jaundice: refer urgently.", Source.WHO_IMNCI, Step.URGENT)
-        if (yes(SLEEPY) && yellowSeen) r += Reason("A yellow baby who is very sleepy or hard to wake needs urgent care.", Source.NHS_JAUNDICE, Step.URGENT)
-        if (yes(STIFF)) r += Reason("Stiffness, arching or a high-pitched cry needs urgent care.", Source.NHS_JAUNDICE, Step.URGENT)
+        if (yellowSeen && input.ageHours < 24) r += Reason("Any yellow colour in the first 24 hours after birth needs a doctor straight away.", Source.WHO_IMNCI, Step.URGENT)
+        if (yes(PALMS)) r += Reason("Yellow palms or soles need a doctor straight away (the WHO chart refers these babies the same day).", Source.WHO_IMNCI, Step.URGENT)
+        if (yes(SLEEPY) && yellowSeen) r += Reason("A yellow baby who is very sleepy or hard to wake needs a doctor straight away.", Source.NHS_JAUNDICE, Step.URGENT)
+        if (yes(STIFF)) r += Reason("Stiffness, arching or a high-pitched cry needs a doctor straight away.", Source.NHS_JAUNDICE, Step.URGENT)
         if (yes(PALE_POO)) r += Reason("Pale poo or dark pee with jaundice can mean a liver problem that is time-critical.", Source.STOOL_CARD, Step.DOCTOR_TODAY)
         if (yes(FEEDING) && yellowSeen) r += Reason("A yellow baby who is feeding poorly should be seen today.", Source.NHS_JAUNDICE, Step.DOCTOR_TODAY)
         val lastingDays = if (input.preterm) 21 else 14
@@ -115,11 +116,18 @@ object EyeRules {
         val whiteCountLeft: Int,
         val whiteCountRight: Int,
         val answers: Map<String, Answer>,
+        /** Gaze and head turn from face landmarks, when a face was found. */
+        val angle: EyeAngle? = null,
     )
 
     fun advise(input: Input): Advice {
         val r = ArrayList<Reason>()
         val latest = input.latest
+        val angle = input.angle
+        if (latest != null && angle != null) {
+            val offWhite = (latest.left.reflex == Reflex.WHITE && angle.leftOffAxis) || (latest.right.reflex == Reflex.WHITE && angle.rightOffAxis)
+            if (offWhite) r += Reason("${angle.words()} in this photo. At that angle the flash can light the optic nerve and glow white in a healthy eye, so a straight-on photo matters.", Source.RED_REFLEX, Step.RECHECK)
+        }
         if (input.whiteCountLeft >= 2 || input.whiteCountRight >= 2)
             r += Reason("A white or yellow glow showed in the same eye in more than one photo. Ask for a red reflex eye check.", Source.RED_REFLEX, Step.DOCTOR_SOON)
         else if (latest?.anyWhite == true)

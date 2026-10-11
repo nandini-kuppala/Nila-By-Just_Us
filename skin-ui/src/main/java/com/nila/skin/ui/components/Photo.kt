@@ -179,7 +179,7 @@ fun CameraCapture(ghost: Bitmap?, flashOn: Boolean, onDismiss: () -> Unit, onRes
             if (ghost != null) Text("Line up with the faint last photo", color = Color.White, style = MaterialTheme.typography.labelLarge,
                 modifier = Modifier.align(Alignment.TopCenter).statusBarsPadding().padding(top = 64.dp))
             Box(
-                Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(bottom = 28.dp).size(78.dp)
+                Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(bottom = 72.dp).size(78.dp)
                     .clip(CircleShape).background(Color.White.copy(alpha = if (busy) 0.4f else 1f)).border(4.dp, Color.White.copy(alpha = 0.5f), CircleShape)
                     .clickable(enabled = !busy) {
                         busy = true
@@ -224,6 +224,8 @@ fun MarkablePhoto(
     onMove: (Int, NCircle) -> Unit,
     mask: Mask? = null,
     showSlider: Boolean = true,
+    /** Pixels used as the white reference, drawn as small dots so the parent can check them. */
+    dots: List<com.nila.skin.core.image.NPoint> = emptyList(),
 ) {
     val img = remember(bitmap) { bitmap.asImageBitmap() }
     val aspect = bitmap.width.toFloat() / bitmap.height
@@ -243,6 +245,13 @@ fun MarkablePhoto(
                     val cw = size.width / mask.width; val ch = size.height / mask.height
                     for (y in 0 until mask.height step 2) for (x in 0 until mask.width step 2) {
                         if (mask.bits[y * mask.width + x]) drawRect(Color(0x554FC3F7), Offset(x * cw, y * ch), androidx.compose.ui.geometry.Size(cw * 2, ch * 2))
+                    }
+                }
+                dots.forEachIndexed { k, d ->
+                    if (k % 4 == 0) {
+                        val o = Offset((d.x * size.width).toFloat(), (d.y * size.height).toFloat())
+                        drawCircle(Color.Black.copy(alpha = 0.55f), 6f, o)
+                        drawCircle(Color.White, 4f, o)
                     }
                 }
                 val short = min(size.width, size.height)

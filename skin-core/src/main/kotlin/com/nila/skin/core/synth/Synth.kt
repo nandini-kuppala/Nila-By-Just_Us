@@ -42,11 +42,14 @@ object Synth {
      *
      * @param deltaA, deltaL, deltaB how the patch differs from the skin.
      * @param lighting multiplies linear R, G, B: (1.1, 1.0, 0.8) is a warm bulb.
+     * @param gradient uneven light: brightness runs from (1 - g) at the left
+     *   edge to (1 + g) at the right, like a window to one side.
      */
     fun skin(
         size: Int, tone: Lab, spots: List<Spot>, deltaA: Double, deltaL: Double = -2.0, deltaB: Double = 0.0,
         seed: Int = 1, noise: Double = 1.6, lighting: DoubleArray = doubleArrayOf(1.0, 1.0, 1.0),
         white: Spot? = null,
+        gradient: Double = 0.0,
     ): PixelImage {
         val rnd = Random(seed)
         // Low-frequency mottling: a few broad blobs, like real skin unevenness.
@@ -70,7 +73,8 @@ object Synth {
                 val d = sqrt((x - white.cx * size) * (x - white.cx * size) + (y - white.cy * size) * (y - white.cy * size))
                 if (d <= white.r * size) argb = ColorMath.toArgb(Lab(93.0 + gauss(rnd) * 0.6, 0.0, 1.5))
             }
-            out[y * size + x] = light(argb, lighting)
+            val g = 1.0 + gradient * (2.0 * x / size - 1.0)
+            out[y * size + x] = light(argb, if (gradient == 0.0) lighting else doubleArrayOf(lighting[0] * g, lighting[1] * g, lighting[2] * g))
         }
         return PixelImage(size, size, out)
     }

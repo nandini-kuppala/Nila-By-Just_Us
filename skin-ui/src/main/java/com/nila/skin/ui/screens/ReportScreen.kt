@@ -176,7 +176,7 @@ suspend fun buildReport(context: Context, baby: BabyEntity, days: Int): File {
         val entries = dao.entriesNow(c.id)
         val inRange = entries.filter { it.timeMs >= from }
         if (inRange.isEmpty()) continue
-        p.text("${c.title} — ${ConcernKind.valueOf(c.kind).label}, ${BodyArea.valueOf(c.area).label}. Tracked since ${fmtDate(c.createdMs)}, ${entries.size} photos.", p.bold)
+        p.text("${c.title} — ${ConcernKind.valueOf(c.kind).label}, ${BodyArea.valueOf(c.area).label}. Tracked since ${fmtDate(c.createdMs)}, ${entries.size} photo${if (entries.size == 1) "" else "s"}.", p.bold)
         val pics = listOfNotNull(entries.first().let { e -> SkinServices.photos.load(e.photoPath, 500)?.let { it to "First · ${fmtDate(e.timeMs)}" } },
             entries.last().takeIf { entries.size > 1 }?.let { e -> SkinServices.photos.load(e.photoPath, 500)?.let { it to "Latest · ${fmtDate(e.timeMs)}" } })
         if (pics.isNotEmpty()) p.images(pics)
@@ -186,7 +186,7 @@ suspend fun buildReport(context: Context, baby: BabyEntity, days: Int): File {
             val deltas = "Δa* %+.1f · ΔL* %+.1f".format(e.deltaA, e.deltaL)
             p.text("${fmtDateTime(e.timeMs)} · ${Step.valueOf(e.step).title} · spots ${e.spots} · size $size · $deltas", p.body, 2f)
             val words = Codec.list(e.words).joinToString("; ")
-            p.text("   Measured: $words" + (e.aiColour?.let { ". AI description: $it, ${Codec.list(e.aiSurfaces).joinToString().lowercase()}" } ?: ""), p.muted, 2f)
+            p.text("   Measured: $words" + (e.aiColour?.let { ". AI description: " + (listOf(it) + Codec.list(e.aiSurfaces).filter { s -> s.isNotBlank() }.map { s -> s.lowercase() } + listOfNotNull(e.aiPattern)).joinToString(", ") } ?: ""), p.muted, 2f)
             val yes = Codec.answers(e.answers).filterValues { it.name != "NO" }.map { "${it.key}=${it.value.name.lowercase()}" }
             if (yes.isNotEmpty()) p.text("   Parent answered: ${yes.joinToString()}", p.muted, 2f)
             Codec.list(e.reasons).forEach { p.text("   • $it", p.muted, 2f) }
@@ -207,8 +207,8 @@ suspend fun buildReport(context: Context, baby: BabyEntity, days: Int): File {
         }
         val pats = ReactionPatterns.analyse(logs.map { Exposure(it.foodId, it.timeMs, it.firstTime) },
             dao.reactionsNow().map { r -> ReactionEvent(r.timeMs, Codec.list(r.signs).mapNotNull { s -> Sign.entries.firstOrNull { it.name == s } }.toSet()) })
-            .filter { it.strength == ReactionPatterns.Pattern.Strength.PATTERN }
-        pats.forEach { p.text("Pattern: ${db[it.foodId]?.name}: ${it.followed} of ${it.exposures} exposures followed by a reaction within the window (${"%.0f".format(it.lift)}× other foods).", p.body, 2f) }
+            .filter { it.strength == ReactionPatterns.Pattern.Strength.PATTERN || it.strength == ReactionPatterns.Pattern.Strength.POSSIBLE }
+        pats.forEach { p.text("${if (it.strength == ReactionPatterns.Pattern.Strength.PATTERN) "Pattern" else "Possible pattern"}: ${db[it.foodId]?.name}: ${it.followed} of ${it.exposures} exposures followed by a reaction within the window (${"%.0f".format(it.lift)}× other foods; one-sided Fisher exact p = ${"%.3f".format(it.chance)}).", p.body, 2f) }
         val firsts = logs.filter { it.firstTime && it.timeMs >= from }.sortedBy { it.timeMs }
         if (firsts.isNotEmpty()) p.text("New foods in this period: " + firsts.joinToString { "${db[it.foodId]?.name} (${fmtDate(it.timeMs)})" }, p.muted)
         p.space()

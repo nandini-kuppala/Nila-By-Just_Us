@@ -2,6 +2,7 @@ package com.nila.skin.ui.screens
 
 import android.graphics.Bitmap
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -20,7 +21,7 @@ import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.Spa
 import androidx.compose.material.icons.outlined.Straighten
 import androidx.compose.material.icons.outlined.Timeline
-import androidx.compose.material.icons.outlined.Warning
+import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -60,7 +61,10 @@ import com.nila.skin.core.rules.ConcernKind
 import com.nila.skin.core.rules.Reason
 import com.nila.skin.core.rules.SkinRules
 import com.nila.skin.core.rules.Step
+import com.nila.skin.core.vlm.Agreement
 import com.nila.skin.core.vlm.VisionForms
+import com.nila.skin.ui.RemindButton
+import com.nila.skin.ui.safely
 import com.nila.skin.data.BabyEntity
 import com.nila.skin.data.Codec
 import com.nila.skin.data.ConcernEntity
@@ -124,11 +128,16 @@ fun SkinListScreen(go: (String) -> Unit, back: () -> Unit) {
                 if (i > 0) RowDivider()
                 val mine = entries.filter { it.concernId == c.id }
                 val last = mine.maxByOrNull { it.timeMs }
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                // The step sits under the text, so long titles keep the full width.
+                Row(Modifier.fillMaxWidth().clickable { go("concern/${c.id}") }.padding(vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     Thumb(last?.photoPath, 56)
-                    ListRow(c.title, subtitle = "${ConcernKind.valueOf(c.kind).label} · ${BodyArea.valueOf(c.area).label} · ${mine.size} photo${if (mine.size == 1) "" else "s"}",
-                        onClick = { go("concern/${c.id}") }, modifier = Modifier.weight(1f),
-                        trailing = { last?.let { StepPill(Step.valueOf(it.step)) } })
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text(c.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                        MutedText("${ConcernKind.valueOf(c.kind).label} · ${BodyArea.valueOf(c.area).label} · ${mine.size} photo${if (mine.size == 1) "" else "s"}")
+                        last?.let { StepPill(Step.valueOf(it.step)) }
+                    }
+                    androidx.compose.material3.Icon(Icons.Outlined.ArrowForward, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         }
@@ -187,6 +196,7 @@ fun SkinCheckScreen(concernId: Long, baby: BabyEntity?, done: (Long) -> Unit, ba
     val answers = remember { mutableStateMapOf<String, Answer>() }
     var advice by remember { mutableStateOf<Advice?>(null) }
     var saving by remember { mutableStateOf(false) }
+    var error by remember { mutableStateOf<String?>(null) }
 
     val ghost = remember(history) { history.lastOrNull()?.let { SkinServices.photos.load(it.photoPath, 1200) } }
 
@@ -195,7 +205,10 @@ fun SkinCheckScreen(concernId: Long, baby: BabyEntity?, done: (Long) -> Unit, ba
         val spot = markers[0].circle
         val coin = if (useCoin && markers.size > 1) SizeReference(markers[1].circle, coinMm.toDoubleOrNull() ?: 20.0) else null
         scope.launch {
-            reading = withContext(Dispatchers.Default) { SkinMeasure.measure(PhotoStore.toPixels(bmp), spot, coin) }
+            val r = safely("skin measure") { withContext(Dispatchers.Default) { SkinMeasure.measure(PhotoStore.toPixels(bmp), spot, coin) } }
+            if (r == null) { error = "Couldn't measure this. Make sure the circle sits inside the photo with some normal skin around it."; return@launch }
+            error = null
+            reading = r
             stage = Stage.QUESTIONS
             aiState = "running"
             val crop = withContext(Dispatchers.Default) { cropAround(bmp, spot, 1.8) }
@@ -231,8 +244,8 @@ fun SkinCheckScreen(concernId: Long, baby: BabyEntity?, done: (Long) -> Unit, ba
                     photo = b
                     scope.launch {
                         val px = withContext(Dispatchers.Default) { PhotoStore.toPixels(b, 600) }
-                        quality = withContext(Dispatchers.Default) { Quality.check(px) }
-                        autoPlaced = withContext(Dispatchers.Default) { SpotFinder.suggest(px) }
+                        quality = safely("quality") { withContext(Dispatchers.Default) { Quality.check(px) } }
+                        autoPlaced = safely("spot finder") { withContext(Dispatchers.Default) { SpotFinder.suggest(px) } }
                         autoPlaced?.let { markers[0] = markers[0].copy(circle = it) }
                         stage = Stage.MARK
                     }
@@ -242,7 +255,7 @@ fun SkinCheckScreen(concernId: Long, baby: BabyEntity?, done: (Long) -> Unit, ba
                 val bmp = photo!!
                 Heading("Circle the spot")
                 MutedText("Tap the middle of the spot and size the circle so it covers the spot with a little normal skin inside. The ring just outside is used as your baby's own normal skin.")
-                quality?.problems?.forEach { InfoNote(it.advice, icon = Icons.Outlined.Warning, tone = Tone.PEACH) }
+                quality?.problems?.forEach { InfoNote(it.advice, icon = Icons.Outlined.Info, tone = Tone.PEACH) }
                 if (autoPlaced != null) InfoNote("Nila placed the circle on the area that differs most from the skin around it. Adjust it if it's off.", icon = Icons.Outlined.AutoAwesome, tone = Tone.BLUE)
                 MarkerTabs(markers, active) { active = it }
                 MarkablePhoto(bmp, markers, active, onMove = { i, nc -> markers[i] = markers[i].copy(circle = nc) })
@@ -261,6 +274,7 @@ fun SkinCheckScreen(concernId: Long, baby: BabyEntity?, done: (Long) -> Unit, ba
                     if (useCoin) OutlinedTextField(coinMm, { coinMm = it.filter { ch -> ch.isDigit() || ch == '.' } }, label = { Text("Coin diameter in mm") },
                         leadingIcon = { androidx.compose.material3.Icon(Icons.Outlined.Straighten, null) }, singleLine = true, modifier = Modifier.fillMaxWidth())
                 }
+                error?.let { InfoNote(it, icon = Icons.Outlined.Info, tone = Tone.PEACH) }
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     OutlinePillButton("Retake", onClick = { stage = Stage.PHOTO }, modifier = Modifier.weight(1f))
                     PillButton("Measure", onClick = { analyse() }, icon = Icons.Outlined.Analytics, modifier = Modifier.weight(1f))
@@ -271,6 +285,7 @@ fun SkinCheckScreen(concernId: Long, baby: BabyEntity?, done: (Long) -> Unit, ba
                 MarkablePhoto(photo!!, markers.take(1), -1, onMove = { _, _ -> }, mask = r.overlay, showSlider = false)
                 MeasureCard(r)
                 AiCard(aiState, ai, aiMs)
+                if (aiState == "done") AgreementCard(Agreement.skin(r, ai))
                 if (stage == Stage.QUESTIONS) {
                     Heading("A few questions")
                     MutedText("These come from NICE, NHS and WHO checklists. Your answers, not the AI, decide the next step.")
@@ -286,7 +301,12 @@ fun SkinCheckScreen(concernId: Long, baby: BabyEntity?, done: (Long) -> Unit, ba
                     if (history.isNotEmpty()) {
                         val points = history.map { TrendPoint(it.timeMs, it.areaMm2 ?: it.areaOfPhoto, it.areaMm2 != null, it.redness, it.spots) } +
                             TrendPoint(System.currentTimeMillis(), r.areaMm2 ?: r.areaOfPhoto, r.areaMm2 != null, r.rednessScore, r.spots)
-                        FactCard("What changed", Icons.Outlined.Timeline, Tone.BLUE, listOf(Trend.summarise(points).sentence))
+                        FactCard("What changed", Icons.Outlined.Timeline, Tone.BLUE, trendLines(Trend.summarise(points)))
+                    }
+                    if (a.step == Step.RECHECK || a.step == Step.DOCTOR_SOON) {
+                        val tomorrow = System.currentTimeMillis() + 22 * 3_600_000L
+                        RemindButton("rephoto-$concernId", "Remind me to photo it again tomorrow", "Photo \"${c.title}\" again",
+                            "Same spot, same distance, in daylight. The faint last photo helps you line it up.", tomorrow, Modifier.fillMaxWidth())
                     }
                     if (a.askDoctor.isNotEmpty()) FactCard("Worth asking your doctor", Icons.Outlined.Check, Tone.TEAL, a.askDoctor)
                     SafetyNetCard(SkinRules.safetyNet)
@@ -316,6 +336,26 @@ fun SkinCheckScreen(concernId: Long, baby: BabyEntity?, done: (Long) -> Unit, ba
             }
         }
     }
+}
+
+/** The trend sentence, plus how it was worked out when there were enough photos. */
+fun trendLines(t: com.nila.skin.core.measure.TrendSummary): List<String> = buildList {
+    add(t.sentence)
+    t.sizePerDay?.let { d ->
+        val pct = ((d - 1) * 100)
+        add(if (kotlin.math.abs(pct) < 3) "Size about steady day to day." else "About ${"%.0f".format(kotlin.math.abs(pct))}% ${if (pct > 0) "bigger" else "smaller"} per day, from a robust line through every photo (Theil–Sen), so one badly framed photo can't swing it.")
+    }
+}
+
+@Composable
+fun AgreementCard(a: Agreement.Result) {
+    if (a.level == Agreement.Level.NO_AI) return
+    val tone = when (a.level) { Agreement.Level.AGREE -> Tone.TEAL; Agreement.Level.PARTLY -> Tone.BLUE; else -> Tone.PEACH }
+    FactCard(a.level.title, Icons.Outlined.Check, tone, a.points + listOf(when (a.level) {
+        Agreement.Level.AGREE -> "Two independent readers saw the same thing."
+        Agreement.Level.PARTLY -> "Look at the photo yourself for the part they differ on."
+        else -> "Check the circle sits on the spot, and look closely yourself. Your answers below decide, not either reader."
+    }))
 }
 
 fun reasonText(r: Reason) = r.text + (r.source?.let { " [${it.short}]" } ?: " [measured]")
@@ -398,6 +438,7 @@ fun ConcernScreen(id: Long, baby: BabyEntity?, go: (String) -> Unit, back: () ->
             NilaCard(modifier = Modifier.fillMaxWidth()) {
                 Text("How it's changing", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                 Text(t.sentence, style = MaterialTheme.typography.bodyLarge)
+                trendLines(t).drop(1).forEach { MutedText(it) }
                 TrendChart(entries.map { (it.areaMm2 ?: it.areaOfPhoto * 100) }, if (entries.all { it.areaMm2 != null }) "Size (mm²)" else "Size (% of photo)")
                 TrendChart(entries.map { it.redness }, "Redness vs own skin (0-100)")
                 TrendChart(entries.map { it.spots.toDouble() }, "Number of spots")
@@ -423,7 +464,7 @@ fun ConcernScreen(id: Long, baby: BabyEntity?, go: (String) -> Unit, back: () ->
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         Text(fmtDateTime(e.timeMs), style = MaterialTheme.typography.titleSmall)
                         MutedText(Codec.list(e.words).take(3).joinToString(" · "))
-                        e.aiColour?.let { MutedText("AI: $it${e.aiSurfaces?.let { s -> ", " + Codec.list(s).joinToString().lowercase() } ?: ""}") }
+                        e.aiColour?.let { MutedText("AI: " + (listOf(it) + Codec.list(e.aiSurfaces).filter { s -> s.isNotBlank() }.map { s -> s.lowercase() } + listOfNotNull(e.aiPattern)).joinToString(", ")) }
                         StepPill(Step.valueOf(e.step))
                     }
                 }

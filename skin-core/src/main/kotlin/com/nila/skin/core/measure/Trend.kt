@@ -19,7 +19,8 @@ data class TrendPoint(
  * memory ("is it spreading?"). Size is compared only between photos measured
  * the same way -- both with a coin, or both framed with the ghost overlay --
  * and a change has to clear a margin bigger than the wobble of re-photographing
- * the same spot before it is called a change.
+ * the same spot before it is called a change. With three or more photos the
+ * change comes from a robust slope through all of them, not just the ends.
  */
 data class TrendSummary(
     val size: Direction,
@@ -29,6 +30,10 @@ data class TrendSummary(
     /** Size change, last vs first, as a ratio (1.5 = half as big again). */
     val sizeRatio: Double?,
     val sentence: String,
+    /** Size change per day from the robust slope, as a ratio (1.2 = 20% a day); null with under 3 photos. */
+    val sizePerDay: Double? = null,
+    /** True when the robust slope over all photos was used rather than first vs last. */
+    val robust: Boolean = false,
 ) {
     enum class Direction(val word: String) { BIGGER("bigger"), SMALLER("smaller"), SAME("about the same"), UNKNOWN("not enough photos yet") }
 
@@ -52,19 +57,30 @@ object Trend {
             )
         }
         val last = sorted.last()
-        // Compare like with like: the most recent earlier photo measured the same way.
-        val firstSame = sorted.firstOrNull { it.sizeIsMm2 == last.sizeIsMm2 && it !== last }
         val first = sorted.first()
         val days = (last.timeMs - first.timeMs) / 86_400_000.0
 
-        val ratio = firstSame?.let { if (it.size > 0) last.size / it.size else null }
+        // Size is only compared between photos measured the same way as the latest.
+        val same = sorted.filter { it.sizeIsMm2 == last.sizeIsMm2 && it.size > 0 }
+        val sizeDays = if (same.size >= 2) (same.last().timeMs - same.first().timeMs) / 86_400_000.0 else 0.0
+        // With 3+ photos, the Theil-Sen slope (median of all pairwise slopes) of
+        // log size against time: one badly framed photo cannot flip the answer,
+        // as it can when only the first and last photos are compared.
+        val robust = same.size >= 3 && sizeDays > 0
+        val perDay = if (robust) kotlin.math.exp(theilSen(same.map { it.timeMs / 86_400_000.0 }, same.map { kotlin.math.ln(it.size) })) else null
+        val ratio = when {
+            robust -> Math.pow(perDay!!, sizeDays)
+            same.size >= 2 -> same.last().size / same.first().size
+            else -> null
+        }
         val size = when {
             ratio == null -> TrendSummary.Direction.UNKNOWN
             ratio >= 1 + SIZE_MARGIN -> TrendSummary.Direction.BIGGER
             ratio <= 1 - SIZE_MARGIN -> TrendSummary.Direction.SMALLER
             else -> TrendSummary.Direction.SAME
         }
-        val dr = last.redness - first.redness
+        val dr = if (sorted.size >= 3 && days > 0) theilSen(sorted.map { it.timeMs / 86_400_000.0 }, sorted.map { it.redness }) * days
+                 else last.redness - first.redness
         val red = when {
             dr >= REDNESS_MARGIN -> TrendSummary.Direction.BIGGER
             dr <= -REDNESS_MARGIN -> TrendSummary.Direction.SMALLER
@@ -84,7 +100,7 @@ object Trend {
         val parts = buildList {
             if (size != TrendSummary.Direction.UNKNOWN) add(
                 when (size) {
-                    TrendSummary.Direction.BIGGER -> "bigger (about ${pct(ratio!!)} larger)"
+                    TrendSummary.Direction.BIGGER -> if (ratio!! >= 2.0) "bigger (about ${pct(ratio)})" else "bigger (about ${pct(ratio)} larger)"
                     TrendSummary.Direction.SMALLER -> "smaller (about ${pct(ratio!!)} smaller)"
                     else -> "about the same size"
                 }
@@ -99,8 +115,22 @@ object Trend {
             if (spots == TrendSummary.Direction.BIGGER) add("more spots") else if (spots == TrendSummary.Direction.SMALLER) add("fewer spots")
         }
         val sentence = "${parts.joinToString(", ").replaceFirstChar { it.uppercase() }} $span."
-        return TrendSummary(size, red, spots, days, ratio, sentence)
+        return TrendSummary(size, red, spots, days, ratio, sentence, perDay, robust)
     }
 
-    private fun pct(r: Double) = "${(abs(r - 1) * 100).toInt()}%"
+    /**
+     * Theil-Sen estimator: the median of the slopes between every pair of
+     * points. Robust to up to ~29% bad points, and simple enough to explain.
+     */
+    fun theilSen(t: List<Double>, v: List<Double>): Double {
+        val slopes = ArrayList<Double>()
+        for (i in t.indices) for (j in i + 1 until t.size) {
+            val dt = t[j] - t[i]
+            if (kotlin.math.abs(dt) > 1e-6) slopes += (v[j] - v[i]) / dt
+        }
+        return com.nila.skin.core.image.Regions.med(slopes.sorted())
+    }
+
+    /** "about 40% larger", or "about 3 times the size" once it has more than doubled. */
+    private fun pct(r: Double) = if (r >= 2.0) "%.1f times the size".format(r).replace(".0 ", " ") else "${(abs(r - 1) * 100).toInt()}%"
 }

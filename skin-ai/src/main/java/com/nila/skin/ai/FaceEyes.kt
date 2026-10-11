@@ -9,6 +9,8 @@ import com.google.mediapipe.tasks.core.Delegate
 import com.google.mediapipe.tasks.vision.core.RunningMode
 import com.google.mediapipe.tasks.vision.facelandmarker.FaceLandmarker
 import com.nila.skin.core.image.NCircle
+import com.nila.skin.core.image.NPoint
+import com.nila.skin.core.measure.EyeAngle
 import kotlin.math.hypot
 import kotlin.math.min
 
@@ -23,7 +25,8 @@ import kotlin.math.min
  */
 class FaceEyes(private val context: Context) {
 
-    data class Eyes(val left: NCircle, val right: NCircle, val faceFound: Boolean)
+    /** Pupils in photo order, plus where the baby was looking (for the off-angle note). */
+    data class Eyes(val left: NCircle, val right: NCircle, val faceFound: Boolean, val angle: EyeAngle? = null)
 
     private var landmarker: FaceLandmarker? = null
     var delegate: String = "none"
@@ -63,7 +66,49 @@ class FaceEyes(private val context: Context) {
         // 468-472 is the subject's right iris (left in the photo), 473-477 the subject's left.
         val a = iris(468); val b = iris(473)
         val (photoLeft, photoRight) = if (a.cx <= b.cx) a to b else b to a
-        return Eyes(photoLeft, photoRight, true)
+        fun pt(i: Int) = NPoint(face[i].x().toDouble(), face[i].y().toDouble())
+        // Eye corners: 33/133 round one eye, 362/263 round the other. Pair each
+        // set with the iris nearest to it rather than trusting left/right names.
+        val setA = pt(33) to pt(133); val setB = pt(362) to pt(263)
+        val midA = (setA.first.x + setA.second.x) / 2
+        val (leftCorners, rightCorners) = if (kotlin.math.abs(midA - photoLeft.cx) <= kotlin.math.abs(midA - photoRight.cx)) setA to setB else setB to setA
+        val angle = runCatching {
+            EyeAngle.of(NPoint(photoLeft.cx, photoLeft.cy), leftCorners.first, leftCorners.second,
+                NPoint(photoRight.cx, photoRight.cy), rightCorners.first, rightCorners.second, pt(1), w / h)
+        }.getOrNull()
+        return Eyes(photoLeft, photoRight, true, angle)
+    }
+
+    /**
+     * A circle on the white of an eye, from face landmarks: between the iris
+     * edge and an eye corner, no bigger than fits between the lids. Of the four
+     * places (two eyes, two corners each) the roomiest wins. Null without a face.
+     */
+    fun sclera(bitmap: Bitmap): NCircle? {
+        val lm = get() ?: return null
+        val argb = if (bitmap.config == Bitmap.Config.ARGB_8888) bitmap else bitmap.copy(Bitmap.Config.ARGB_8888, false)
+        val face = runCatching { lm.detect(BitmapImageBuilder(argb).build()) }.getOrNull()?.faceLandmarks()?.firstOrNull() ?: return null
+        if (face.size < 478) return null
+        val w = bitmap.width.toDouble(); val h = bitmap.height.toDouble(); val short = min(w, h)
+        fun px(i: Int) = face[i].x() * w to face[i].y() * h
+        // iris centre, iris ring, corners, upper lid, lower lid
+        val eyes = listOf(Triple(468, intArrayOf(33, 133), intArrayOf(159, 145)), Triple(473, intArrayOf(362, 263), intArrayOf(386, 374)))
+        var best: NCircle? = null; var bestR = 0.0
+        for ((iris, corners, lids) in eyes) {
+            val (cx, cy) = px(iris)
+            val ri = (1..4).map { k -> val (x, y) = px(iris + k); hypot(x - cx, y - cy) }.average()
+            val lidGap = hypot(px(lids[0]).first - px(lids[1]).first, px(lids[0]).second - px(lids[1]).second)
+            for (c in corners) {
+                val (kx, ky) = px(c)
+                val d = hypot(kx - cx, ky - cy)
+                val gap = d - ri
+                if (gap <= 2) continue
+                val t = (ri + gap * 0.45) / d
+                val r = minOf(gap * 0.3, lidGap * 0.28)
+                if (r > bestR) { bestR = r; best = NCircle((cx + (kx - cx) * t) / w, (cy + (ky - cy) * t) / h, r / short) }
+            }
+        }
+        return best?.takeIf { bestR >= 2.0 }
     }
 
     fun close() { runCatching { landmarker?.close() }; landmarker = null }

@@ -147,8 +147,10 @@ class ReactionTest {
         val re = listOf(ReactionEvent(1 * h, setOf(Sign.HIVES)), ReactionEvent(3 * d + h, setOf(Sign.HIVES)))
         val p = ReactionPatterns.analyse(ex, re)
         assertEquals("egg", p.first().foodId)
-        assertEquals(ReactionPatterns.Pattern.Strength.PATTERN, p.first().strength)
+        // Only seven foods logged: the same shape as a pattern, but chance can't be ruled out.
+        assertEquals(ReactionPatterns.Pattern.Strength.POSSIBLE, p.first().strength)
         val adv = AllergyRules.advise(re.last(), p) { it }
+        // Hives after a food mean "doctor this week" on their own.
         assertEquals(Step.DOCTOR_SOON, adv.step)
     }
 
@@ -158,8 +160,19 @@ class ReactionTest {
             listOf(Exposure("egg", 0 * d + 10 * h, true), Exposure("egg", 3 * d + 10 * h, false), Exposure("egg", 6 * d + 10 * h, false))
         val re = listOf(ReactionEvent(11 * h, setOf(Sign.HIVES)), ReactionEvent(3 * d + 11 * h, setOf(Sign.HIVES)))
         val p = ReactionPatterns.analyse(ex, re).associateBy { it.foodId }
+        assertEquals(ReactionPatterns.Pattern.Strength.POSSIBLE, p["egg"]!!.strength)
+        assertEquals(ReactionPatterns.Pattern.Strength.ONE_OFF, p["rice"]!!.strength)
+    }
+
+    @Test fun aFortnightOfLogsTurnsItIntoAPattern() {
+        // Four everyday foods for 14 days, egg three times, hives after two of the eggs.
+        val ex = (0 until 14).flatMap { day -> listOf("rice", "dal", "banana", "curd").mapIndexed { i, f -> Exposure(f, day * d + (8 + i * 3) * h, day == 0) } } +
+            listOf(Exposure("egg", 1 * d + 9 * h, true), Exposure("egg", 5 * d + 9 * h, false), Exposure("egg", 9 * d + 9 * h, false))
+        val re = listOf(ReactionEvent(1 * d + 10 * h, setOf(Sign.HIVES)), ReactionEvent(5 * d + 10 * h, setOf(Sign.HIVES)))
+        val p = ReactionPatterns.analyse(ex, re).associateBy { it.foodId }
         assertEquals(ReactionPatterns.Pattern.Strength.PATTERN, p["egg"]!!.strength)
-        assertTrue(p["rice"]!!.strength != ReactionPatterns.Pattern.Strength.PATTERN)
+        assertTrue(p["egg"]!!.chance < 0.05)
+        assertTrue(p.filterKeys { it != "egg" }.values.none { it.strength == ReactionPatterns.Pattern.Strength.PATTERN })
     }
 
     @Test fun swellingIsAnEmergency() {
