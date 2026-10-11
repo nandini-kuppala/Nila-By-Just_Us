@@ -1,8 +1,13 @@
 # Nila
 
-**An offline infant-care companion for Android.** It listens for a cry, tries to
-settle the baby before it wakes anyone, and answers questions about the baby and
-the breastfeeding mother — without a single network request.
+**A 24/7 baby monitor on the phone a family already owns.** It hears the baby
+(a cry, and whether a sound settled it before anyone was woken), watches the
+baby (what she is touching, whether she left the safe zone, on this phone or the
+family's own CCTV), and notices small changes in her health (a mark, the nappy,
+the eyes). Around that: the doctor's visit written down as reminders, sourced
+answers for the baby and the breastfeeding mother, a medicine check, health
+records and a room babyproofed from one photo. Fifteen models on the phone, and
+not a single network request.
 
 <p align="center">
   <img src="docs/screenshots/monitor.png" width="23%" alt="Monitor screen">
@@ -31,7 +36,7 @@ the breastfeeding mother — without a single network request.
   <img alt="Android" src="https://img.shields.io/badge/Android-8.1%2B-3DDC84?logo=android&logoColor=white">
   <img alt="Kotlin" src="https://img.shields.io/badge/Kotlin-2.0-7F52FF?logo=kotlin&logoColor=white">
   <a href="https://github.com/nandini-kuppala/Nila/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/nandini-kuppala/Nila/actions/workflows/ci.yml/badge.svg"></a>
-  <img alt="Tests" src="https://img.shields.io/badge/tests-392%20passing-2ea44f">
+  <img alt="Tests" src="https://img.shields.io/badge/unit%20tests-522%20passing-2ea44f">
   <img alt="Network" src="https://img.shields.io/badge/network%20calls-0-0F6B60">
   <img alt="Licence" src="https://img.shields.io/badge/licence-MIT-blue">
 </p>
@@ -196,6 +201,14 @@ motion rising past its own baseline -- and otherwise asked on a cadence that
 stretches to a quarter of an hour, capped at thirty looks an hour. A monitor
 that is flat at 5am is not a monitor.
 
+**Uses the camera the family already has.** Besides the phone's own lenses
+(including the ultra-wide), the watch can run on a home CCTV camera: setup finds
+ONVIF cameras on the Wi-Fi by itself, logs in once without keeping the password,
+and takes the small H.264 sub-stream over RTSP with a low-delay setup. When a
+router hands the camera a new address, the watch looks for it on the Wi-Fi and
+reconnects by itself. A looped demo video is built in, so the CCTV path can be
+shown with no camera at all.
+
 **Runs both lanes at once.** Microphone and camera, two services, and the
 camera one subscribes to the audio one — because a baby who rolls over in their
 sleep is a notification, and a baby who rolls over *and starts crying* has
@@ -225,8 +238,20 @@ branch (stool card 52/52 under four lights, the same patch read within half a
 point on six skin tones), it shares Nila's vision model and baby profile, and
 gives way to the safety watch for the camera.
 
+**Writes down the doctor's visit.** Put the phone near the paediatrician, tap
+*Record the visit*, then *Visit finished*. Whisper Large-v3 Turbo on the NPU
+writes the visit down (English, Hindi, Tamil or Telugu; an English visit in
+about a tenth of its length), and Qwen3.5-2B turns it into medicines with
+reminders, dates on a calendar, things to watch for and do's and don'ts, each
+carrying the doctor's own words. Dates such as "after three days" are worked out
+in code, not by the model. Measured error: 3–8% of words in English, 7% in
+Hinglish, 10% of characters in Hindi. Details in [the doctor-visit
+notes](docs/DOCTOR_VISIT.md).
+
 **Keeps records.** Health documents for baby and mother, OCR'd at import,
-searchable, and usable by the assistant.
+searchable, and usable by the assistant. Records and doctor's visits share the
+*Health* tab, so the bottom bar stays at five: **Monitor · Ask · Watch · Signs ·
+Health**.
 
 ---
 
@@ -380,6 +405,10 @@ download without an account.
 git tag v2.0.0 && git push origin v2.0.0
 ```
 
+Until that secret is set, the workflow cannot sign, so releases since 2.8.0 have
+been built locally with the same debug key and attached with
+`gh release create vX.Y.Z --verify-tag`.
+
 One secret has to exist first, once, or the release fails — a runner generates
 a fresh debug keystore on every job, and Android refuses an update signed with
 a different key, which would force an uninstall and take the care log and the
@@ -524,6 +553,11 @@ the file directly gives you.
 | Qwen2.5-0.5B | Shortening answers | 547 MB | Optional, one tap |
 | **Intern3.5-VL-2B** | **Describing the cot, on the NPU** | **2.7 GB** | **Optional, one tap** |
 | FastVLM-0.5B | Describing the cot, as a fallback | 1.1 GB | Optional, one tap |
+| `efficientdet_lite0` | Finding the baby for the safe zone, on the GPU | 6.9 MB | In the APK |
+| `face_landmarker` | Little Signs: the eyes in a flash photo | 3.6 MB | In the APK |
+| `ddi_model.onnx` | Kind of interaction between two of 1,710 drugs | 19 MB | In the APK |
+| ML Kit text (Latin + Devanagari) | Reading reports and documents | — | In the APK |
+| **Whisper Large-v3 Turbo** | **Writing down the doctor's visit, on the NPU** | **861 MB** | **Optional, one tap** |
 | `hazards.json` | Babyproofing: 32 hazard words, their query embeddings, fixes and sources | 260 KB | In the APK |
 | OWL-ViT (image half) | Babyproofing: finding hazards in a room photo, on the NPU | 358 MB | Optional, copied with adb (see `babyproof-lab/README.md`) |
 
@@ -551,19 +585,23 @@ android/            The app
     npu/            Which of the two models gets the accelerator
     babyproof/      Room photo to babyproofing list: detector, prompts, rules
     signs/          Little Signs' bridge to Nila's vision model
-skin-core/ skin-data/ skin-ai/ skin-ui/
-                    Little Signs (the Signs tab), from the little-changes branch:
-                    colour maths, comparisons, its own database, screens
+    visit/          The doctor's visit: speech, notes, dates, reminders
+    ddi/            Drug-interaction model and DrugBank's graph
     actions/        Ring light and the distraction a hazard can trigger
     ml/             TFLite runner, RandomForest evaluator
-  app/src/test/     120 JVM tests
-  app/src/androidTest/  62 instrumented tests
+  app/src/test/     449 JVM tests
+  app/src/androidTest/  74 instrumented tests
+  skin-core/ skin-data/ skin-ai/ skin-ui/
+                    Little Signs (the Signs tab), from the little-changes branch:
+                    colour maths (73 JVM tests), its own database, screens
   wear/             Wear OS module
 
 ml/                 Training
   src/              Data prep, training, ablations, export
   reports/          Every evaluation result quoted above
 
+ask-lab/            The Ask pipeline, built and measured as its own app first
+doctor-visit/       The doctor's visit, built and measured as its own app first
 babyproof-lab/      Babyproofing, built and evaluated as its own app first
                     (47 labelled photos, tools to split the detector and replay the rules)
 
@@ -576,8 +614,9 @@ docs/               Technical record and build spec
 
 - **The cause classifier is at chance on unseen infants.** See above. Fixing it
   needs data collected properly, not a better architecture.
-- **English only.** The language plumbing exists; the corpus does not. Translating
-  47 clinical entries needs a human, not a model.
+- **Ask is English only.** The language plumbing exists; the corpus does not.
+  Translating 47 clinical entries needs a human, not a model. (The doctor's
+  visit already hears English, Hindi, Tamil and Telugu.)
 - **The generated answers are a 2B model's, and still get things wrong.** Where
   a sourced entry exists the answer is that entry, exactly, and the model is not
   involved. Where one does not, Qwen3.5-2B at Q4_0 writes from this family's
@@ -588,9 +627,14 @@ docs/               Technical record and build spec
   arithmetic phrased in words. Those answers are labelled on the card as written
   on the phone rather than retrieved, which is the honest thing the app can do
   about it. The fix is more sourced entries, not a better prompt.
-- **The vision model does not run yet.** It is fully wired, and blocked on a
-  LiteRT-LM runtime that is not published. A MediaPipe backend is in place for
-  whenever a suitable bundle is available.
+- **The vision model is a download, and one at a time.** Intern3.5-VL-2B
+  (2.7 GB) runs on the NPU in its own process, so a crash in the native stack
+  cannot close the app, but only one large model sits on the NPU at once: the
+  camera gets it first, and Ask, a doctor's visit or babyproofing wait their
+  turn.
+- **Little Signs measures; it has not been tested clinically.** Its tests check
+  the maths (colour, light, trends), not accuracy against a paediatrician's
+  judgement. That study is the next step.
 - **Babyproofing rarely sees that something is already done.** A plug cover or
   a window grill is recognised sometimes, not reliably (0 of 3 in the eval set,
   though a kitchen with grilled windows came out right), so a protected socket
