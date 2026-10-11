@@ -19,23 +19,23 @@ not a single network request.
 <p align="center">
   <a href="https://appetize.io/app/b_bsweclr2qfx2w4rdwjuwuptp5y"><b>Try it in your browser</b></a>
   &nbsp;·&nbsp;
-  <a href="https://nandini-kuppala.github.io/Nila/">Landing page</a>
+  <a href="docs/index.html">Landing page</a>
   &nbsp;·&nbsp;
-  <a href="https://github.com/nandini-kuppala/Nila/releases/latest">Download the APK</a>
+  <a href="https://github.com/nandini-kuppala/Nila-By-Just_Us/releases/latest">Download the APK</a>
   &nbsp;·&nbsp;
   <a href="docs/nila-demo.mp4">Two-minute demo</a>
   &nbsp;·&nbsp;
-  <a href="https://nandini-kuppala.github.io/Nila/deck.html">Deck</a>
+  <a href="docs/deck.html">Deck</a>
   &nbsp;·&nbsp;
   <a href="docs/models-and-findings.md">Models &amp; findings</a>
   &nbsp;·&nbsp;
-  <a href="https://nandini-kuppala.github.io/Nila/technical-record.html">Technical record</a>
+  <a href="docs/technical-record.html">Technical record</a>
 </p>
 
 <p align="center">
   <img alt="Android" src="https://img.shields.io/badge/Android-8.1%2B-3DDC84?logo=android&logoColor=white">
   <img alt="Kotlin" src="https://img.shields.io/badge/Kotlin-2.0-7F52FF?logo=kotlin&logoColor=white">
-  <a href="https://github.com/nandini-kuppala/Nila/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/nandini-kuppala/Nila/actions/workflows/ci.yml/badge.svg"></a>
+  <a href="https://github.com/nandini-kuppala/Nila-By-Just_Us/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/nandini-kuppala/Nila-By-Just_Us/actions/workflows/ci.yml/badge.svg"></a>
   <img alt="Tests" src="https://img.shields.io/badge/unit%20tests-522%20passing-2ea44f">
   <img alt="Network" src="https://img.shields.io/badge/network%20calls-0-0F6B60">
   <img alt="Licence" src="https://img.shields.io/badge/licence-MIT-blue">
@@ -385,8 +385,8 @@ each behind an explicit tap, each with a URL that is a constant in the source.
 ## Build and run
 
 ```bash
-git clone git@github.com:nandini-kuppala/Nila.git
-cd Nila/android
+git clone git@github.com:nandini-kuppala/Nila-By-Just_Us.git
+cd Nila-By-Just_Us/android
 ./gradlew :app:assembleRelease
 adb install -r app/build/outputs/apk/release/app-release.apk
 ```
