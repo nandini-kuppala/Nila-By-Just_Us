@@ -21,15 +21,22 @@
 3. **Too few specialists.** India has about 1 dermatologist per 130,000–226,000 people, mostly in cities. Patient-taken photos are lower quality and agree less with in-person diagnosis (JMIR Dermatology 2022), so guiding and correcting the photo is value in itself.
 4. **Doctors ask what parents can't answer from memory:** "When did it start? Is it spreading? After which food?"
 
-## Real moments it is built for
+## Who it is for: the little things
 
-- **11 pm, a dim bedroom, a 3-week-old's nappy looks "yellow-ish".** Under a warm lamp, pale poo looks darker and more coloured. Nila corrects colour *and brightness* from the white nappy: in our dim-light test the uncorrected reading got 8 of 13 card colours right, corrected 13 of 13. Pale reads pale; the parent calls the doctor today.
-- **Grandma's flash photo shows one white pupil.** Face landmarks find both pupils, the reflex is read, and the gaze is checked: the commonest false alarm is an off-angle eye lighting the optic nerve. One photo means "take 2–3 more"; the same eye white twice means "book a red reflex check".
-- **"Is it spreading?"** One photo a day with a faint overlay of the last one; size and redness against the baby's own skin; a robust trend through every photo.
-- **Hives after egg, but khichdi is on the table every day.** Exposure windows plus Fisher's exact test separate the real pattern (egg, "about 1 in 90 by chance") from coincidence (khichdi, 2 of 11).
-- **Peanut started at 6 months, then forgotten.** The allergen tracker nudges "keep it in the diet about twice a week" (ASCIA) and counts peanut protein against NIAID's 6–7 g a week.
-- **"What did my baby actually eat?"** Photo the bowl; the on-device AI suggests foods, three cross-checks test each one, the parent confirms; ICMR-NIN 2020 needs and WHO food groups follow.
-- **A 3-day-old looks yellow.** The WHO checklist, answered by the parent, decides: yellow soles mean "see a doctor now"; the camera keeps a colour-corrected record, never a bilirubin guess.
+A baby who is clearly unwell goes straight to the doctor; nobody opens an app for that. Little Signs is for the small things parents wonder about between check-ups, where the answer is usually "normal" and occasionally "worth showing the doctor":
+
+- **"Is this poo colour normal?"** Most days, yes: yellow, mustard, green and brown are all normal. Nila reads the colour against the white of the nappy and shows colour chips, not the nappy.
+- **"Tiny white spots on the nose? Flaky scalp?"** The common-and-harmless guide, with real photos: milia, newborn rash, cradle cap, Mongolian spots, nappy rash, strawberry marks.
+- **"Is this little mark the same or bigger?"** A photo every few days, measured against the baby's own skin; the diary says same, smaller or bigger.
+- **"Is the cheek redness settling?"** The trend shows the care is working.
+- **"Red cheeks after banana. Was it the food?"** One reaction is not a pattern; Nila waits for evidence before pointing at a food.
+- **"Enough iron this week?"** A weekly view against ICMR-NIN needs, with iron-rich ideas.
+- **"Day 5, the eyes look a little yellow."** The WHO checklist says check again tomorrow, and what would change that.
+
+And the quiet signs that are easy to miss, shown gently:
+
+- **A night nappy under a lamp.** Pale poo looks darker and more coloured in a dim warm room. Corrected, pale reads pale: 8 of 13 card colours right uncorrected, 13 of 13 corrected.
+- **One white pupil in a family flash photo.** Face landmarks read the reflex and the gaze. Nila asks for 2-3 straight-on photos first.
 
 ## Why we don't diagnose, and why that's the strong position
 
@@ -64,6 +71,17 @@ A phone photo is a guess at colour: auto white balance, auto exposure, and the l
 - **AI that is cross-checked, not trusted.** Intern3.5-VL-2B on the Hexagon NPU. For foods, three independent checks: two differently worded looks (self-consistency), a yes/no question per food, and colour maths (k-means / per-pixel CIEDE2000 against the food's colour). Colour can veto a food and can propose distinctive ones the AI missed (ragi, beetroot, green or orange purée). For skin, the AI's colour, pattern and texture are compared with the measurement: agree / partly / disagree.
 - **Asymmetric escalation.** Photos and AI can raise to "this week"; only guideline answers reach "see a doctor now".
 
+## 3-minute demo
+
+1. **Home, then Demo lab, then Run every offline demo.** Fifteen everyday moments in one scroll. Most end in "normal, here's why". Linger on:
+   - the night nappy, where three colour chips say "looks brown, is pale";
+   - the family flash photo;
+   - red cheeks after banana.
+2. **Demo mode for judges.** A baby with real photos and a week of history. The diary shows a strawberry mark, a Mongolian spot and cradle cap ("rougher texture").
+3. **Meal plate, then Jars of vegetable purée.** The AI suggests foods; each shows which checks agree.
+4. **How Nila decides.** Run the self-test, then Test the AI on 10 baby-food photos.
+5. **Doctor report.** A PDF made offline.
+
 ## Proof, on the phone
 
 - **Self-test (How Nila decides → Run the self-test):**
@@ -87,7 +105,7 @@ A phone photo is a guess at colour: auto white balance, auto exposure, and the l
   - the Coats-disease flash photo reads white in one eye with "head turned";
   - the red-eye photo reads red in both, "looking straight";
   - yellow eye whites read "clearly yellow, b* 29".
-- **Demo lab:** 11 real moments, each runs live in one tap.
+- **Demo lab:** 15 everyday moments, each runs live in one tap.
 
 ## Judges' questions
 

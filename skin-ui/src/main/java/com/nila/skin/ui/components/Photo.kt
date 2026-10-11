@@ -129,9 +129,12 @@ fun PhotoInput(
             Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 samples.forEach { s ->
                     val bmp = remember(s.asset) { SkinServices.photos.loadAsset(s.asset) }
+                    // Nappy thumbnails are shown as a soft colour mosaic: the colour is what matters.
+                    val thumb = remember(s.asset, bmp) { if (category == "stool") bmp?.let { Bitmap.createScaledBitmap(it, 9, 9, true) } else bmp }
                     Column(Modifier.width(96.dp).clickable { bmp?.let { onPhoto(it, s.label) } }, verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        bmp?.let {
+                        thumb?.let {
                             Image(it.asImageBitmap(), contentDescription = s.label, contentScale = ContentScale.Crop,
+                                filterQuality = if (category == "stool") androidx.compose.ui.graphics.FilterQuality.None else androidx.compose.ui.graphics.FilterQuality.Low,
                                 modifier = Modifier.size(96.dp).clip(RoundedCornerShape(12.dp)))
                         }
                         Text(s.label, style = MaterialTheme.typography.labelSmall, maxLines = 2, color = MaterialTheme.colorScheme.onSurfaceVariant)

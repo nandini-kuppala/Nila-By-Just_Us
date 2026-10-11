@@ -136,6 +136,7 @@ fun StoolScreen(baby: BabyEntity?, back: () -> Unit) {
     var advice by remember { mutableStateOf<Advice?>(null) }
     var saved by remember { mutableStateOf(false) }
     var stoolError by remember { mutableStateOf(false) }
+    var rawColour by remember { mutableStateOf<com.nila.skin.core.color.Lab?>(null) }
 
     SkinScaffold("Nappy colour check", onBack = back, scrollKey = advice == null) {
         ScreenHero("The poo colour card", "Pale poo is the first visible sign of biliary atresia, a liver condition where every week counts. A daily look in the first month catches it.")
@@ -167,6 +168,9 @@ fun StoolScreen(baby: BabyEntity?, back: () -> Unit) {
                         reading = safely("stool read") { withContext(Dispatchers.Default) {
                             StoolCard.read(PhotoStore.toPixels(bmp), markers[0].circle, markers.getOrNull(1)?.circle)
                         } }
+                        rawColour = safely("stool raw") { withContext(Dispatchers.Default) {
+                            StoolCard.read(PhotoStore.toPixels(bmp), markers[0].circle, correct = false).stool
+                        } }
                         stoolError = reading == null
                         chosen = reading?.nearest
                     }
@@ -176,6 +180,11 @@ fun StoolScreen(baby: BabyEntity?, back: () -> Unit) {
             reading?.let { r ->
                 NilaCard(modifier = Modifier.fillMaxWidth()) {
                     Text("Closest match from the photo: ${r.nearest.id} · ${r.nearest.label}", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                    ColourChips(listOfNotNull(
+                        rawColour?.let { DemoChip(com.nila.skin.core.color.ColorMath.toArgb(it), "As photographed") },
+                        DemoChip(com.nila.skin.core.color.ColorMath.toArgb(r.stool), if (r.whiteCorrected) "Corrected" else "Measured"),
+                        DemoChip(r.nearest.argb, "Card ${r.nearest.id}"),
+                    ))
                     MutedText(when {
                         r.whiteCorrected && r.whitePoints.isNotEmpty() -> "Colour and brightness corrected using the white of the nappy (the small white dots show which pixels were used)."
                         r.whiteCorrected -> "Colour and brightness corrected using the white you marked."

@@ -1,6 +1,6 @@
 # Nila · Little Signs
 
-An on-device helper that lets parents **notice** early visible signs in their baby, **stay calm** about the many harmless ones, and **show their doctor** a clear record. It is built as a separate feature module for Nila, and it does not diagnose.
+An on-device helper for the little things parents wonder about between check-ups. It lets parents **notice** early visible signs in their baby, **stay calm** about the many harmless ones, and **show their doctor** a clear record. It is built as a separate feature module for Nila, and it does not diagnose.
 
 > The AI describes. The maths measures. Published guidelines decide the next step. The doctor diagnoses.
 
@@ -24,7 +24,7 @@ No account, no network, and no photo ever leaves the phone unless the parent sha
 | **Yellow check** | Colour-corrected eye-white record, with no bilirubin estimate | WHO IMNCI young-infant jaundice rows, NHS 14/21-day rule |
 | **Glass test** | Guidance only; the camera deliberately does not judge it | NHS |
 | **Doctor report** | One PDF: photos side by side, measurements, trend, answers, foods in the 48 h before each reaction | — |
-| **Demo lab** | 11 real moments, each run live in one tap (dim-light nappy, real strawberry mark, flash photo, food pattern, six skin tones...) | — |
+| **Demo lab** | 15 everyday moments, each run live in one tap: is this poo normal, tiny spots on the nose, a mark to watch, red cheeks after a new food, enough iron, and the quiet catches (a night nappy under a lamp, one white pupil in a flash photo) | — |
 | **Gentle reminders** | Opt-in, silent: check-in two hours after a first food, photo the same spot tomorrow (WorkManager, on the phone) | — |
 | **How Nila decides** | Every rule and source, plus a **self-test** that runs on the phone | — |
 | **Common and harmless** | Education on milia, newborn rash, cradle cap, Mongolian spots and similar | NHS parent pages |
