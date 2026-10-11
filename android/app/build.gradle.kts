@@ -17,8 +17,8 @@ android {
         // which is what the README has always claimed anyway.
         minSdk = 27
         targetSdk = 35
-        versionCode = 18
-        versionName = "2.8.0"
+        versionCode = 19
+        versionName = "2.9.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
     }
