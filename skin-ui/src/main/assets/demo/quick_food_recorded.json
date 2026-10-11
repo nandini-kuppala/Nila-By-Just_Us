@@ -1,0 +1,122 @@
+[
+ {
+  "asset": "demo/meal/mashed_banana.jpg",
+  "label": "Mashed banana",
+  "rows": [
+   {
+    "name": "Banana",
+    "kept": true,
+    "colour": false,
+    "checks": "✓ ✓ ✓"
+   },
+   {
+    "name": "Oats porridge",
+    "kept": true,
+    "colour": false,
+    "checks": "✓ ✓ ✓"
+   }
+  ]
+ },
+ {
+  "asset": "demo/meal/pureed_veggies.jpg",
+  "label": "Jars of purée",
+  "rows": [
+   {
+    "name": "Moong",
+    "kept": false,
+    "colour": false,
+    "checks": "✗ ✓ –"
+   },
+   {
+    "name": "Tahini",
+    "kept": true,
+    "colour": false,
+    "checks": "✓ ✓ –"
+   },
+   {
+    "name": "hummus",
+    "kept": true,
+    "colour": false,
+    "checks": "✓ ✓ –"
+   },
+   {
+    "name": "Pumpkin",
+    "kept": true,
+    "colour": false,
+    "checks": "✓ ✗ ✓"
+   },
+   {
+    "name": "roasted butternut squash",
+    "kept": false,
+    "colour": false,
+    "checks": "✗ ✗ –"
+   },
+   {
+    "name": "Carrot",
+    "kept": true,
+    "colour": false,
+    "checks": "✓ ✗ ✓"
+   },
+   {
+    "name": "Beetroot",
+    "kept": true,
+    "colour": false,
+    "checks": "✗ ✓ ✓"
+   },
+   {
+    "name": "Sesame seeds",
+    "kept": false,
+    "colour": false,
+    "checks": "✗ ✓ –"
+   },
+   {
+    "name": "cranberry sauce",
+    "kept": false,
+    "colour": false,
+    "checks": "✗ ✓ –"
+   }
+  ]
+ },
+ {
+  "asset": "demo/meal/ragi_porridge.jpg",
+  "label": "Ragi porridge",
+  "rows": [
+   {
+    "name": "Chickpeas",
+    "kept": false,
+    "colour": false,
+    "checks": "✗ ✗ –"
+   },
+   {
+    "name": "Moong",
+    "kept": false,
+    "colour": false,
+    "checks": "✗ ✓ –"
+   },
+   {
+    "name": "Toor dal",
+    "kept": false,
+    "colour": false,
+    "checks": "✗ ✓ ✗"
+   },
+   {
+    "name": "Rice",
+    "kept": true,
+    "colour": false,
+    "checks": "✗ ✓ ✓"
+   },
+   {
+    "name": "Cow's milk",
+    "kept": false,
+    "colour": false,
+    "checks": "✗ ✗ –"
+   },
+   {
+    "name": "Ragi porridge",
+    "kept": false,
+    "colour": true,
+    "checks": "colour"
+   }
+  ]
+ }
+]

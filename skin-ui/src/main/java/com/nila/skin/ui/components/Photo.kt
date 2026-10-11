@@ -125,7 +125,7 @@ fun PhotoInput(
         }
         val samples = Samples.of(category)
         if (samples.isNotEmpty()) {
-            Text("Demo photos", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("Demo photos: tap one", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 samples.forEach { s ->
                     val bmp = remember(s.asset) { SkinServices.photos.loadAsset(s.asset) }

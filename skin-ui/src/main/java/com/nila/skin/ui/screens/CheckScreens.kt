@@ -262,9 +262,11 @@ fun EyeScreen(baby: BabyEntity?, back: () -> Unit) {
     var scan by remember { mutableStateOf<GalleryScan?>(null) }
     var scanning by remember { mutableStateOf(false) }
 
-    val askMedia = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { ok ->
-        if (ok) { scanning = true; scope.launch { scan = scanGallery(context); scanning = false } }
+    // Even without gallery permission the app can see the photos it added itself, so scan either way.
+    val askMedia = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { _ ->
+        scanning = true; scope.launch { scan = scanGallery(context); scanning = false }
     }
+    var demoAdded by remember { mutableStateOf<Int?>(null) }
 
     fun locate(b: Bitmap) {
         finding = true
@@ -299,6 +301,10 @@ fun EyeScreen(baby: BabyEntity?, back: () -> Unit) {
                         CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp); MutedText("Face landmarks on the GPU, one photo at a time...")
                     }
                     scan?.let { GalleryScanResult(it) }
+                    if (demoAdded == null) OutlinePillButton("Add the demo flash photos to my gallery", onClick = {
+                        scope.launch { demoAdded = withContext(Dispatchers.IO) { addDemoFlashPhotos(context) } }
+                    }, modifier = Modifier.fillMaxWidth())
+                    else MutedText("Added $demoAdded demo photos to Pictures/NilaDemo, tagged as flash photos. Tap Scan my gallery.")
                 }
             }
             photo?.let { bmp ->
@@ -368,6 +374,34 @@ fun EyeScreen(baby: BabyEntity?, back: () -> Unit) {
         }
         NotADiagnosis()
     }
+}
+
+/**
+ * Copies the three demo flash photos into Pictures/NilaDemo with the EXIF flash
+ * tag set, so the gallery scan can be shown on any phone. Only adds files; it
+ * never reads or changes anything else in the gallery.
+ */
+private fun addDemoFlashPhotos(context: android.content.Context): Int {
+    val cr = context.contentResolver
+    var n = 0
+    for (name in listOf("coats_disease_camera_with_flash.jpg", "a_child_with_a_white_eye_reflection_as_a.jpg", "red_eye_effect_2.jpg")) {
+        runCatching {
+            val values = android.content.ContentValues().apply {
+                put(MediaStore.Images.Media.DISPLAY_NAME, "nila_demo_$name")
+                put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg")
+                if (Build.VERSION.SDK_INT >= 29) put(MediaStore.Images.Media.RELATIVE_PATH, "Pictures/NilaDemo")
+            }
+            val uri = cr.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values) ?: return@runCatching
+            cr.openOutputStream(uri)?.use { out -> context.assets.open("demo/eyes/$name").use { it.copyTo(out) } }
+            cr.openFileDescriptor(uri, "rw")?.use { fd ->
+                val exif = ExifInterface(fd.fileDescriptor)
+                exif.setAttribute(ExifInterface.TAG_FLASH, "1")
+                exif.saveAttributes()
+            }
+            n++
+        }
+    }
+    return n
 }
 
 data class GalleryScan(val looked: Int, val withFlash: Int, val withFace: Int, val flagged: List<Pair<Bitmap, EyePairReading>>, val allRed: Int)

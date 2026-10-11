@@ -111,8 +111,10 @@ object QuickDemo {
     val sections = MutableStateFlow<List<QSection>?>(null)
     val foods = MutableStateFlow<QSection?>(null)
     val foodRunning = MutableStateFlow(false)
+    /** True when the food results shown are the bundled recording, not a run on this phone. */
+    val foodRecorded = MutableStateFlow(false)
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
-    private const val FOOD_KEY = "quick_food_v1"
+    private const val FOOD_KEY = "quick_food_v2"
     val MEALS = listOf("demo/meal/mashed_banana.jpg" to "Mashed banana", "demo/meal/pureed_veggies.jpg" to "Jars of purée", "demo/meal/ragi_porridge.jpg" to "Ragi porridge")
 
     fun warm() {
@@ -256,8 +258,14 @@ object QuickDemo {
 
     // ---- Food AI: run once on the NPU, then kept --------------------------------------
     private suspend fun loadFoods() {
-        val json = SkinServices.dao.setting(FOOD_KEY) ?: return
-        foods.value = safely("food cache") { parse(JSONArray(json)) }
+        val json = SkinServices.dao.setting(FOOD_KEY)
+        if (json != null) { foods.value = safely("food cache") { parse(JSONArray(json)) }; return }
+        // Not run on this phone yet: show the run recorded on an iQOO 15's NPU, labelled as such.
+        val recorded = safely("recorded food") {
+            SkinServices.appContext.assets.open("demo/quick_food_recorded.json").bufferedReader().use { it.readText() }
+        } ?: return
+        foods.value = safely("recorded parse") { parse(JSONArray(recorded)) }
+        foodRecorded.value = foods.value != null
     }
 
     private fun parse(a: JSONArray): QSection {
@@ -291,6 +299,7 @@ object QuickDemo {
             if (arr.length() > 0) {
                 SkinServices.dao.putSetting(SettingEntity(FOOD_KEY, arr.toString()))
                 foods.value = parse(arr)
+                foodRecorded.value = false
             }
             foodRunning.value = false
         }
@@ -302,6 +311,8 @@ fun QuickDemoScreen(back: () -> Unit) {
     val sections by QuickDemo.sections.collectAsState()
     val food by QuickDemo.foods.collectAsState()
     val running by QuickDemo.foodRunning.collectAsState()
+    val recorded by QuickDemo.foodRecorded.collectAsState()
+    val model by SkinServices.vision.status.collectAsState()
     androidx.compose.runtime.LaunchedEffect(Unit) { QuickDemo.warm() }
     SkinScaffold("Quick demo", onBack = back) {
         val list = sections
@@ -321,7 +332,11 @@ fun QuickDemoScreen(back: () -> Unit) {
                     } else OutlinePillButton("Run the food AI", icon = Icons.Outlined.AutoAwesome, onClick = { QuickDemo.runFoods() }, modifier = Modifier.fillMaxWidth())
                 } else {
                     MutedText("✓ ✗ = two looks agree · yes/no · colour match")
+                    if (recorded) MutedText("Recorded on an iQOO 15's NPU. Runs live on phones with the model installed.")
                     f.foods.forEach { (panel, rows) -> FoodRow(panel, rows) }
+                    if (recorded && model != com.nila.skin.ai.VisionModel.Status.Absent && !running)
+                        OutlinePillButton("Run it live on this phone", icon = Icons.Outlined.AutoAwesome, onClick = { QuickDemo.runFoods() }, modifier = Modifier.fillMaxWidth())
+                    if (running) MutedText("Running on the NPU...")
                 }
             }
             list.drop(7).forEach { SectionView(it) }

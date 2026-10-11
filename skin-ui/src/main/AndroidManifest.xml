@@ -7,6 +7,8 @@
     <!-- Only for "scan my gallery" in the eye check, and only when the parent taps it. -->
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
+    <!-- Only on Android 9 and older, to add the demo flash photos to the gallery when the parent taps it. -->
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28" />
     <uses-feature android:name="android.hardware.camera.any" android:required="false" />
 
     <application>

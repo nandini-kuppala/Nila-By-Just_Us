@@ -1,113 +1,127 @@
 # Nila · Little Signs
 
-An on-device helper for the little things parents wonder about between check-ups. It lets parents **notice** early visible signs in their baby, **stay calm** about the many harmless ones, and **show their doctor** a clear record. It is built as a separate feature module for Nila, and it does not diagnose.
+**A baby diary that compares now with before, so small, easily missed changes become visible.**
 
-> The AI describes. The maths measures. Published guidelines decide the next step. The doctor diagnoses.
+Little Signs is for the little things parents wonder about between check-ups:
 
-Everything runs on the phone:
+- Is this poo colour the same as usual?
+- Is this mark the same size as last week?
+- Are the eyes as white as yesterday?
+- Did anything change after the new food?
 
-- Intern3.5-VL-2B on the Hexagon NPU.
-- MediaPipe face landmarks on the GPU.
-- Colour maths and rules on the CPU.
+It does not detect, classify or diagnose anything. It keeps a careful record and compares it:
 
-No account, no network, and no photo ever leaves the phone unless the parent shares a report.
+- **today with the past days**, for the same baby;
+- **a spot with the baby's own skin** right next to it;
+- **a colour with a printed reference**: the nappy's white, the stool colour card.
 
-## What it does
+A parent with a clearly unwell baby goes to the doctor; this app is for the quiet in-between.
 
-| Check | What the phone does | What decides the next step |
+> Nila describes and measures. Published guidelines suggest when to show a doctor. The doctor diagnoses.
+
+Everything runs on the phone. There is no account and no network, and photos stay in the app's private storage.
+
+This is a separate app on its own branch (`little-changes`), not part of Nila's main app.
+
+---
+
+## Try it on a phone (no build needed)
+
+1. **Download the APK.** On the Android phone, open this repository's **Releases** page and download `LittleSigns-*.apk`. It's for 64-bit Android 8.1 or newer, which covers almost every phone from the last six years.
+2. **Install it.** Open the file. If Android asks, allow your browser or file manager to "install unknown apps", then tap **Install**.
+3. **Open "Nila Little Signs".** It installs next to any other app and doesn't touch them.
+
+### Show the demo
+
+| Step | What to tap | What appears |
 |---|---|---|
-| **Skin diary** | Guided photo with a ghost of the last one, auto-placed circle, redness/size/spot count against the baby's *own* skin, AI description, trend over days | NICE NG143 red/amber signs, NHS glass test, NICE CG57 infected eczema, WHO IMNCI pustules, AAP hemangioma rules |
-| **Food & reactions** | Food log, check-ins after first foods, exposure-window pattern finder, allergen tracker | NHS / Resus Council anaphylaxis signs, NHS weaning, NIAID 2017 (severe eczema and peanut) |
-| **Meal plate** | AI names the foods, parent confirms, nutrients from USDA FoodData Central | ICMR-NIN 2020 RDA, WHO energy-from-food, WHO/UNICEF minimum dietary diversity, NHS foods to avoid (honey under 1, whole nuts, whole grapes) |
-| **Nappy colour** | Stool colour read against the white nappy and matched to the Ontario stool card swatches (CIEDE2000) | Stool colour card (Taiwan programme; Newborn Screening Ontario) |
-| **Eye flash** | Face landmarks find the pupils; reflex read by contrast with the iris; optional on-device scan of recent flash photos | AAP red reflex; CRADLE study (one white photo means retake, a repeated one means see the doctor) |
-| **Yellow check** | Colour-corrected eye-white record, with no bilirubin estimate | WHO IMNCI young-infant jaundice rows, NHS 14/21-day rule |
-| **Glass test** | Guidance only; the camera deliberately does not judge it | NHS |
-| **Doctor report** | One PDF: photos side by side, measurements, trend, answers, foods in the 48 h before each reaction | — |
-| **Quick demo** | Every feature as photo in → result out (outlines, circles, colour chips, texture map, food checks), pre-computed so it opens instantly | — |
-| **Demo lab** | 15 everyday moments, each run live in one tap: is this poo normal, tiny spots on the nose, a mark to watch, red cheeks after a new food, enough iron, and the quiet catches (a night nappy under a lamp, one white pupil in a flash photo) | — |
-| **Gentle reminders** | Opt-in, silent: check-in two hours after a first food, photo the same spot tomorrow (WorkManager, on the phone) | — |
-| **How Nila decides** | Every rule and source, plus a **self-test** that runs on the phone | — |
-| **Common and harmless** | Education on milia, newborn rash, cradle cap, Mongolian spots and similar | NHS parent pages |
+| 1 | **Quick demo** on the first screen | Every feature as *photo in → result out*: outlines, circles, colour chips, texture map, food checks. Ready in a few seconds. |
+| 2 | **Demo mode for judges** | A demo baby with a week of history made from real photos: a diary of marks, food logs, nappy checks |
+| 3 | Any check, e.g. **Skin diary → Track a new spot**, **Nappy colour check**, **Eye flash check**, **Yellow check**, **Meal plate** | Each has a row of **Demo photos: tap one**. Tap a photo and the check runs on it, exactly as on a photo taken with the camera |
+| 4 | **Eye flash check → Add the demo flash photos to my gallery**, then **Scan my gallery** | Shows the gallery scan. It only adds three demo photos to `Pictures/NilaDemo` |
+| 5 | **How Nila decides → Run the self-test** | The maths checked live on pictures with a known answer |
+| 6 | **Doctor report → Make the PDF** | The record a parent would show a doctor |
 
-**Demo mode for judges:** one tap builds a demo baby with a week of history from real, openly licensed photos (Wikimedia Commons, credited in `skin-ui/src/main/assets/demo/CREDITS.md`). The one simulated series (tummy spots spreading) is labelled as such. Every number is measured on the phone.
+To start again, use **Reset demo** at the bottom of the first screen.
 
-## What the maths and the AI do
+### About the on-device AI
 
-- **Skin:**
-  - CIELAB against the baby's own skin in a ring, with a robust plane fit that removes uneven light;
-  - per-pixel ΔE / Δa* thresholds from that skin's own spread;
-  - spots by morphology and connected components;
-  - a texture ratio (fine detail inside vs the ring) for scales and crusts;
-  - a Theil–Sen trend over all photos.
-- **Stool and eye whites:** the white reference (least-coloured bright pixels) corrects colour and brightness, and dots show where it came from. Then CIEDE2000 against the Ontario card, with a pale rule (light, weakly coloured, not reddish-brown).
-- **Eyes:** MediaPipe landmarks give pupils, gaze and head turn. The reflex is read against the iris. An off-axis white glow is explained, never ignored.
-- **Foods:**
-  - Intern3.5-VL-2B suggests the foods;
-  - three cross-checks test each one: self-consistency across two prompts, a yes/no question, and a colour match (per-pixel CIEDE2000);
-  - colour proposes distinctive foods the AI missed;
-  - the parent confirms.
-  - Measured on 10 real baby-food photos on the phone: precision 48% → 65%, recall 56% kept.
-- **Reactions:** exposure windows, a half rule and a one-sided Fisher exact test (pattern / possible / one-off). Allergen upkeep follows ASCIA and NIAID.
+The optional AI (Intern3.5-VL-2B) needs a phone with a **Snapdragon 8 Elite Gen 5** and a 2.6 GB model file that is not in this repository.
 
-## Architecture
+- **Without it, everything else works.** All maths, comparisons, checklists, the diary and the report run on any phone.
+- **The Quick demo still shows food.** It shows the food results recorded on an iQOO 15's NPU, labelled as a recording.
+- **To add the model** on a supported phone, open the app once, then from a computer:
 
-The project is split into modules ("micro-services" inside one app), so Nila can take the feature as-is:
+  ```bash
+  adb push <intern3_5_vl_2b-geniex_qairt-w4a16-...> /sdcard/Download/intern-vl-tmp
+  adb shell cp -r /sdcard/Download/intern-vl-tmp /sdcard/Android/data/com.nila.skin/files/models/intern-vl
+  adb shell rm -rf /sdcard/Download/intern-vl-tmp
+  ```
 
-```
-skin-core   pure Kotlin/JVM: colour maths (CIELAB, CIEDE2000, white balance), measurements
-            (SkinMeasure, SpotFinder, StoolCard, EyeReflex, Yellowness, Trend), guideline rules,
-            food table + nutrition + reaction patterns, vision-model prompts/parsers, synthetic images.
-            Tested on the JVM (73 tests, including real photos).
-skin-data   Room database nila_skin.db (separate from Nila's), private photo store.
-skin-ai     VisionModel interface; NpuVisionModel (Intern3.5-VL-2B via GenieX/QAIRT on the NPU,
-            Nila's retry-ladder loader); FaceEyes (MediaPipe Face Landmarker, GPU then CPU).
-skin-ui     Compose screens using Nila's design system (theme and Kit copied verbatim), navigation,
-            PDF report, demo data, self-test.
-app         thin standalone host (com.nila.skin), installs beside Nila.
-```
+  Use `cp`, not `mv`: a folder moved by adb is invisible to the app. The bundle comes from Qualcomm AI Hub (Intern3.5-VL-2B, GenieX, w4a16).
 
-| Chip | Work |
-|---|---|
-| NPU | Intern3.5-VL-2B describes skin and names foods (about 1–2 s per look once loaded) |
-| GPU | Face landmarks for the pupils |
-| CPU | All measurements, rules, nutrition and the PDF |
+---
 
-## Build and run
+## What it compares
+
+| You photograph or log | It compares | You see |
+|---|---|---|
+| A mark or patch on the skin | the spot against the baby's own skin in a ring around it; this photo against earlier ones | an outline of what changed, its size, how much redder, darker or rougher, and **same / smaller / bigger** over days |
+| The nappy | the poo colour against the nappy's white, then against the printed stool colour card | three colour chips (as photographed → corrected → nearest card colour) |
+| A flash photo | each pupil's glow against its iris; left eye against right eye | red / dark / white glow per eye, and whether the baby was looking straight at the camera |
+| The white of the eye (newborns) | its colour against a white reference, day by day | a colour-corrected record; never a bilirubin number |
+| Foods and any reactions | when reactions happen against which foods came before, compared with every other food | whether a food keeps coming up, and how likely chance alone would be |
+| A meal photo | the AI's food suggestions against two more checks | foods pre-ticked only when the checks agree; the parent confirms |
+| A day's or week's food | nutrients against ICMR-NIN 2020 needs; groups against WHO's eight | simple bars and food groups |
+
+The next step shown, from *keep an eye on it* to *see a doctor*, comes from published checklists (NICE, NHS, WHO/India IMNCI, AAP, NIAID), and each one is cited on screen. Photos and AI never decide on their own; a parent's answer to a checklist question does.
+
+## How the comparison works (short)
+
+- **Colour as numbers.** CIELAB colour (a* redness, b* yellowness, L* lightness) and CIEDE2000 colour difference.
+- **The baby's own skin as the reference,** fitted as a gentle plane so window light on one side doesn't look like a change. The same comparison works on every skin tone.
+- **White correction.** The least-coloured bright pixels (the nappy, a tissue) correct the light's colour and brightness. Dots show which pixels were used.
+- **Texture.** Fine detail inside the circle against the surrounding skin; scales and crusts show up even when the colour doesn't change.
+- **Change over time.** A robust line through every photo (Theil–Sen), so one badly framed photo can't swing it.
+- **Food diary.** Exposure windows and Fisher's exact test.
+- **On-device AI, cross-checked.** It describes and suggests only: it answers twice with different wording, gets a yes/no per food, and is checked against colour maths.
+
+## Build from source
+
+You need Android Studio (or JDK 17 with the Android SDK):
 
 ```bash
-export ANDROID_HOME="C:\Users\visha\AppData\Local\Android\Sdk"
-./gradlew :skin-core:test :app:assembleDebug
+./gradlew :skin-core:test :app:assembleDebug      # on Windows: gradlew.bat ...
 adb install -r app/build/outputs/apk/debug/app-arm64-v8a-debug.apk
 ```
 
-**The vision model (optional):** the app works without it on maths and checklists alone. To add it, push the AI Hub bundle into the app's own external folder, so the app owns the files:
+The project is split into modules:
 
-```bash
-adb push <intern3_5_vl_2b-geniex_qairt-w4a16-...gen5> /sdcard/Download/intern-vl-tmp
-adb shell cp -r /sdcard/Download/intern-vl-tmp /sdcard/Android/data/com.nila.skin/files/models/intern-vl
-adb shell rm -rf /sdcard/Download/intern-vl-tmp
+```
+skin-core   pure Kotlin: colour maths, comparisons, trends, checklists, food tables (73 JVM tests, incl. real photos)
+skin-data   on-phone database and private photo store
+skin-ai     on-device AI (Intern3.5-VL on the NPU) and face landmarks (MediaPipe, GPU)
+skin-ui     screens, Quick demo, Demo lab, report
+app         the standalone app (com.nila.skin)
 ```
 
-Launch the app once first so it creates `files/models`. Use `cp`, not `mv`: a folder that adb moves stays owned by the shell user and is invisible to the app.
+## Tested
 
-**Regenerating data:**
+Tested on an iQOO 15 (Snapdragon 8 Elite Gen 5), Android 16:
 
-- `python tools/build_foods.py <USDA SR Legacy CSV dir>` rebuilds `foods.tsv` (83 foods, each row states its USDA fdc_id or recipe).
-- `python tools/fetch_commons.py <dir> "File:Name.jpg" ...` fetches openly licensed photos with their licence and author. The demo photos and their credits are listed in `skin-ui/src/main/assets/demo/CREDITS.md`. `tools/make_demo_assets.py` makes the one stool test pattern.
+- **Same patch on six skin tones:** found at 29.5–30.3% against a true 29.8%.
+- **Stool card:** 52/52 colours right under four lights.
+- **Brown mark in side light:** found 6/6 (0/6 without the lighting plane).
+- **Food AI, 10 real photos:** precision 48% alone, 65% after the cross-checks.
 
-## Tested on the phone (iQOO 15, Snapdragon 8 Elite Gen 5)
+The tests check the maths, not clinical accuracy.
 
-- **Self-test:** the same patch is found on six skin tones at 29.5–30.3% coverage against a true 29.8%, one spot each time, and redness within 0.4 a* of the truth. The stool card is right in 52 of 52 readings across warm, daylight, cool and dim-warm light. A brown mark under side light is found 6 of 6 (flat reference 0 of 6). Eye reflex is 3 of 3.
-- **Intern3.5-VL on the NPU:** describes a real strawberry mark as "red, patch" in 0.9 s. On 10 real baby-food photos, precision is 48% for the AI list alone and 65% after the cross-checks, with recall 56% both ways (How Nila decides → Test the AI).
-- **Real flash photos (Wikimedia Commons):**
-  - The Coats-disease photo reads white/yellow in one eye and dark in the other.
-  - The red-eye photo reads red in both eyes.
-- **Gallery scan:** run with limited photo access on three demo photos, it flagged two.
-- **Real photos:** a strawberry mark reads "much redder, one patch with 1 small spot nearby"; a Mongolian spot reads "a blue-grey tone"; cradle cap reads "rougher texture"; real normal stools read normal; yellow eye whites read "clearly yellow, b* 29" with the circle placed by face landmarks.
-- **Reminders:** a scheduled reminder fired as a silent, low-importance notification.
-- **Live camera:** capture with the ghost overlay works, and the quality check flags a dark photo.
-- **Stool:** a pale stool under a warm bulb looks mustard to the eye but reads pale after white correction. This is the case the correction exists for.
-- **PDF report:** generated, three pages.
+## Credits and sources
 
-See `docs/PITCH.md` for the problem, the evidence, the positioning and judges' questions. See `docs/INTEGRATION.md` for adding the feature to Nila.
+- **Demo photos:** Wikimedia Commons, openly licensed. Authors and licences are in `skin-ui/src/main/assets/demo/CREDITS.md`. One stool image is a labelled test pattern, because no open photo exists.
+- **Guidelines:** NICE NG143 and CG57, NHS, WHO/India IMNCI, AAP 2019, NIAID 2017, ASCIA.
+- **Food and nutrition:** ICMR-NIN 2020, WHO/UNICEF IYCF 2021, USDA FoodData Central.
+- **Stool card:** Newborn Screening Ontario stool card.
+- **Evidence:** Lien et al. 2011 (stool card); Munson et al. 2019 (flash photos).
+
+More detail: `docs/PITCH.md` (evidence and demo script) and `docs/INTEGRATION.md` (how it could later plug into Nila).
