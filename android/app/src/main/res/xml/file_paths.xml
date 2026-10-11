@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <!-- Babyproofing: the room photo the camera takes. -->
+    <cache-path name="babyproof" path="babyproof/" />
+</paths>

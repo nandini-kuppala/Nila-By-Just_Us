@@ -201,6 +201,17 @@ camera one subscribes to the audio one — because a baby who rolls over in thei
 sleep is a notification, and a baby who rolls over *and starts crying* has
 probably fallen, which is a different phone call.
 
+**Babyproofs a room from one photo.** Watch → *Babyproof a room*: photograph a
+room and get back what to cover, lock, anchor or move, ringed and numbered on
+the photo. An open-vocabulary detector (OWL-ViT, split so the phone runs only
+its image half: five NPU passes a photo, 0.3 s) proposes 32 kinds of hazard;
+Intern3.5-VL-2B looks at a crop around each and answers a four-line form (what
+is it, is it the thing, is it already protected, can a baby reach it); plain
+rules decide. The fix on every card is written in advance from AAP and CPSC
+guidance with its source linked, never by a model. On 47 labelled room photos:
+**83% of hazards found, 75% of the critical ones**, about 40 s a photo. Built
+and measured first as a separate app in `babyproof-lab/`.
+
 **Keeps records.** Health documents for baby and mother, OCR'd at import,
 searchable, and usable by the assistant.
 
@@ -500,6 +511,8 @@ the file directly gives you.
 | Qwen2.5-0.5B | Shortening answers | 547 MB | Optional, one tap |
 | **Intern3.5-VL-2B** | **Describing the cot, on the NPU** | **2.7 GB** | **Optional, one tap** |
 | FastVLM-0.5B | Describing the cot, as a fallback | 1.1 GB | Optional, one tap |
+| `hazards.json` | Babyproofing: 32 hazard words, their query embeddings, fixes and sources | 260 KB | In the APK |
+| OWL-ViT (image half) | Babyproofing: finding hazards in a room photo, on the NPU | 358 MB | Optional, copied with adb (see `babyproof-lab/README.md`) |
 
 The optional models change nothing about correctness. Every branch of the
 assistant has a complete, sourced answer before a model is asked for anything,
@@ -523,6 +536,7 @@ android/            The app
     vision/         Camera watch, pose, activity rules, safe zone, sensors
                     day/night, night vision, the scene model and its guard rails
     npu/            Which of the two models gets the accelerator
+    babyproof/      Room photo to babyproofing list: detector, prompts, rules
     actions/        Ring light and the distraction a hazard can trigger
     ml/             TFLite runner, RandomForest evaluator
   app/src/test/     120 JVM tests
@@ -532,6 +546,9 @@ android/            The app
 ml/                 Training
   src/              Data prep, training, ablations, export
   reports/          Every evaluation result quoted above
+
+babyproof-lab/      Babyproofing, built and evaluated as its own app first
+                    (47 labelled photos, tools to split the detector and replay the rules)
 
 docs/               Technical record and build spec
 ```
@@ -557,6 +574,12 @@ docs/               Technical record and build spec
 - **The vision model does not run yet.** It is fully wired, and blocked on a
   LiteRT-LM runtime that is not published. A MediaPipe backend is in place for
   whenever a suitable bundle is available.
+- **Babyproofing rarely sees that something is already done.** A plug cover or
+  a window grill is recognised sometimes, not reliably (0 of 3 in the eval set,
+  though a kitchen with grilled windows came out right), so a protected socket
+  can still be listed as one to fix. It also lists more than is there: about
+  1.3 items a photo that the labels do not name, some of them real objects the
+  labels left out. Its own screen says it is a helper, not an inspection.
 - **Infrared and Wear OS are unverified on hardware.** Neither can be tested on
   an emulator.
 - **Posture needs the phone beside the cot, not at the end of it.** A camera

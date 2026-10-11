@@ -1,0 +1,22 @@
+{
+ "samples": [
+  {
+   "file": "indian-living-room.jpg",
+   "title": "Living room",
+   "credit": "Nila team",
+   "url": ""
+  },
+  {
+   "file": "indian-kitchen.jpg",
+   "title": "Kitchen",
+   "credit": "Alexey Komarov, CC BY-SA 4.0",
+   "url": "https://commons.wikimedia.org/wiki/File:Interior_of_the_kitchen_in_a_house_in_Corgao,_North_Goa_district.jpg"
+  },
+  {
+   "file": "stairs-and-balcony.jpg",
+   "title": "Stairs",
+   "credit": "Alexey Komarov, CC BY-SA 4.0",
+   "url": "https://commons.wikimedia.org/wiki/File:Interior_of_a_house_in_Corgao,_North_Goa_district.jpg"
+  }
+ ]
+}

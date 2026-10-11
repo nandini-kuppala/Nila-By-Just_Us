@@ -27,6 +27,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Stop
@@ -146,7 +147,7 @@ import kotlinx.coroutines.withContext
  * written on the screen as limits rather than left for the reader to discover.
  */
 @Composable
-fun WatchScreen(state: AppState) {
+fun WatchScreen(state: AppState, onOpenBabyproof: () -> Unit = {}) {
     val context = LocalContext.current
     val view = LocalView.current
     val scope = rememberCoroutineScope()
@@ -342,6 +343,7 @@ fun WatchScreen(state: AppState) {
                 onStart = { WatchService.start(context) },
                 onDemo = { demo = true },
             )
+            BabyproofEntryCard(onOpenBabyproof)
             live.fault?.let { WarningBox("Camera unavailable", it, Modifier.fillMaxWidth()) }
             GuardModesCard(options, running = false, onStarted = { scope.launch { scroll.animateScrollTo(0) } })
         } else {
@@ -1279,4 +1281,29 @@ private fun distance(ratio: Float?): String = when {
     ratio == null || ratio <= 0f -> "-"
     ratio < 1.1f -> "As placed"
     else -> "%.1fx away".format(ratio)
+}
+
+/**
+ * The way into babyproofing: a photo of a room, and what to fix in it. On the
+ * idle page only -- a scan needs the AI chip the running watch is using.
+ */
+@Composable
+private fun BabyproofEntryCard(onOpen: () -> Unit) {
+    NilaCard(modifier = Modifier.fillMaxWidth(), onClick = onOpen, tone = Tone.PEACH,
+             contentPadding = PaddingValues(16.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+            Box(Modifier.size(width = 72.dp, height = 64.dp)) { com.nila.ui.components.RoomArt() }
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                TonePill("New", Tone.TEAL)
+                Text("Babyproof a room", style = MaterialTheme.typography.titleMedium,
+                     fontWeight = FontWeight.Bold)
+                Text("Take a photo. Nila marks sockets, stairs, cords and more, with how to fix each one.",
+                     style = MaterialTheme.typography.bodySmall,
+                     color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            Icon(Icons.AutoMirrored.Outlined.KeyboardArrowRight, contentDescription = null,
+                 tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+    }
 }

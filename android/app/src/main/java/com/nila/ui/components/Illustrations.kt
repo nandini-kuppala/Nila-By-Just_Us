@@ -500,3 +500,48 @@ fun DoctorVisitArt(modifier: Modifier = Modifier) {
         sparks(g, 86f, 12f)
     }
 }
+
+/**
+ * A wall socket with a safety cap going in, a crawling baby's face beside it and
+ * a shield. Babyproofing.
+ */
+@Composable
+fun RoomArt(modifier: Modifier = Modifier) {
+    val groundColor = illustrationGround()
+    Canvas(modifier.fillMaxSize()) {
+        val g = Grid(this)
+        ground(g, groundColor)
+        // Skirting board, so it reads as the bottom of a wall.
+        drawRoundRect(IllWood, topLeft = g.p(8f, 74f), size = Size(g.d(86f), g.d(6f)),
+                      cornerRadius = CornerRadius(g.d(3f)))
+        // The socket plate and its two holes.
+        drawRoundRect(Color.White, topLeft = g.p(20f, 28f), size = Size(g.d(34f), g.d(34f)),
+                      cornerRadius = CornerRadius(g.d(7f)))
+        drawRoundRect(IllWoodShade, topLeft = g.p(20f, 28f), size = Size(g.d(34f), g.d(34f)),
+                      cornerRadius = CornerRadius(g.d(7f)), style = Stroke(g.d(1.4f)))
+        drawCircle(IllWoodShade.copy(alpha = 0.5f), g.d(10.5f), g.p(37f, 45f))
+        drawCircle(IllFeature, g.d(2.2f), g.p(33f, 45f))
+        drawCircle(IllFeature, g.d(2.2f), g.p(41f, 45f))
+        // The safety cap, on its way in.
+        drawRoundRect(IllSpark, topLeft = g.p(44f, 40f), size = Size(g.d(12f), g.d(11f)),
+                      cornerRadius = CornerRadius(g.d(3f)))
+        drawLine(IllSpark, g.p(44f, 43f), g.p(40f, 43f), g.d(1.6f), StrokeCap.Round)
+        drawLine(IllSpark, g.p(44f, 48f), g.p(40f, 48f), g.d(1.6f), StrokeCap.Round)
+        // A baby, at floor level.
+        face(g, 70f, 62f, 11f, awake = true, ears = true)
+        // The shield with a tick: done.
+        val shield = Path().apply {
+            moveTo(g.p(76f, 14f).x, g.p(76f, 14f).y)
+            lineTo(g.p(88f, 18f).x, g.p(88f, 18f).y)
+            cubicTo(g.p(88f, 30f).x, g.p(88f, 30f).y, g.p(84f, 36f).x, g.p(84f, 36f).y,
+                    g.p(76f, 40f).x, g.p(76f, 40f).y)
+            cubicTo(g.p(68f, 36f).x, g.p(68f, 36f).y, g.p(64f, 30f).x, g.p(64f, 30f).y,
+                    g.p(64f, 18f).x, g.p(64f, 18f).y)
+            close()
+        }
+        drawPath(shield, IllBlanket)
+        drawLine(IllBlanketShade.copy(alpha = 1f), g.p(70f, 26f), g.p(74.5f, 30.5f), g.d(2.4f), StrokeCap.Round)
+        drawLine(IllBlanketShade.copy(alpha = 1f), g.p(74.5f, 30.5f), g.p(82f, 22f), g.d(2.4f), StrokeCap.Round)
+        heart(g, 14f, 20f, 4.5f)
+    }
+}

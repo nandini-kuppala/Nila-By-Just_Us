@@ -55,6 +55,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.nila.ui.screens.AskScreen
+import com.nila.ui.screens.BabyproofScreen
 import com.nila.ui.screens.HealthScreen
 import com.nila.ui.screens.HomeScreen
 import com.nila.ui.screens.LearnScreen
@@ -94,6 +95,7 @@ private const val TIMELINE_ROUTE = "timeline"
 private const val SCAN_ROUTE = "ask/scan"
 private const val VISIT_ROUTE = "doctor/visit/{id}"
 private const val VISIT_CALENDAR_ROUTE = "doctor/calendar"
+private const val BABYPROOF_ROUTE = "watch/babyproof"
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -132,7 +134,8 @@ fun NilaRoot(
     val onScan = current?.route == SCAN_ROUTE
     val onVisit = current?.route == VISIT_ROUTE
     val onVisitCalendar = current?.route == VISIT_CALENDAR_ROUTE
-    val nested = onSettings || onSettingsPage || onLearn || onTimeline || onScan || onVisit || onVisitCalendar
+    val onBabyproof = current?.route == BABYPROOF_ROUTE
+    val nested = onSettings || onSettingsPage || onLearn || onTimeline || onScan || onVisit || onVisitCalendar || onBabyproof
 
     // The tab a pushed page was opened from stays lit, so the bottom bar never
     // shows nothing selected -- that reads as being nowhere in the app.
@@ -160,6 +163,7 @@ fun NilaRoot(
                             onScan -> "Scan a medicine"
                             onVisit -> "Visit notes"
                             onVisitCalendar -> "Calendar"
+                            onBabyproof -> "Babyproof a room"
                             else -> Tab.entries
                                 .firstOrNull { it.route == current?.route }
                                 ?.label ?: "Nila"
@@ -269,7 +273,10 @@ fun NilaRoot(
                 AskScreen(state, onOpenScan = { navController.navigate(SCAN_ROUTE) })
             }
             composable(SCAN_ROUTE) { ScanScreen(state) }
-            composable(Tab.WATCH.route) { WatchScreen(state) }
+            composable(Tab.WATCH.route) {
+                WatchScreen(state, onOpenBabyproof = { navController.navigate(BABYPROOF_ROUTE) })
+            }
+            composable(BABYPROOF_ROUTE) { BabyproofScreen() }
             composable(Tab.DOCTOR.route) {
                 VisitScreen(
                     visits,
