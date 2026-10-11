@@ -212,6 +212,19 @@ guidance with its source linked, never by a model. On 47 labelled room photos:
 **83% of hazards found, 75% of the critical ones**, about 40 s a photo. Built
 and measured first as a separate app in `babyproof-lab/`.
 
+**Notices the little signs.** The *Signs* tab is Little Signs, a diary for the
+small changes parents wonder about between check-ups: a mark (is it the same
+size?), the nappy (is this colour normal?), the eyes (a white glow in a flash
+photo, yellow eye whites), and food (was it the banana?). It measures rather
+than guesses: colour against the baby's own skin and against something white in
+the photo, a robust trend over days, Fisher's exact test for food reactions, and
+the vision model only to suggest what is on a plate, cross-checked three ways.
+Published checklists (WHO IMNCI, NICE, NHS, AAP) choose the next step; it never
+names a condition. Built and tested as its own app on the `little-changes`
+branch (stool card 52/52 under four lights, the same patch read within half a
+point on six skin tones), it shares Nila's vision model and baby profile, and
+gives way to the safety watch for the camera.
+
 **Keeps records.** Health documents for baby and mother, OCR'd at import,
 searchable, and usable by the assistant.
 
@@ -537,6 +550,10 @@ android/            The app
                     day/night, night vision, the scene model and its guard rails
     npu/            Which of the two models gets the accelerator
     babyproof/      Room photo to babyproofing list: detector, prompts, rules
+    signs/          Little Signs' bridge to Nila's vision model
+skin-core/ skin-data/ skin-ai/ skin-ui/
+                    Little Signs (the Signs tab), from the little-changes branch:
+                    colour maths, comparisons, its own database, screens
     actions/        Ring light and the distraction a hazard can trigger
     ml/             TFLite runner, RandomForest evaluator
   app/src/test/     120 JVM tests

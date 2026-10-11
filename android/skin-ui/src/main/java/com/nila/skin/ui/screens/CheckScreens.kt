@@ -41,6 +41,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -139,7 +140,7 @@ fun StoolScreen(baby: BabyEntity?, back: () -> Unit) {
     var rawColour by remember { mutableStateOf<com.nila.skin.core.color.Lab?>(null) }
 
     SkinScaffold("Nappy colour check", onBack = back, scrollKey = advice == null) {
-        ScreenHero("The poo colour card", "A quick look each day in the first month. Most days: normal.")
+        ScreenHero("The poo colour card", "Most days it's normal. Pale colours mean call your doctor.")
         MutedText("Colours 1-6 below are the pale colours on Newborn Screening Ontario's card: any of them means call your doctor.")
 
         if (advice == null) {
@@ -221,6 +222,15 @@ fun StoolScreen(baby: BabyEntity?, back: () -> Unit) {
             }) else OutlinePillButton("Check another nappy", onClick = { advice = null; photo = null; reading = null; chosen = null; saved = false }, modifier = Modifier.fillMaxWidth())
         }
 
+        val sampleScope = rememberCoroutineScope()
+        var loadingSamples by remember { mutableStateOf(false) }
+        if (history.isEmpty() && advice == null) {
+            OutlinePillButton(if (loadingSamples) "Adding samples..." else "Show sample history", enabled = !loadingSamples,
+                icon = Icons.Outlined.Collections, modifier = Modifier.fillMaxWidth(), onClick = {
+                    loadingSamples = true
+                    sampleScope.launch { com.nila.skin.ui.demo.DemoData.loadEyeSamples(); loadingSamples = false }
+                })
+        }
         if (history.isNotEmpty()) {
             Heading("History")
             NilaCard(modifier = Modifier.fillMaxWidth(), verticalSpacing = 0.dp) {
@@ -280,8 +290,7 @@ fun EyeScreen(baby: BabyEntity?, back: () -> Unit) {
     }
 
     SkinScaffold("Eye flash check", onBack = back, scrollKey = advice == null) {
-        ScreenHero("Red is the usual glow", "In flash photos healthy eyes glow red. A white glow, again and again, is worth a quick eye check.")
-        MutedText("One white photo is never enough to worry: an off-angle flash can do it in healthy eyes.")
+        ScreenHero("Red is the usual glow", "A white glow, again and again, is worth an eye check. One alone is not.")
 
         if (advice == null) {
             if (photo == null) {
@@ -290,7 +299,7 @@ fun EyeScreen(baby: BabyEntity?, back: () -> Unit) {
                 PhotoInput("eyes", onPhoto = { b, _ -> photo = b; pair = null; locate(b) }, hint = "Take a flash photo or choose one.", flash = true)
                 NilaCard(modifier = Modifier.fillMaxWidth(), tone = Tone.PLUM) {
                     Text("Scan recent photos", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                    MutedText("Nila looks through your last 300 gallery photos taken with flash, finds faces and reads both pupils. Everything stays on this phone.")
+                    MutedText("Reads both pupils in your recent flash photos, on this phone.")
                     OutlinePillButton(if (scanning) "Scanning..." else "Scan my gallery", enabled = !scanning, icon = Icons.Outlined.Collections, modifier = Modifier.fillMaxWidth(), onClick = {
                         val perm = if (Build.VERSION.SDK_INT >= 33) Manifest.permission.READ_MEDIA_IMAGES else Manifest.permission.READ_EXTERNAL_STORAGE
                         if (ContextCompat.checkSelfPermission(context, perm) == PackageManager.PERMISSION_GRANTED) {
@@ -356,6 +365,15 @@ fun EyeScreen(baby: BabyEntity?, back: () -> Unit) {
             }) else OutlinePillButton("Another photo", onClick = { advice = null; photo = null; pair = null; saved = false; faceFound = null }, modifier = Modifier.fillMaxWidth())
         }
 
+        val sampleScope = rememberCoroutineScope()
+        var loadingSamples by remember { mutableStateOf(false) }
+        if (history.isEmpty() && advice == null) {
+            OutlinePillButton(if (loadingSamples) "Adding samples..." else "Show sample history", enabled = !loadingSamples,
+                icon = Icons.Outlined.Collections, modifier = Modifier.fillMaxWidth(), onClick = {
+                    loadingSamples = true
+                    sampleScope.launch { com.nila.skin.ui.demo.DemoData.loadEyeSamples(); loadingSamples = false }
+                })
+        }
         if (history.isNotEmpty()) {
             Heading("History")
             NilaCard(modifier = Modifier.fillMaxWidth(), verticalSpacing = 0.dp) {
@@ -365,12 +383,15 @@ fun EyeScreen(baby: BabyEntity?, back: () -> Unit) {
                         Thumb(h.photoPath, 52)
                         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                             Text("Left: ${Reflex.valueOf(h.left).word.substringBefore(" (")} · Right: ${Reflex.valueOf(h.right).word.substringBefore(" (")}", style = MaterialTheme.typography.titleSmall)
-                            MutedText(fmtDateTime(h.timeMs) + if (h.fromGallery) " · from gallery" else "")
+                            MutedText(fmtDateTime(h.timeMs) + if (h.fromGallery) " · from gallery" else if (h.photoPath.contains("sample")) " · sample" else "")
                             StepPill(Step.valueOf(h.step))
                         }
                     }
                 }
             }
+            if (history.any { it.photoPath.contains("sample") }) TextButton(onClick = {
+                sampleScope.launch { com.nila.skin.ui.demo.DemoData.clearEyeSamples() }
+            }) { Text("Remove the samples") }
         }
         NotADiagnosis()
     }
@@ -473,7 +494,7 @@ fun YellowScreen(baby: BabyEntity?, back: () -> Unit) {
     var saved by remember { mutableStateOf(false) }
 
     SkinScaffold("Yellow check", onBack = back, scrollKey = advice == null) {
-        ScreenHero("Check in daylight", "Newborn jaundice is common and usually harmless, but a few signs mean go now. This walks you through WHO's check for health workers.")
+        ScreenHero("Check in daylight", "Newborn jaundice is common and usually harmless. WHO's checklist shows the few signs that mean go now.")
         if (baby?.demo == true) NilaCard(modifier = Modifier.fillMaxWidth(), tone = Tone.PLUM) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("Demo: check as a 3-day-old", modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
@@ -545,6 +566,15 @@ fun YellowScreen(baby: BabyEntity?, back: () -> Unit) {
         }
         val values = history.asReversed().mapNotNull { it.eyeYellowness }
         if (values.size >= 2) NilaCard(modifier = Modifier.fillMaxWidth()) { TrendChart(values, "Eye-white yellowness over checks (b*)") }
+        val sampleScope = rememberCoroutineScope()
+        var loadingSamples by remember { mutableStateOf(false) }
+        if (history.isEmpty() && advice == null) {
+            OutlinePillButton(if (loadingSamples) "Adding samples..." else "Show sample history", enabled = !loadingSamples,
+                icon = Icons.Outlined.Collections, modifier = Modifier.fillMaxWidth(), onClick = {
+                    loadingSamples = true
+                    sampleScope.launch { com.nila.skin.ui.demo.DemoData.loadEyeSamples(); loadingSamples = false }
+                })
+        }
         if (history.isNotEmpty()) {
             Heading("History")
             NilaCard(modifier = Modifier.fillMaxWidth(), verticalSpacing = 0.dp) {
@@ -564,34 +594,3 @@ fun YellowScreen(baby: BabyEntity?, back: () -> Unit) {
     }
 }
 
-// ---------------------------------------------------------------------------
-// Glass test
-// ---------------------------------------------------------------------------
-
-@Composable
-fun GlassTestScreen(go: (String) -> Unit, back: () -> Unit) {
-    var answer by remember { mutableStateOf<Answer?>(null) }
-    SkinScaffold("Glass test", onBack = back) {
-        ScreenHero("Does the rash fade?", "For a rash with a fever or an unwell baby. It takes ten seconds and needs a clear glass, not an app.")
-        FactCard("How to do it", Icons.Outlined.WineBar, Tone.SLATE, listOf(
-            "Press the side of a clear drinking glass firmly against the spots.",
-            "Look through the glass. Do the spots fade, or can you still see them?",
-            "On brown or black skin, check paler areas: palms, soles, inside the eyelids, the roof of the mouth.",
-        ), footer = Source.NHS_RASH.full)
-        InfoNote("Nila does not judge this from a photo. Where a missed sign could be dangerous, a person decides, not the camera.", icon = Icons.Outlined.Info, tone = Tone.BLUE)
-        QuestionCard(SkinRules.GLASS, answer, { answer = it })
-        answer?.let { a ->
-            val adv = when (a) {
-                Answer.YES -> Advice(Step.URGENT, listOf(Reason("Spots that don't fade under a glass need a doctor straight away.", Source.NHS_RASH, Step.URGENT)), SkinRules.doNow(Step.URGENT))
-                Answer.UNSURE -> Advice(Step.DOCTOR_TODAY, listOf(Reason("If you can't tell, or your baby seems unwell, treat it as not fading and see a doctor now.", Source.NHS_RASH, Step.DOCTOR_TODAY)),
-                    listOf("If your baby is unwell, has a fever, or you're worried, go to a doctor or hospital now.", "Otherwise call your doctor now."))
-                Answer.NO -> Advice(Step.WATCH, listOf(Reason("Spots that fade under pressure are reassuring, but a baby who seems very unwell still needs help.", Source.NHS_RASH, Step.WATCH)),
-                    listOf("Keep checking the rash and how your baby is.", "Track it in the skin diary to see if it spreads."))
-            }
-            AdviceCard(adv)
-            if (a == Answer.NO) OutlinePillButton("Open the skin diary", onClick = { go("skin") }, icon = Icons.Outlined.Spa, modifier = Modifier.fillMaxWidth())
-            SafetyNetCard(SkinRules.safetyNet)
-        }
-        NotADiagnosis()
-    }
-}

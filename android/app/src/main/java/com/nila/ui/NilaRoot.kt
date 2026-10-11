@@ -14,6 +14,7 @@ import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material.icons.outlined.Hearing
 import androidx.compose.material.icons.outlined.QuestionAnswer
 import androidx.compose.material.icons.outlined.FolderShared
+import androidx.compose.material.icons.outlined.Spa
 import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -56,7 +57,9 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.nila.ui.screens.AskScreen
 import com.nila.ui.screens.BabyproofScreen
+import com.nila.ui.screens.HealthHub
 import com.nila.ui.screens.HealthScreen
+import com.nila.ui.screens.SignsTab
 import com.nila.ui.screens.HomeScreen
 import com.nila.ui.screens.LearnScreen
 import com.nila.ui.screens.ScanScreen
@@ -84,9 +87,14 @@ private enum class Tab(val route: String, val label: String, val icon: ImageVect
     HOME("home", "Monitor", Icons.Outlined.Hearing),
     ASK("ask", "Ask", Icons.Outlined.QuestionAnswer),
     WATCH("watch", "Watch", Icons.Outlined.Visibility),
+    // Little Signs: the skin, nappy, eyes and food diary.
+    SIGNS("signs", "Signs", Icons.Outlined.Spa),
+    // Records and the doctor's visit share one tab, so five fit the bar.
     HEALTH("health", "Health", Icons.Outlined.FolderShared),
-    DOCTOR("doctor", "Doctor", NilaIcons.Stethoscope),
 }
+
+/** The doctor's visit used to be its own tab; it is now a page of Health, kept routable. */
+private const val DOCTOR_ROUTE = "doctor"
 
 private const val SETTINGS_ROUTE = "settings"
 private const val SETTINGS_PAGE_ROUTE = "settings/{page}"
@@ -134,6 +142,10 @@ fun NilaRoot(
     val onScan = current?.route == SCAN_ROUTE
     val onVisit = current?.route == VISIT_ROUTE
     val onVisitCalendar = current?.route == VISIT_CALENDAR_ROUTE
+    // Little Signs draws its own top bar (it has a back stack of its own), with Nila's actions on its home.
+    val onSigns = current?.route == Tab.SIGNS.route
+    // Bumped on every tap of the Signs tab, so Little Signs returns to its home.
+    var signsHome by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(0) }
     val onBabyproof = current?.route == BABYPROOF_ROUTE
     val nested = onSettings || onSettingsPage || onLearn || onTimeline || onScan || onVisit || onVisitCalendar || onBabyproof
 
@@ -144,6 +156,7 @@ fun NilaRoot(
 
     Scaffold(
         topBar = {
+            if (!onSigns)
             // Left-aligned rather than centred. A centred title has to share
             // the bar with three actions, so it never actually sits in the
             // middle -- it sits wherever the remaining space happens to put it,
@@ -227,6 +240,7 @@ fun NilaRoot(
                         ),
                         selected = selected,
                         onClick = {
+                            if (tab == Tab.SIGNS) signsHome++
                             // Off a pushed page (settings, timeline, insights)
                             // first. It sits on the last tab's stack, so
                             // restoring that tab used to restore the page too:
@@ -267,7 +281,37 @@ fun NilaRoot(
                     onOpenTimeline = { navController.navigate(TIMELINE_ROUTE) },
                 )
             }
-            composable(Tab.HEALTH.route) { HealthScreen(state) }
+            composable(Tab.HEALTH.route) {
+                HealthHub(
+                    records = { HealthScreen(state) },
+                    visits = {
+                        VisitScreen(
+                            visits,
+                            onOpenVisit = { id -> navController.navigate("doctor/visit/$id") },
+                            onOpenCalendar = { navController.navigate(VISIT_CALENDAR_ROUTE) },
+                            onOpenSettings = { navController.navigate("settings/${SettingsPage.APP_DATA.key}") },
+                        )
+                    },
+                )
+            }
+            composable(Tab.SIGNS.route) {
+                SignsTab(
+                    state,
+                    homeSignal = signsHome,
+                    actions = {
+                        ThemeToggle()
+                        IconButton(onClick = { navController.navigate(TIMELINE_ROUTE) }) {
+                            Icon(Icons.Outlined.History, contentDescription = "Timeline")
+                        }
+                        IconButton(onClick = { navController.navigate(LEARN_ROUTE) }) {
+                            Icon(Icons.Outlined.Assessment, contentDescription = "Insights")
+                        }
+                        IconButton(onClick = { navController.navigate(SETTINGS_ROUTE) }) {
+                            Icon(Icons.Outlined.Tune, contentDescription = "Settings")
+                        }
+                    },
+                )
+            }
             composable(TIMELINE_ROUTE) { TimelineScreen(state) }
             composable(Tab.ASK.route) {
                 AskScreen(state, onOpenScan = { navController.navigate(SCAN_ROUTE) })
@@ -277,7 +321,7 @@ fun NilaRoot(
                 WatchScreen(state, onOpenBabyproof = { navController.navigate(BABYPROOF_ROUTE) })
             }
             composable(BABYPROOF_ROUTE) { BabyproofScreen() }
-            composable(Tab.DOCTOR.route) {
+            composable(DOCTOR_ROUTE) {
                 VisitScreen(
                     visits,
                     onOpenVisit = { id -> navController.navigate("doctor/visit/$id") },

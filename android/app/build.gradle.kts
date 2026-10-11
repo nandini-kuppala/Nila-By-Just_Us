@@ -131,6 +131,7 @@ tasks.matching { it.name.matches(Regex("process.*UnitTestJavaRes")) }
 dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.exifinterface)
+    implementation(project(":skin-ui"))
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.lifecycle.service)

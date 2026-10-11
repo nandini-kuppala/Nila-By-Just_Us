@@ -14,7 +14,7 @@
     <application>
         <!-- Shares a doctor report PDF the parent asked to share; nothing else is exposed. -->
         <provider
-            android:name="androidx.core.content.FileProvider"
+            android:name="com.nila.skin.ui.SkinFileProvider"
             android:authorities="${applicationId}.skinfiles"
             android:exported="false"
             android:grantUriPermissions="true">

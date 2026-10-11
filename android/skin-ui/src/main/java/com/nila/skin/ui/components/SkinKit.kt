@@ -35,6 +35,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.ScaffoldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -59,6 +60,7 @@ import com.nila.skin.core.rules.Answer
 import com.nila.skin.core.rules.Question
 import com.nila.skin.core.rules.Source
 import com.nila.skin.core.rules.Step
+import com.nila.skin.ui.LocalSkinHost
 import com.nila.skin.ui.theme.Tone
 import com.nila.skin.ui.theme.stepColors
 import com.nila.skin.ui.theme.toneColors
@@ -77,18 +79,38 @@ fun SkinScaffold(
     val scroll = rememberScrollState()
     // Each stage of a check starts at the top, not where the last one ended.
     androidx.compose.runtime.LaunchedEffect(scrollKey) { scroll.scrollTo(0) }
+    // Inside Nila the screen already sits between Nila's status-bar padding and
+    // its bottom navigation, so it adds no insets of its own, and its home is
+    // titled the way Nila titles a tab.
+    val host = LocalSkinHost.current
+    val hosted = host != null
+    val noInsets = androidx.compose.foundation.layout.WindowInsets(0, 0, 0, 0)
     Scaffold(
         containerColor = scheme.background,
+        contentWindowInsets = if (hosted) noInsets else ScaffoldDefaults.contentWindowInsets,
         topBar = {
             TopAppBar(
-                title = { Text(title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold) },
+                title = {
+                    Text(
+                        title,
+                        style = if (hosted && onBack == null) MaterialTheme.typography.headlineSmall else MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                    )
+                },
                 navigationIcon = {
                     if (onBack != null) IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "Back")
                     }
                 },
-                actions = { actions() },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = scheme.background),
+                actions = {
+                    actions()
+                    if (host != null && onBack == null) host.actions(this)
+                },
+                windowInsets = if (hosted) noInsets else TopAppBarDefaults.windowInsets,
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = if (hosted) scheme.surface else scheme.background,
+                    actionIconContentColor = scheme.onSurface,
+                ),
             )
         },
     ) { pad ->
@@ -99,7 +121,7 @@ fun SkinScaffold(
                 .verticalScroll(scroll)
                 .padding(horizontal = 16.dp)
                 .padding(bottom = 24.dp)
-                .navigationBarsPadding(),
+                .then(if (hosted) Modifier else Modifier.navigationBarsPadding()),
             verticalArrangement = Arrangement.spacedBy(14.dp),
             content = content,
         )

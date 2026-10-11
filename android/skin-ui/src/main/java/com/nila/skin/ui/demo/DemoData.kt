@@ -136,6 +136,72 @@ object DemoData {
         }
     }
 
+    // ---- Samples inside one check, keeping the parent's own baby -------------
+    //
+    // Demo mode above replaces everything with a made-up baby. Inside Nila the
+    // baby is real, so each check can instead show a few labelled samples, built
+    // through the same measuring code: the skin diary with spots tracked over
+    // days, the eye check with earlier flash photos.
+
+    private suspend fun ageDaysNow(now: Long): Int =
+        SkinServices.dao.babyNow()?.let { ((now - it.birthMs) / DAY).toInt().coerceAtLeast(1) } ?: 120
+
+    /** Real photos of three common marks, plus two simulated series (one spreading, one settling) to show the trend. */
+    suspend fun loadSkinSamples() = withContext(Dispatchers.Default) {
+        val d = SkinServices.dao
+        if (d.sampleConcernCount() > 0) return@withContext
+        val now = System.currentTimeMillis()
+        val ageDays = ageDaysNow(now)
+        realEntry("Strawberry mark (sample)", ConcernKind.BIRTHMARK, BodyArea.ARMS_HANDS, ageDays, "demo/skin/infantile_hemangioma.jpg",
+            NCircle(0.56, 0.47, 0.2), now - 9 * DAY)
+        realEntry("Blue-grey patch (sample)", ConcernKind.BIRTHMARK, BodyArea.BACK, ageDays, "demo/skin/real_mongolian_spot.jpg",
+            NCircle(0.66, 0.43, 0.1), now - 20 * DAY)
+        realEntry("Flaky scalp (sample)", ConcernKind.DRY_PATCH, BodyArea.SCALP, ageDays, "demo/skin/real_cradle_cap.jpg",
+            NCircle(0.62, 0.55, 0.24), now - 5 * DAY)
+        val tone = Synth.TONES[2].second
+        // Spreading: more spots each day.
+        val tummy = d.addConcern(ConcernEntity(title = "Tummy spots (sample, simulated)", kind = ConcernKind.RASH.name, area = BodyArea.CHEST_BELLY.name, createdMs = now - 2 * DAY))
+        val rnd = Random(42)
+        val spots = List(16) { Synth.Spot(0.5 + (rnd.nextDouble() - 0.5) * 0.36, 0.5 + (rnd.nextDouble() - 0.5) * 0.36, 0.014 + rnd.nextDouble() * 0.012) }
+        listOf(2 to 5, 1 to 10, 0 to 16).forEachIndexed { i, (day, n) ->
+            val img = Synth.skin(640, tone, spots.take(n), deltaA = Synth.rednessFor(tone, 15.0), deltaL = -3.0, seed = 20 + i)
+            addEntry(tummy, ConcernKind.RASH, BodyArea.CHEST_BELLY, ageDays, img, now - day * DAY - 2 * H, NCircle(0.5, 0.5, 0.27))
+        }
+        // Settling: the same patch fading over five days.
+        val cheek = d.addConcern(ConcernEntity(title = "Cheek redness (sample, simulated)", kind = ConcernKind.RASH.name, area = BodyArea.FACE.name, createdMs = now - 5 * DAY))
+        val rnd2 = Random(7)
+        val patch = List(12) { Synth.Spot(0.5 + (rnd2.nextDouble() - 0.5) * 0.3, 0.5 + (rnd2.nextDouble() - 0.5) * 0.3, 0.02 + rnd2.nextDouble() * 0.014) }
+        listOf(Triple(5, 12, 16.0), Triple(3, 8, 11.0), Triple(1, 4, 7.0)).forEachIndexed { i, (day, n, red) ->
+            val img = Synth.skin(640, tone, patch.take(n), deltaA = Synth.rednessFor(tone, red), deltaL = -2.0, seed = 40 + i)
+            addEntry(cheek, ConcernKind.RASH, BodyArea.FACE, ageDays, img, now - day * DAY - 3 * H, NCircle(0.5, 0.5, 0.26))
+        }
+    }
+
+    suspend fun clearSkinSamples() = withContext(Dispatchers.IO) {
+        SkinServices.dao.wipeSampleEntries(); SkinServices.dao.wipeSampleConcerns()
+    }
+
+    /** Three earlier flash photos (real, Wikimedia Commons), read and decided as if taken over two weeks. */
+    suspend fun loadEyeSamples() = withContext(Dispatchers.Default) {
+        val d = SkinServices.dao
+        val now = System.currentTimeMillis()
+        var whiteLeft = 0; var whiteRight = 0
+        listOf(14 to "demo/eyes/red_eye_effect_2.jpg", 6 to "demo/eyes/a_child_with_a_white_eye_reflection_as_a.jpg",
+               2 to "demo/eyes/coats_disease_camera_with_flash.jpg").forEach { (day, asset) ->
+            val eye = SkinServices.photos.loadAsset(asset) ?: return@forEach
+            val found = runCatching { SkinServices.eyes.find(eye) }.getOrNull()
+            val pair = EyeReflex.readPair(PhotoStore.toPixels(eye, 1600), found?.left ?: NCircle(0.4, 0.45, 0.03), found?.right ?: NCircle(0.6, 0.45, 0.03))
+            if (pair.left.reflex == com.nila.skin.core.measure.Reflex.WHITE) whiteLeft++
+            if (pair.right.reflex == com.nila.skin.core.measure.Reflex.WHITE) whiteRight++
+            val adv = EyeRules.advise(EyeRules.Input(pair, whiteLeft - (if (pair.left.reflex == com.nila.skin.core.measure.Reflex.WHITE) 1 else 0),
+                whiteRight - (if (pair.right.reflex == com.nila.skin.core.measure.Reflex.WHITE) 1 else 0), emptyMap(), found?.angle))
+            d.addEye(EyeCheckEntity(timeMs = now - day * DAY, photoPath = SkinServices.photos.save(eye, "eye-sample"),
+                left = pair.left.reflex.name, right = pair.right.reflex.name, step = adv.step.name))
+        }
+    }
+
+    suspend fun clearEyeSamples() = withContext(Dispatchers.IO) { SkinServices.dao.wipeSampleEyes() }
+
     /** One check of a real demo photo, measured and decided like a parent's photo. */
     private suspend fun realEntry(title: String, kind: ConcernKind, area: BodyArea, ageDays: Int, asset: String, circle: NCircle, time: Long) {
         val bmp = SkinServices.photos.loadAsset(asset) ?: return

@@ -71,6 +71,11 @@ interface SkinDao {
     @Query("DELETE FROM eye_check") suspend fun wipeEyes()
     @Query("DELETE FROM yellow_check") suspend fun wipeYellows()
     @Query("DELETE FROM baby") suspend fun wipeBaby()
+    // Samples a host app adds for a demo are titled "(sample)" or saved as "sample" photos.
+    @Query("DELETE FROM skin_entry WHERE concernId IN (SELECT id FROM concern WHERE title LIKE '%(sample)%')") suspend fun wipeSampleEntries()
+    @Query("DELETE FROM concern WHERE title LIKE '%(sample)%'") suspend fun wipeSampleConcerns()
+    @Query("SELECT COUNT(*) FROM concern WHERE title LIKE '%(sample)%'") suspend fun sampleConcernCount(): Int
+    @Query("DELETE FROM eye_check WHERE photoPath LIKE '%sample%'") suspend fun wipeSampleEyes()
 }
 
 @Database(

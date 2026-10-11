@@ -27,6 +27,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -111,8 +112,7 @@ fun SkinListScreen(go: (String) -> Unit, back: () -> Unit) {
     var adding by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     SkinScaffold("Skin diary", onBack = back) {
-        ScreenHero("Track it, don't guess it",
-            "One photo a day of the same spot shows whether it's spreading or settling: the question every doctor asks.")
+        ScreenHero("Track it, don't guess it", "A photo every few days shows if a mark is spreading or settling.")
         if (!adding) PillButton("Track a new spot", onClick = { adding = true }, icon = Icons.Outlined.Add, modifier = Modifier.fillMaxWidth())
         if (adding) NewConcernCard(onCancel = { adding = false }) { c ->
             scope.launch {
@@ -121,8 +121,15 @@ fun SkinListScreen(go: (String) -> Unit, back: () -> Unit) {
                 go("check/$id")
             }
         }
-        if (concerns.isEmpty() && !adding) InfoNote("Nothing tracked yet. Most baby skin changes are harmless and pass; tracking just makes the change visible.")
-        OutlinePillButton("Common and harmless skin changes", onClick = { go("learn") }, modifier = Modifier.fillMaxWidth())
+        var loadingSamples by remember { mutableStateOf(false) }
+        if (concerns.isEmpty() && !adding) {
+            OutlinePillButton(if (loadingSamples) "Adding samples..." else "Show sample spots", enabled = !loadingSamples,
+                icon = Icons.Outlined.AutoAwesome, modifier = Modifier.fillMaxWidth(), onClick = {
+                    loadingSamples = true
+                    scope.launch { com.nila.skin.ui.demo.DemoData.loadSkinSamples(); loadingSamples = false }
+                })
+            MutedText("Real photos of three common marks, and two simulated rashes tracked over days.")
+        }
         if (concerns.isNotEmpty()) NilaCard(modifier = Modifier.fillMaxWidth(), verticalSpacing = 0.dp) {
             concerns.forEachIndexed { i, c ->
                 if (i > 0) RowDivider()
@@ -141,6 +148,10 @@ fun SkinListScreen(go: (String) -> Unit, back: () -> Unit) {
                 }
             }
         }
+        if (concerns.any { it.title.contains("(sample") }) TextButton(onClick = {
+            scope.launch { com.nila.skin.ui.demo.DemoData.clearSkinSamples() }
+        }) { Text("Remove the samples") }
+        OutlinePillButton("Usually harmless skin changes", onClick = { go("learn") }, modifier = Modifier.fillMaxWidth())
         NotADiagnosis()
     }
 }

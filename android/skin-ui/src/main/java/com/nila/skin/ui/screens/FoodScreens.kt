@@ -131,7 +131,7 @@ fun FoodScreen(baby: BabyEntity?, go: (String) -> Unit, back: () -> Unit) {
     }
 
     SkinScaffold("Food & reactions", onBack = back) {
-        ScreenHero("One new food at a time", "Log foods, answer a quick check-in after each new one, and Nila looks for foods that keep turning up before a reaction.")
+        ScreenHero("One new food at a time", "Log foods and Nila spots any that keep coming before a reaction.")
 
         // Check-ins due
         val due = logs.filter { Today.checkInDue(it, now) }
@@ -374,7 +374,7 @@ fun MealScreen(baby: BabyEntity?, back: () -> Unit) {
     var saved by remember { mutableStateOf(false) }
 
     SkinScaffold("Meal plate", onBack = back) {
-        ScreenHero("What's in the bowl?", "Photo a meal: the on-device AI suggests the foods, three independent checks test each one, you confirm, and Nila adds up nutrients against ICMR-NIN 2020 needs and WHO's food groups.")
+        ScreenHero("What's in the bowl?", "The AI suggests foods, three checks test each one, you confirm.")
         if (ageDays < 182) InfoNote("WHO recommends only breast milk or formula until about 6 months. You can still log foods your doctor has advised.", tone = Tone.PEACH)
 
         if (!saved) {

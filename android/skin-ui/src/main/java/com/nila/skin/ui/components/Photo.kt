@@ -154,6 +154,20 @@ fun CameraCapture(ghost: Bitmap?, flashOn: Boolean, onDismiss: () -> Unit, onRes
     val capture = remember { ImageCapture.Builder().setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY).build() }
     val executor = remember { Executors.newSingleThreadExecutor() }
     var busy by remember { mutableStateOf(false) }
+    // Inside Nila the safety watch may hold the camera; opening ours would stop it.
+    val blocked = com.nila.skin.ui.LocalSkinHost.current?.cameraBusy?.invoke()
+    if (blocked != null) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = onDismiss,
+            confirmButton = { androidx.compose.material3.TextButton(onClick = onDismiss) { Text("OK") } },
+            title = { Text("Camera in use") },
+            text = { Text(blocked) },
+        )
+        return
+    }
+    // Only this screen's own use cases are bound and released, never the whole
+    // camera: inside Nila another feature may be using it.
+    var preview by remember { mutableStateOf<Preview?>(null) }
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
         Box(Modifier.fillMaxSize().background(Color.Black)) {
             AndroidView(factory = { ctx ->
@@ -161,10 +175,11 @@ fun CameraCapture(ghost: Bitmap?, flashOn: Boolean, onDismiss: () -> Unit, onRes
                 val future = ProcessCameraProvider.getInstance(ctx)
                 future.addListener({
                     val provider = future.get()
-                    val preview = Preview.Builder().build().also { it.surfaceProvider = view.surfaceProvider }
+                    val p = Preview.Builder().build().also { it.surfaceProvider = view.surfaceProvider }
+                    preview = p
                     runCatching {
-                        provider.unbindAll()
-                        provider.bindToLifecycle(owner, CameraSelector.DEFAULT_BACK_CAMERA, preview, capture)
+                        provider.unbind(p, capture)
+                        provider.bindToLifecycle(owner, CameraSelector.DEFAULT_BACK_CAMERA, p, capture)
                     }
                 }, ContextCompat.getMainExecutor(ctx))
                 view
@@ -201,7 +216,16 @@ fun CameraCapture(ghost: Bitmap?, flashOn: Boolean, onDismiss: () -> Unit, onRes
             )
         }
     }
-    DisposableEffect(Unit) { onDispose { runCatching { ProcessCameraProvider.getInstance(context).get().unbindAll() }; executor.shutdown() } }
+    DisposableEffect(Unit) {
+        onDispose {
+            runCatching {
+                val provider = ProcessCameraProvider.getInstance(context).get()
+                preview?.let { provider.unbind(it) }
+                provider.unbind(capture)
+            }
+            executor.shutdown()
+        }
+    }
 }
 
 private fun upright(image: ImageProxy): Bitmap {
