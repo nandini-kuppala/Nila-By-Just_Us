@@ -73,7 +73,7 @@ A phone photo is a guess at colour: auto white balance, auto exposure, and the l
 
 ## 3-minute demo
 
-1. **Home, then Demo lab, then Run every offline demo.** Fifteen everyday moments in one scroll. Most end in "normal, here's why". Linger on:
+1. **Home, then Quick demo.** Every feature as photo in → result out, one scroll. Then, if there is time, **How Nila decides → Demo lab, then Run every offline demo.** Fifteen everyday moments in one scroll. Most end in "normal, here's why". Linger on:
    - the night nappy, where three colour chips say "looks brown, is pale";
    - the family flash photo;
    - red cheeks after banana.

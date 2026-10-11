@@ -139,12 +139,8 @@ fun StoolScreen(baby: BabyEntity?, back: () -> Unit) {
     var rawColour by remember { mutableStateOf<com.nila.skin.core.color.Lab?>(null) }
 
     SkinScaffold("Nappy colour check", onBack = back, scrollKey = advice == null) {
-        ScreenHero("The poo colour card", "Pale poo is the first visible sign of biliary atresia, a liver condition where every week counts. A daily look in the first month catches it.")
-        FactCard("Why this matters", Icons.Outlined.Science, Tone.BLUE, listOf(
-            "Taiwan put a stool colour card in every baby's health booklet in 2004. Five-year survival for biliary atresia rose from 55.7% to 89.3%.",
-            "Surgery before 60 days of age works best; the card moved more babies into that window.",
-            "Colours 1-6 below are sampled from Newborn Screening Ontario's card: any of them means call your doctor.",
-        ), footer = Source.STOOL_CARD.full)
+        ScreenHero("The poo colour card", "A quick look each day in the first month. Most days: normal.")
+        MutedText("Colours 1-6 below are the pale colours on Newborn Screening Ontario's card: any of them means call your doctor.")
 
         if (advice == null) {
             if (photo == null) PhotoInput("stool", onPhoto = { b, _ ->
@@ -282,12 +278,8 @@ fun EyeScreen(baby: BabyEntity?, back: () -> Unit) {
     }
 
     SkinScaffold("Eye flash check", onBack = back, scrollKey = advice == null) {
-        ScreenHero("Red is the usual glow", "In a flash photo, healthy eyes usually glow red. A white or yellow glow in the pupil is worth a quick red reflex test by a doctor.")
-        FactCard("Why this matters", Icons.Outlined.RemoveRedEye, Tone.PLUM, listOf(
-            "A white pupil glow (leukocoria) can be the first sign of retinoblastoma, cataract or Coats' disease.",
-            "In Baylor's CRADLE study, white-eye showed in family photos for 80% of affected children, about 1.3 years before diagnosis.",
-            "It also appears now and then in healthy eyes with an off-angle flash, so one photo is never enough to worry.",
-        ), footer = Source.RED_REFLEX.full)
+        ScreenHero("Red is the usual glow", "In flash photos healthy eyes glow red. A white glow, again and again, is worth a quick eye check.")
+        MutedText("One white photo is never enough to worry: an off-angle flash can do it in healthy eyes.")
 
         if (advice == null) {
             if (photo == null) {

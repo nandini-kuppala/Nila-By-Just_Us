@@ -24,6 +24,7 @@ No account, no network, and no photo ever leaves the phone unless the parent sha
 | **Yellow check** | Colour-corrected eye-white record, with no bilirubin estimate | WHO IMNCI young-infant jaundice rows, NHS 14/21-day rule |
 | **Glass test** | Guidance only; the camera deliberately does not judge it | NHS |
 | **Doctor report** | One PDF: photos side by side, measurements, trend, answers, foods in the 48 h before each reaction | — |
+| **Quick demo** | Every feature as photo in → result out (outlines, circles, colour chips, texture map, food checks), pre-computed so it opens instantly | — |
 | **Demo lab** | 15 everyday moments, each run live in one tap: is this poo normal, tiny spots on the nose, a mark to watch, red cheeks after a new food, enough iron, and the quiet catches (a night nappy under a lamp, one white pupil in a flash photo) | — |
 | **Gentle reminders** | Opt-in, silent: check-in two hours after a first food, photo the same spot tomorrow (WorkManager, on the phone) | — |
 | **How Nila decides** | Every rule and source, plus a **self-test** that runs on the phone | — |

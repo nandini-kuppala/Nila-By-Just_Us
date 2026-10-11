@@ -68,7 +68,7 @@ fun HomeScreen(baby: BabyEntity?, go: (String) -> Unit, onExit: (() -> Unit)?) {
     SkinScaffold(title = "Little Signs", onBack = onExit) {
         ScreenHero(
             title = "Notice early. Stay calm. Show your doctor.",
-            body = "For the little things between check-ups: is this normal, is it changing, was it the food? Photos, simple checks and published guidelines, all on this phone. Nila describes and measures; your doctor diagnoses.",
+            body = "For the little things between check-ups. Nila describes and measures; your doctor diagnoses.",
         )
         ModelStatusPill(status)
 
@@ -78,7 +78,7 @@ fun HomeScreen(baby: BabyEntity?, go: (String) -> Unit, onExit: (() -> Unit)?) {
                 Text("Their age decides which checks apply: a fever means something different at 2 months than at 8.",
                     style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 PillButton("Add your baby", onClick = { go("profile") }, icon = Icons.Outlined.ChildCare, modifier = Modifier.fillMaxWidth())
-                OutlinePillButton("Demo lab: everyday moments, one tap each", onClick = { go("demo") }, icon = Icons.Outlined.Science, modifier = Modifier.fillMaxWidth())
+                OutlinePillButton("Quick demo", onClick = { go("quick") }, icon = Icons.Outlined.Science, modifier = Modifier.fillMaxWidth())
                 OutlinePillButton(if (seeding) "Loading demo..." else "Demo mode for judges", enabled = !seeding, onClick = {
                     seeding = true
                     scope.launch { DemoData.load(); seeding = false }
@@ -119,7 +119,7 @@ fun HomeScreen(baby: BabyEntity?, go: (String) -> Unit, onExit: (() -> Unit)?) {
         }
 
         NilaCard(modifier = Modifier.fillMaxWidth(), tone = Tone.PLUM, verticalSpacing = 0.dp) {
-            ListRow("Demo lab", subtitle = "15 everyday moments, each run live: is this poo normal, tiny spots, a mark to watch, red cheeks after a new food, enough iron...", icon = Icons.Outlined.Science, tone = Tone.PLUM, onClick = { go("demo") })
+            ListRow("Quick demo", subtitle = "Every feature: photo in, result out", icon = Icons.Outlined.Science, tone = Tone.PLUM, onClick = { go("quick") })
         }
 
         SectionTitle("For the doctor")

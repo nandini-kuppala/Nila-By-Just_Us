@@ -35,6 +35,8 @@ object SkinServices {
         this.vision = vision ?: NpuVisionModel(appContext)
         eyes = FaceEyes(appContext)
         ready = true
+        // The quick demo is computed in the background, so it opens instantly.
+        com.nila.skin.ui.screens.QuickDemo.warm()
     }
 }
 

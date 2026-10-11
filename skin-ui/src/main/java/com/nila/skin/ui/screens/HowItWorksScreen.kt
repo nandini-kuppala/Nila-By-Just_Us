@@ -54,7 +54,7 @@ import kotlin.math.PI
 import kotlin.math.abs
 
 @Composable
-fun HowItWorksScreen(back: () -> Unit) {
+fun HowItWorksScreen(back: () -> Unit, go: (String) -> Unit = {}) {
     val scope = rememberCoroutineScope()
     val status by SkinServices.vision.status.collectAsState()
     var test by remember { mutableStateOf<SelfTest?>(null) }
@@ -98,6 +98,7 @@ fun HowItWorksScreen(back: () -> Unit) {
             "Send a photo anywhere. Everything stays on this phone.",
         ))
 
+        OutlinePillButton("Demo lab: 15 everyday moments, step by step", onClick = { go("demo") }, modifier = Modifier.fillMaxWidth())
         Heading("The guidelines")
         NilaCard(modifier = Modifier.fillMaxWidth(), verticalSpacing = 0.dp) {
             Source.entries.forEachIndexed { i, s ->
